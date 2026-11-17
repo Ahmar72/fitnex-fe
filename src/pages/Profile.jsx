@@ -864,38 +864,38 @@ export default function Profile() {
                                 <Sun width={14} height={14} /> <span>{t('profile.light_theme', 'Light theme')}</span>
                               </button>
                             </div>
-                          </div>
 
-                          <div style={{ marginTop: 22 }}>
-                            <label className="field" style={{ maxWidth: 360, margin: 0 }}>
-                              <span className="field-label" style={{ fontWeight: 700, marginBottom: 8, display: 'block' }}>
-                                {t('profile.cursor_color', 'Cursor Color')}
-                              </span>
-                              <div className="select-wrap" style={{ position: 'relative' }}>
-                                <select
-                                  className="input cursor-color-select"
-                                  value={cursorColor}
-                                  onChange={(e) => handleCursorColorChange(e.target.value)}
-                                  style={{
-                                    width: '100%',
-                                    height: 48,
-                                    padding: '0 40px 0 16px',
-                                    fontSize: 14,
-                                    fontWeight: 600,
-                                    borderRadius: 12,
-                                    textAlign: 'left',
-                                    cursor: 'pointer',
-                                    background: 'var(--surface-1, #ffffff)',
-                                    border: '1px solid var(--line-2, #e4e4e7)',
-                                    color: 'var(--text, #18181b)'
-                                  }}
-                                >
-                                  <option value="black">⚫ Black (Classic clean)</option>
-                                  <option value="white">⚪ White (Recommended for Dark mode)</option>
-                                  <option value="orange">🟠 Orange (Brand signature)</option>
-                                </select>
-                              </div>
-                            </label>
+                            <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--line, rgba(0, 0, 0, 0.08))' }}>
+                              <label className="field" style={{ maxWidth: 360, margin: 0 }}>
+                                <span className="field-label" style={{ fontWeight: 700, marginBottom: 8, display: 'block', fontSize: 13 }}>
+                                  {t('profile.cursor_color', 'Cursor Color')}
+                                </span>
+                                <div className="select-wrap" style={{ position: 'relative' }}>
+                                  <select
+                                    className="input cursor-color-select"
+                                    value={cursorColor}
+                                    onChange={(e) => handleCursorColorChange(e.target.value)}
+                                    style={{
+                                      width: '100%',
+                                      height: 46,
+                                      padding: '0 36px 0 14px',
+                                      fontSize: 14,
+                                      fontWeight: 600,
+                                      borderRadius: 10,
+                                      textAlign: 'left',
+                                      cursor: 'pointer',
+                                      background: 'var(--surface-1, #ffffff)',
+                                      border: '1px solid var(--line-2, #e4e4e7)',
+                                      color: 'var(--text, #18181b)'
+                                    }}
+                                  >
+                                    <option value="black">⚫ Black (Classic clean)</option>
+                                    <option value="white">⚪ White (Recommended for Dark mode)</option>
+                                    <option value="orange">🟠 Orange (Brand signature)</option>
+                                  </select>
+                                </div>
+                              </label>
+                            </div>
                           </div>
                         </motion.div>
                       )}
