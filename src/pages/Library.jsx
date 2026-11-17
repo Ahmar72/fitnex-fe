@@ -9,8 +9,6 @@ import { Reveal, SplitText } from '../components/Motion.jsx';
 import { Arrow, ArrowLeft, Grid, ListIcon, Search, X } from '../components/Icons.jsx';
 import { BODY_PARTS, partMeta } from '../lib/utils.js';
 
-const PAGE_SIZE = 24;
-
 export default function Library() {
   const { exercises, facets, ready } = useData();
   const { favorites } = useWorkout();
@@ -20,6 +18,24 @@ export default function Library() {
   const deferred = useDeferredValue(query);
   const input = useRef(null);
   const gridTopRef = useRef(null);
+
+  // Cards per page setting (selectable: 12, 24, 48, 96, default 24)
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem('fx:library-page-size'));
+      if ([12, 24, 48, 96].includes(saved)) return saved;
+    } catch {}
+    return 24;
+  });
+
+  const handlePageSizeChange = (newSize) => {
+    const size = Number(newSize);
+    setPageSize(size);
+    setCurrentPage(1);
+    try {
+      localStorage.setItem('fx:library-page-size', String(size));
+    } catch {}
+  };
 
   // View Mode: 'grid' or 'list' (persisted in localStorage)
   const [viewMode, setViewMode] = useState(() => {
@@ -43,8 +59,8 @@ export default function Library() {
   const fav = params.get('fav') === '1';
   const sort = params.get('sort') || 'az';
 
-  const initialPage = parseInt(params.get('page'), 10);
-  const [currentPage, setCurrentPage] = useState(!isNaN(initialPage) && initialPage > 0 ? initialPage : 1);
+  // Reliable independent page state
+  const [currentPage, setCurrentPage] = useState(1);
 
   const set = (k, v) => {
     setParams(
@@ -96,29 +112,38 @@ export default function Library() {
     return list;
   }, [exercises, deferred, part, eq, target, fav, favorites, sort]);
 
-  // Reset to page 1 whenever any filter or search query changes
+  // Reset to page 1 ONLY when an actual filter or query changes
+  const prevFiltersRef = useRef({ deferred, part, eq, target, fav, sort });
   useEffect(() => {
-    setCurrentPage(1);
-    set('page', '');
+    const prev = prevFiltersRef.current;
+    if (
+      prev.deferred !== deferred ||
+      prev.part !== part ||
+      prev.eq !== eq ||
+      prev.target !== target ||
+      prev.fav !== fav ||
+      prev.sort !== sort
+    ) {
+      setCurrentPage(1);
+      prevFiltersRef.current = { deferred, part, eq, target, fav, sort };
+    }
   }, [deferred, part, eq, target, fav, sort]);
 
-  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(results.length / pageSize));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
 
   const paginatedExercises = useMemo(() => {
-    const start = (safePage - 1) * PAGE_SIZE;
-    return results.slice(start, start + PAGE_SIZE);
-  }, [results, safePage]);
+    const start = (safePage - 1) * pageSize;
+    return results.slice(start, start + pageSize);
+  }, [results, safePage, pageSize]);
 
   const handlePageChange = (newPage) => {
     const valid = Math.min(Math.max(1, newPage), totalPages);
     setCurrentPage(valid);
-    set('page', valid > 1 ? String(valid) : '');
     if (gridTopRef.current) {
-      const offset = gridTopRef.current.getBoundingClientRect().top + window.scrollY - 110;
-      window.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const rect = gridTopRef.current.getBoundingClientRect();
+      const targetY = rect.top + window.scrollY - 100;
+      window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
     }
   };
 
@@ -140,6 +165,7 @@ export default function Library() {
   const reset = () => {
     setQuery('');
     setParams({}, { replace: true });
+    setCurrentPage(1);
   };
 
   return (
@@ -201,34 +227,53 @@ export default function Library() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
               <span>
                 {t('lib.showing', 'Showing')}{' '}
-                <strong>{results.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, results.length)}</strong>{' '}
+                <strong>{results.length === 0 ? 0 : (safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, results.length)}</strong>{' '}
                 {t('lib.of', 'of')} <strong>{results.length.toLocaleString()}</strong> {t('lib.exercises', 'exercises')}
                 {part && <> in <strong>{t(`part.${part}`, partMeta(part).label)}</strong></>}
               </span>
               {active && <button className="link-btn" onClick={reset}>{t('lib.clear_filters', 'Clear all filters')}</button>}
             </div>
 
-            <div className="view-mode-toggle" role="group" aria-label="View mode">
-              <button
-                type="button"
-                className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                onClick={() => handleToggleView('grid')}
-                title="Grid view"
-                aria-pressed={viewMode === 'grid'}
-              >
-                <Grid width={15} height={15} />
-                <span>Grid</span>
-              </button>
-              <button
-                type="button"
-                className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
-                onClick={() => handleToggleView('list')}
-                title="List view"
-                aria-pressed={viewMode === 'list'}
-              >
-                <ListIcon width={15} height={15} />
-                <span>List</span>
-              </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              {/* Option to select how many cards to show on a page */}
+              <div className="cards-per-page-selector" title="Select cards to show per page">
+                <span className="selector-label">Per page:</span>
+                <div className="selector-pills">
+                  {[12, 24, 48, 96].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      className={`selector-pill-btn ${pageSize === num ? 'active' : ''}`}
+                      onClick={() => handlePageSizeChange(num)}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="view-mode-toggle" role="group" aria-label="View mode">
+                <button
+                  type="button"
+                  className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                  onClick={() => handleToggleView('grid')}
+                  title="Grid view"
+                  aria-pressed={viewMode === 'grid'}
+                >
+                  <Grid width={15} height={15} />
+                  <span>Grid</span>
+                </button>
+                <button
+                  type="button"
+                  className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+                  onClick={() => handleToggleView('list')}
+                  title="List view"
+                  aria-pressed={viewMode === 'list'}
+                >
+                  <ListIcon width={15} height={15} />
+                  <span>List</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -242,16 +287,26 @@ export default function Library() {
             </div>
           ) : (
             <>
-              <div className={viewMode === 'list' ? 'ex-list' : 'ex-grid'}>
-                {paginatedExercises.map((e, i) => (
-                  <ExerciseCard key={e.id} ex={e} index={i} viewMode={viewMode} />
-                ))}
-              </div>
+              {/* Smooth & catchy GPU-accelerated view toggle animation */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={viewMode}
+                  className={viewMode === 'list' ? 'ex-list' : 'ex-grid'}
+                  initial={{ opacity: 0, y: 12, scale: 0.985 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -12, scale: 0.985 }}
+                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  {paginatedExercises.map((e, i) => (
+                    <ExerciseCard key={e.id} ex={e} index={i} viewMode={viewMode} />
+                  ))}
+                </motion.div>
+              </AnimatePresence>
 
               {totalPages > 1 && (
                 <div className="pagination-bar">
                   <div className="pagination-info">
-                    Showing <strong>{(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, results.length)}</strong> of <strong>{results.length.toLocaleString()}</strong> exercises (Page {safePage} of {totalPages})
+                    Showing <strong>{(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, results.length)}</strong> of <strong>{results.length.toLocaleString()}</strong> exercises (Page {safePage} of {totalPages})
                   </div>
                   <div className="pagination-controls">
                     <button

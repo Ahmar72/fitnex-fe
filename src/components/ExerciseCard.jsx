@@ -55,25 +55,27 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
         <div className="ex-list-actions" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
-            className={`icon-btn ${fav ? 'on' : ''}`}
+            className={`action-circle-btn fav-btn ${fav ? 'on' : ''}`}
             onClick={stop(() => toggleFavorite(ex.id))}
             aria-label={fav ? 'Remove favourite' : 'Add favourite'}
             title={fav ? 'Remove favourite' : 'Add favourite'}
           >
-            <Heart filled={fav} />
+            <Heart
+              width={16}
+              height={16}
+              stroke={fav ? '#ef4444' : '#ff5500'}
+              fill={fav ? '#ef4444' : '#ffffff'}
+            />
           </button>
           <button
             type="button"
-            className="icon-btn"
+            className="action-circle-btn plus-btn"
             onClick={stop(() => addToWorkout(ex.id))}
             aria-label="Add to workout"
             title="Add to workout"
           >
-            <Plus />
+            <Plus width={16} height={16} stroke="#ff5500" />
           </button>
-          <span className="ex-list-btn" title="View exercise details">
-            View <ArrowUpRight width={14} height={14} />
-          </span>
         </div>
       </motion.article>
     );
@@ -105,12 +107,29 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
           </div>
         </div>
       </Link>
-      <div className="ex-actions">
-        <button className={`icon-btn ${fav ? 'on' : ''}`} onClick={stop(() => toggleFavorite(ex.id))} aria-label={fav ? 'Remove favourite' : 'Add favourite'}>
-          <Heart filled={fav} />
+      <div className="ex-actions" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className={`action-circle-btn fav-btn ${fav ? 'on' : ''}`}
+          onClick={stop(() => toggleFavorite(ex.id))}
+          aria-label={fav ? 'Remove favourite' : 'Add favourite'}
+          title={fav ? 'Remove favourite' : 'Add favourite'}
+        >
+          <Heart
+            width={16}
+            height={16}
+            stroke={fav ? '#ef4444' : '#ff5500'}
+            fill={fav ? '#ef4444' : '#ffffff'}
+          />
         </button>
-        <button className="icon-btn" onClick={stop(() => addToWorkout(ex.id))} aria-label="Add to workout">
-          <Plus />
+        <button
+          type="button"
+          className="action-circle-btn plus-btn"
+          onClick={stop(() => addToWorkout(ex.id))}
+          aria-label="Add to workout"
+          title="Add to workout"
+        >
+          <Plus width={16} height={16} stroke="#ff5500" />
         </button>
       </div>
     </motion.article>
