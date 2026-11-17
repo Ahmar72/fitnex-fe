@@ -27,10 +27,28 @@ const WorkoutItem = forwardRef(function WorkoutItem({ item, ex, index, total }, 
       transition={{ duration: 0.5, ease }}
     >
       <div className="wk-item-head">
-        <Link to={`/exercises/${ex.id}`}><Paper src={ex.image} gif={ex.gif} autoplay alt={ex.name} /></Link>
+        <Link to={`/exercises/${ex.id}`} title="View exercise details">
+          <Paper src={ex.image} gif={ex.gif} autoplay alt={ex.name} />
+        </Link>
         <div className="grow">
-          <h3>{ex.name}</h3>
-          <span className="chip">{ex.target}</span> <span className="chip">{ex.equipment}</span>
+          <Link
+            to={`/exercises/${ex.id}`}
+            className="wk-item-title-link"
+            title="Click to view exercise details"
+          >
+            <h3>{ex.name}</h3>
+          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+            <span className="chip">{ex.target}</span>
+            <span className="chip">{ex.equipment}</span>
+            <Link
+              to={`/exercises/${ex.id}`}
+              className="wk-item-view-link"
+              title="View full exercise details"
+            >
+              View details ↗
+            </Link>
+          </div>
         </div>
         <div className="tools">
           <button className="icon-btn" onClick={() => moveItem(item.uid, -1)} disabled={index === 0} aria-label="Move up" style={{ opacity: index === 0 ? 0.3 : 1 }}><Up /></button>
@@ -39,7 +57,13 @@ const WorkoutItem = forwardRef(function WorkoutItem({ item, ex, index, total }, 
         </div>
       </div>
       <div className="sets">
-        <div className="set-row head"><span style={{ textAlign: 'center' }}>{t('builder.col_set', 'Set')}</span><span>{t('builder.col_kg', 'Kg')}</span><span>{t('builder.col_reps', 'Reps')}</span><span>{t('builder.col_done', 'Done')}</span><span /></div>
+        <div className="set-row head">
+          <span style={{ textAlign: 'center' }}>{t('builder.col_set', 'Set')}</span>
+          <span>{t('builder.col_kg', 'Kg')}</span>
+          <span>{t('builder.col_reps', 'Reps')}</span>
+          <span style={{ textAlign: 'center' }}>{t('builder.col_status', 'Status')}</span>
+          <span />
+        </div>
         <AnimatePresence initial={false}>
           {item.sets.map((s, i) => (
             <motion.div
@@ -51,12 +75,50 @@ const WorkoutItem = forwardRef(function WorkoutItem({ item, ex, index, total }, 
               transition={{ duration: 0.3 }}
             >
               <span className="n">{i + 1}</span>
-              <input className="num-input" type="number" min="0" step="0.5" value={s.weight} onChange={(e) => updateSet(item.uid, s.id, { weight: e.target.value })} aria-label={`Set ${i + 1} weight`} />
-              <input className="num-input" type="number" min="0" value={s.reps} onChange={(e) => updateSet(item.uid, s.id, { reps: e.target.value })} aria-label={`Set ${i + 1} reps`} />
-              <button className={`check ${s.done ? 'on' : ''}`} onClick={() => updateSet(item.uid, s.id, { done: !s.done })} aria-label="Toggle set done">
-                <AnimatePresence>{s.done && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}><Check width={18} height={18} /></motion.span>}</AnimatePresence>
+              <input
+                className="num-input"
+                type="number"
+                min="0"
+                step="0.5"
+                value={s.weight}
+                disabled={s.done}
+                onChange={(e) => updateSet(item.uid, s.id, { weight: e.target.value })}
+                aria-label={`Set ${i + 1} weight`}
+              />
+              <input
+                className="num-input"
+                type="number"
+                min="0"
+                value={s.reps}
+                disabled={s.done}
+                onChange={(e) => updateSet(item.uid, s.id, { reps: e.target.value })}
+                aria-label={`Set ${i + 1} reps`}
+              />
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                {s.done ? (
+                  <span className="builder-set-done-badge" title="Set completed (locked)">
+                    <Check width={14} height={14} /> Done
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="builder-set-start-btn"
+                    onClick={() => updateSet(item.uid, s.id, { done: true })}
+                    aria-label={`Start set ${i + 1}`}
+                  >
+                    <Play width={12} height={12} /> Start
+                  </button>
+                )}
+              </div>
+              <button
+                className="x-btn"
+                onClick={() => !s.done && removeSet(item.uid, s.id)}
+                disabled={s.done}
+                style={{ opacity: s.done ? 0.25 : 1, cursor: s.done ? 'not-allowed' : 'pointer' }}
+                aria-label="Remove set"
+              >
+                <X width={16} height={16} />
               </button>
-              <button className="x-btn" onClick={() => removeSet(item.uid, s.id)} aria-label="Remove set"><X width={16} height={16} /></button>
             </motion.div>
           ))}
         </AnimatePresence>
@@ -96,11 +158,10 @@ function LiveMode({ items, byId, onClose }) {
   const C = 2 * Math.PI * 56;
 
   const tick = (s) => {
-    updateSet(item.uid, s.id, { done: !s.done });
-    if (!s.done) {
-      setRestMax(60);
-      setRest(60);
-    }
+    if (s.done) return;
+    updateSet(item.uid, s.id, { done: true });
+    setRestMax(60);
+    setRest(60);
   };
   const end = () => {
     if (finish()) onClose();
@@ -144,11 +205,24 @@ function LiveMode({ items, byId, onClose }) {
 
         <div className="sets">
           {item.sets.map((s, i) => (
-            <div key={s.id} className={`set-row ${s.done ? 'done' : ''}`} style={{ gridTemplateColumns: '50px 1fr 1fr 44px' }}>
+            <div key={s.id} className={`set-row ${s.done ? 'done' : ''}`} style={{ gridTemplateColumns: '46px 1fr 1fr 90px' }}>
               <span className="n">{i + 1}</span>
-              <input className="num-input" type="number" value={s.weight} onChange={(e) => updateSet(item.uid, s.id, { weight: e.target.value })} aria-label="Weight" />
-              <input className="num-input" type="number" value={s.reps} onChange={(e) => updateSet(item.uid, s.id, { reps: e.target.value })} aria-label="Reps" />
-              <button className={`check ${s.done ? 'on' : ''}`} onClick={() => tick(s)} aria-label="Toggle set done">{s.done && <Check width={18} height={18} />}</button>
+              <input className="num-input" type="number" value={s.weight} disabled={s.done} onChange={(e) => updateSet(item.uid, s.id, { weight: e.target.value })} aria-label="Weight" />
+              <input className="num-input" type="number" value={s.reps} disabled={s.done} onChange={(e) => updateSet(item.uid, s.id, { reps: e.target.value })} aria-label="Reps" />
+              {s.done ? (
+                <span className="builder-set-done-badge" title="Set completed (locked)">
+                  <Check width={14} height={14} /> Done
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="builder-set-start-btn"
+                  onClick={() => tick(s)}
+                  aria-label={`Start set ${i + 1}`}
+                >
+                  <Play width={12} height={12} /> Start
+                </button>
+              )}
             </div>
           ))}
         </div>

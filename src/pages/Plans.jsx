@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../context/DataContext.jsx';
@@ -323,6 +323,30 @@ export default function Plans() {
     return () => clearInterval(timer);
   }, [Boolean(liveWorkoutSession)]);
 
+  // Track timer transitions to trigger audio chime and single toast without side-effects in state updaters
+  const timerTransitionRef = useRef({ mode: null, setIdx: null });
+  useEffect(() => {
+    const curTimer = liveWorkoutSession?.activeTimer;
+    const prev = timerTransitionRef.current;
+
+    if (!curTimer) {
+      if (prev.mode === 'rest') {
+        playChimeSound();
+        toast('Rest completed! Ready for next set.', 'bolt');
+      }
+    } else if (curTimer.mode === 'rest' && prev.mode === 'set') {
+      playChimeSound();
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([120, 60, 120]);
+      }
+      toast(`Set ${curTimer.setIdx + 1} completed! Rest timer started.`, 'bolt');
+    }
+
+    timerTransitionRef.current = curTimer
+      ? { mode: curTimer.mode, setIdx: curTimer.setIdx }
+      : { mode: null, setIdx: null };
+  }, [liveWorkoutSession?.activeTimer, toast]);
+
   // Countdown timer effect:
   // 1. SET mode: runs for set work duration. When finished, marks set DONE and AUTOMATICALLY starts REST timer!
   // 2. REST mode: counts down rest duration. When finished, clears timer and notifies ready for next set!
@@ -341,13 +365,6 @@ export default function Plans() {
             // Set completed! Mark DONE automatically!
             const currentSets = prev.setsMap[exId] || [];
             const updatedSets = currentSets.map((s, idx) => (idx === setIdx ? { ...s, done: true } : s));
-
-            playChimeSound();
-            if (typeof navigator !== 'undefined' && navigator.vibrate) {
-              navigator.vibrate([120, 60, 120]);
-            }
-
-            toast(`Set ${setIdx + 1} completed! Rest timer started.`, 'bolt');
 
             // AUTOMATICALLY start REST TIMER!
             const restDuration = prev.restDuration || 60;
@@ -368,8 +385,6 @@ export default function Plans() {
             };
           } else {
             // Rest timer finished! Clear timer and signal ready for next set
-            playChimeSound();
-            toast('Rest completed! Ready for next set.', 'bolt');
             return {
               ...prev,
               activeTimer: null,
@@ -388,7 +403,7 @@ export default function Plans() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [liveWorkoutSession?.activeTimer?.isRunning, toast]);
+  }, [liveWorkoutSession?.activeTimer?.isRunning]);
 
   // Click on "Start" for a set: starts the SET DURATION timer (not rest).
   // Once a set is completed, it cannot be edited or restarted.
@@ -418,45 +433,39 @@ export default function Plans() {
 
   // Complete set early and immediately start the automatic rest timer
   const handleCompleteSetEarly = () => {
-    setLiveWorkoutSession((prev) => {
-      if (!prev?.activeTimer || prev.activeTimer.mode !== 'set') return prev;
-      const { exId, setIdx } = prev.activeTimer;
-      const currentSets = prev.setsMap[exId] || [];
-      const updatedSets = currentSets.map((s, idx) => (idx === setIdx ? { ...s, done: true } : s));
+    if (!liveWorkoutSession?.activeTimer || liveWorkoutSession.activeTimer.mode !== 'set') return;
+    const { exId, setIdx } = liveWorkoutSession.activeTimer;
+    const currentSets = liveWorkoutSession.setsMap[exId] || [];
+    const updatedSets = currentSets.map((s, idx) => (idx === setIdx ? { ...s, done: true } : s));
+    const restDuration = liveWorkoutSession.restDuration || 60;
 
-      playChimeSound();
-      toast(`Set ${setIdx + 1} completed! Rest timer started.`, 'bolt');
-
-      const restDuration = prev.restDuration || 60;
-      return {
-        ...prev,
-        setsMap: {
-          ...prev.setsMap,
-          [exId]: updatedSets,
-        },
-        activeTimer: {
-          mode: 'rest',
-          exId,
-          setIdx,
-          secondsLeft: restDuration,
-          totalSeconds: restDuration,
-          isRunning: true,
-        },
-      };
-    });
+    setLiveWorkoutSession((prev) => ({
+      ...prev,
+      setsMap: {
+        ...prev.setsMap,
+        [exId]: updatedSets,
+      },
+      activeTimer: {
+        mode: 'rest',
+        exId,
+        setIdx,
+        secondsLeft: restDuration,
+        totalSeconds: restDuration,
+        isRunning: true,
+      },
+    }));
   };
 
   // Skip the rest timer
   const skipRestTimer = () => {
-    setLiveWorkoutSession((prev) => {
-      if (!prev?.activeTimer) return prev;
-      playChimeSound();
-      toast('Rest skipped! Ready for next set.', 'bolt');
-      return {
-        ...prev,
-        activeTimer: null,
-      };
-    });
+    if (!liveWorkoutSession?.activeTimer) return;
+    timerTransitionRef.current = { mode: null, setIdx: null };
+    setLiveWorkoutSession((prev) => ({
+      ...prev,
+      activeTimer: null,
+    }));
+    playChimeSound();
+    toast('Rest skipped! Ready for next set.', 'bolt');
   };
 
   // Adjust timer by seconds
@@ -491,16 +500,24 @@ export default function Plans() {
     // Immediately stop live workout session so the timer freezes at this exact moment!
     setLiveWorkoutSession(null);
 
-    let totalSetsDone = 0;
-    exercises.forEach((ex) => {
+    // Calculate EXACT recorded completed sets for each exercise
+    const exerciseBreakdown = exercises.map((ex) => {
       const s = setsMap[ex.id] || [];
-      totalSetsDone += s.filter((item) => item.done).length;
+      const completedSets = s.filter((item) => item.done).length;
+      const totalSets = s.length > 0 ? s.length : 4;
+      return {
+        ...ex,
+        completedSets,
+        totalSets,
+      };
     });
-    if (totalSetsDone === 0) totalSetsDone = exercises.length * 4;
+
+    const totalSetsDone = exerciseBreakdown.reduce((acc, ex) => acc + ex.completedSets, 0);
+    const totalPossibleSets = exerciseBreakdown.reduce((acc, ex) => acc + ex.totalSets, 0);
 
     const burnedCalories = Math.max(
-      120,
-      Math.round(180 + totalSetsDone * 12 + finalElapsedSeconds * 0.12)
+      totalSetsDone > 0 ? 60 : 0,
+      Math.round(totalSetsDone * 18 + finalElapsedSeconds * 0.15)
     );
     const totalVolume = totalSetsDone * 10 * 20;
 
@@ -571,20 +588,26 @@ export default function Plans() {
 
     playChimeSound();
 
-    // 4. Open Dedicated Full Summary Screen with all key details
+    // 4. Open Dedicated Full Summary Screen with all key details & EXACT recorded breakdown
     setCompletedWorkoutSummary({
       plan,
       dayName,
       routineTitle: currentDayRoutine?.title || 'Systematic Hypertrophy Session',
       dateKey,
-      exercises,
+      exercises: exerciseBreakdown,
       setsCompleted: totalSetsDone,
+      totalPossibleSets,
       durationSecs: finalElapsedSeconds,
       durationFormatted: formatDigitalTime(finalElapsedSeconds),
       caloriesBurned: burnedCalories,
       totalVolume,
-      avgHeartRate: 138,
-      intensity: 'High Hypertrophy',
+      avgHeartRate: totalSetsDone > 0 ? 138 : 95,
+      intensity:
+        totalSetsDone >= Math.max(1, totalPossibleSets * 0.75)
+          ? 'High Hypertrophy'
+          : totalSetsDone > 0
+          ? 'Moderate Effort'
+          : 'Light Session',
     });
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -693,7 +716,16 @@ export default function Plans() {
               <div className="perf-divider" />
               <div className="perf-item">
                 <span className="perf-label">Target Consistency</span>
-                <span className="perf-val" style={{ color: '#10b981' }}>100% Target Met</span>
+                <span
+                  className="perf-val"
+                  style={{ color: completedWorkoutSummary.setsCompleted > 0 ? '#10b981' : 'var(--muted)' }}
+                >
+                  {completedWorkoutSummary.totalPossibleSets > 0
+                    ? `${Math.round(
+                        (completedWorkoutSummary.setsCompleted / completedWorkoutSummary.totalPossibleSets) * 100
+                      )}% Target Met`
+                    : '100% Target Met'}
+                </span>
               </div>
             </div>
 
@@ -717,8 +749,24 @@ export default function Plans() {
                       <span className="summary-ex-meta">{ex.target} • {ex.equipment}</span>
                     </div>
                     <div className="summary-ex-sets">
-                      <span className="summary-sets-pill">
-                        <Check width={14} height={14} style={{ color: '#10b981' }} /> 4 Sets Completed
+                      <span
+                        className="summary-sets-pill"
+                        style={{
+                          background:
+                            ex.completedSets > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(100, 116, 139, 0.08)',
+                          borderColor:
+                            ex.completedSets > 0 ? 'rgba(16, 185, 129, 0.25)' : 'rgba(100, 116, 139, 0.2)',
+                          color: ex.completedSets > 0 ? '#10b981' : '#64748b',
+                        }}
+                      >
+                        {ex.completedSets > 0 ? (
+                          <>
+                            <Check width={14} height={14} style={{ color: '#10b981' }} />{' '}
+                            {ex.completedSets} of {ex.totalSets} Sets Completed
+                          </>
+                        ) : (
+                          <>0 of {ex.totalSets} Sets Completed</>
+                        )}
                       </span>
                     </div>
                   </div>
