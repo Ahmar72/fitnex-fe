@@ -1,0 +1,204 @@
+/* ============================================================
+   Hero — animated "live demo" stage (replaces the phone mockup)
+   ============================================================ */
+.hero-visual {
+  position: relative;
+  height: auto;
+  min-height: 640px;
+  display: grid;
+  place-items: center;
+  padding: 20px 0 10px;
+}
+
+/* decorative background */
+.hero-deco { position: absolute; inset: -8% -12%; pointer-events: none; z-index: 0; }
+.deco-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.11) 1.2px, transparent 1.3px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(closest-side, #000 30%, transparent 100%);
+  -webkit-mask-image: radial-gradient(closest-side, #000 30%, transparent 100%);
+}
+.deco-ring { position: absolute; left: 50%; top: 46%; width: min(640px, 120%); aspect-ratio: 1; translate: -50% -50%; }
+.deco-ring svg { width: 100%; height: 100%; animation: spin 60s linear infinite; }
+.deco-orbit { position: absolute; inset: 0; animation: spin 14s linear infinite; }
+.deco-orb {
+  position: absolute;
+  top: 1.2%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 24px 6px var(--accent-glow);
+}
+
+/* stage */
+.stage-wrap { position: relative; z-index: 2; width: min(100%, 500px); }
+.stage {
+  position: relative;
+  border-radius: 34px;
+  aspect-ratio: 1 / 1.05;
+  overflow: hidden;
+  box-shadow:
+    0 40px 90px -30px rgba(0, 0, 0, 0.4),
+    0 0 0 1px var(--line),
+    0 0 70px -10px var(--accent-glow);
+  will-change: transform;
+  cursor: grab;
+}
+.stage-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(17, 17, 17, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 17, 17, 0.05) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: radial-gradient(closest-side, #000 50%, transparent 100%);
+  -webkit-mask-image: radial-gradient(closest-side, #000 50%, transparent 100%);
+}
+.stage-media {
+  position: absolute;
+  inset: 12% 4% 23% 4%;
+  display: grid;
+  place-items: center;
+  /* the whole layer (static + GIF) multiplies onto the paper so white GIF backgrounds disappear */
+  mix-blend-mode: multiply;
+}
+.stage-media img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.stage-corner { position: absolute; width: 30px; height: 30px; border: 3px solid #111; opacity: 0.85; }
+.stage-corner.tl { top: 20px; left: 20px; border-right: 0; border-bottom: 0; border-radius: 8px 0 0 0; }
+.stage-corner.tr { top: 20px; right: 20px; border-left: 0; border-bottom: 0; border-radius: 0 8px 0 0; }
+.stage-top {
+  position: absolute;
+  top: 30px;
+  left: 64px;
+  right: 64px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.stage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #111;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.stage-badge i { width: 7px; height: 7px; border-radius: 50%; background: #ff3d4f; animation: livepulse 1.4s ease-in-out infinite; }
+@keyframes livepulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 61, 79, 0.7); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 61, 79, 0); }
+}
+.stage-count { font-family: var(--display); font-weight: 800; font-size: 18px; color: rgba(17, 17, 17, 0.45); letter-spacing: 0.04em; }
+.stage-count b { color: #111; font-size: 26px; }
+.stage-info {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  padding: 18px 20px 16px;
+  border-radius: 22px;
+  background: var(--float-bg);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--line-2);
+  color: var(--text);
+  box-shadow: var(--card-shadow);
+}
+.stage-name {
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: clamp(26px, 2.6vw, 34px);
+  line-height: 0.95;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stage-tags { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.stage-tags .chip { height: 26px; font-size: 11px; }
+.stage-progress { margin-top: 14px; height: 3px; border-radius: 3px; background: var(--line-2); overflow: hidden; }
+.stage-progress i { display: block; height: 100%; background: var(--accent); transform-origin: left; }
+
+.stage-thumbs { display: flex; justify-content: center; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.stage-thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  overflow: hidden;
+  padding: 0;
+  border: 2px solid transparent;
+  opacity: 0.5;
+  filter: grayscale(0.6);
+  transition: opacity 0.35s, filter 0.35s, border-color 0.35s, box-shadow 0.35s;
+}
+.stage-thumb .paper { width: 100%; height: 100%; }
+.stage-thumb:hover { opacity: 0.85; filter: none; }
+.stage-thumb.on { opacity: 1; filter: none; border-color: var(--accent); box-shadow: 0 10px 30px -8px var(--accent-glow); }
+
+.stage-media { z-index: 1; }
+.stage-corner, .stage-top, .stage-info { z-index: 3; }
+
+/* floating cards around the stage — kept clear of the badge, counter and title */
+.float-card { z-index: 4; }
+.fc-pr { left: -13%; top: 24%; }
+.fc-target { right: -10%; top: 17%; flex-direction: column; align-items: flex-start; min-width: 170px; }
+.fc-label { display: block; font-size: 10px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.fc-value { display: block; font-family: var(--display); font-size: 30px; font-weight: 900; line-height: 1.05; color: var(--accent); text-transform: uppercase; margin-top: 4px; }
+.fc-sub { display: block; font-size: 12px; color: var(--muted); text-transform: capitalize; margin-top: 2px; }
+.fc-volume { left: -15%; top: 50%; gap: 16px; }
+.fc-bars { display: flex; align-items: flex-end; gap: 4px; height: 44px; }
+.fc-bars i { display: block; width: 7px; border-radius: 3px; background: linear-gradient(180deg, var(--accent), #d4380d); transform-origin: bottom; }
+
+/* the hero pill now uses <Paper> (static + GIF) */
+.hero-pill.paper { display: inline-grid; place-items: center; }
+.hero-pill.paper img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 42%; }
+
+@media (max-width: 1024px) {
+  .hero-visual { min-height: 0; margin-top: 30px; }
+  .fc-pr { left: 0; top: 30%; }
+  .fc-target { right: 0; top: 14%; }
+  .fc-volume { left: 0; top: 52%; }
+}
+@media (max-width: 560px) {
+  .stage { border-radius: 26px; }
+  .stage-top { left: 56px; right: 56px; top: 26px; }
+  .stage-thumb { width: 48px; height: 48px; border-radius: 14px; }
+  .fc-pr { display: none; }
+  .stage-media { inset: 15% 2% 33% 2%; }
+}
+
+[data-theme="light"] .stage-badge {
+  background: #111;
+  color: #ff6a1a;
+}
+[data-theme="light"] .show-card .tgt {
+  background: #111;
+  color: #ff6a1a;
+}
+[data-theme="light"] .hero-glow {
+  background: radial-gradient(closest-side, var(--accent-glow), transparent 70%);
+}
+[data-theme="light"] .deco-dots {
+  background-image: radial-gradient(rgba(0, 0, 0, 0.07) 1.2px, transparent 1.3px);
+}
+[data-theme="light"] .stage-grid {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+}
