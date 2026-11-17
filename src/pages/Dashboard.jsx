@@ -93,21 +93,16 @@ export default function Dashboard() {
       <div className="container">
         <div className="dash-head">
           <div>
-            <Reveal><span className="eyebrow">{t('dash.eyebrow', 'Dashboard')} · {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</span></Reveal>
-            <SplitText as="h1" className="display dash-title" animateNow delay={0.3} lines={[`${t('dash.hey', 'Hey')} ${first},`, <span key="a" className="accent">{t('dash.lets_train', 'let’s train.')}</span>]} />
-            <Reveal delay={0.4} className="dash-chips">
-              <span className="chip"><Trophy width={14} height={14} /> {t('dash.goal', 'Goal')} · {goal.label}</span>
-              <span className="chip">{title(profile.level || 'beginner')}</span>
-              <span className="chip">{target} {t('dash.days_week', 'days / week')}</span>
-              {profile.weight && <span className="chip">{profile.weight} kg</span>}
-            </Reveal>
+            <h1 className="display dash-title" style={{ whiteSpace: 'nowrap', margin: '0 0 8px', textTransform: 'uppercase' }}>
+              {t('dash.hey', 'Hey')} {first}, <span className="accent">{t('dash.lets_train', 'let’s train.')}</span>
+            </h1>
           </div>
-          <Reveal delay={0.5} className="dash-cta">
+          <div className="dash-cta">
             {workout.items.length > 0 && (
               <Link to="/builder" className="btn btn-ghost"><Dumbbell /> {t('dash.resume', 'Resume')} “{workout.name}”</Link>
             )}
             <button className="btn btn-primary" onClick={startPlan}><Play /> {t('dash.start_now', 'Start today’s plan')}</button>
-          </Reveal>
+          </div>
         </div>
 
         <div className="dash-stats">

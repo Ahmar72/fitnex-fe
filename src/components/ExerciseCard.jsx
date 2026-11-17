@@ -1,5 +1,5 @@
 import { forwardRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Paper } from './Motion.jsx';
 import { Heart, Plus, ArrowUpRight } from './Icons.jsx';
@@ -7,6 +7,7 @@ import { useWorkout } from '../context/WorkoutContext.jsx';
 import { partMeta, asset } from '../lib/utils.js';
 
 const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode = 'grid' }, ref) {
+  const navigate = useNavigate();
   const { favorites, toggleFavorite, addToWorkout } = useWorkout();
   const fav = favorites.includes(ex.id);
   const part = partMeta(ex.bodyPart);
@@ -17,19 +18,19 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
     fn();
   };
 
-  // LIST VIEW: Sleek horizontal white card row
+  // LIST VIEW: Sleek horizontal white card row (entire row clickable)
   if (viewMode === 'list') {
     return (
       <motion.article
         ref={ref}
-        layout
         className="ex-list-item"
-        initial={{ opacity: 0, y: 16 }}
+        onClick={() => navigate(`/exercises/${ex.id}`)}
+        style={{ cursor: 'pointer' }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10, transition: { duration: 0.15 } }}
-        transition={{ duration: 0.35, delay: Math.min(index % 12, 11) * 0.025 }}
+        transition={{ duration: 0.2, delay: Math.min(index % 12, 6) * 0.02 }}
       >
-        <Link to={`/exercises/${ex.id}`} className="ex-list-thumb" title={ex.name}>
+        <div className="ex-list-thumb" title={ex.name}>
           <img
             src={asset(ex.image || `images/${ex.id}.jpg`)}
             alt={ex.name}
@@ -37,13 +38,13 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
               e.currentTarget.src = asset('images/0001-2gPfomN.jpg');
             }}
           />
-        </Link>
+        </div>
         <div className="ex-list-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className="ex-list-id">#{ex.id}</span>
-            <Link to={`/exercises/${ex.id}`} className="ex-list-title">
+            <span className="ex-list-title">
               {ex.name}
-            </Link>
+            </span>
           </div>
           <div className="ex-list-tags">
             <span className="chip"><span className="dot" style={{ background: part.color }} />{part.label}</span>
@@ -51,7 +52,7 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
             <span className="chip">{ex.equipment}</span>
           </div>
         </div>
-        <div className="ex-list-actions">
+        <div className="ex-list-actions" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
             className={`icon-btn ${fav ? 'on' : ''}`}
@@ -70,9 +71,9 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
           >
             <Plus />
           </button>
-          <Link to={`/exercises/${ex.id}`} className="ex-list-btn" title="View exercise details">
+          <span className="ex-list-btn" title="View exercise details">
             View <ArrowUpRight width={14} height={14} />
-          </Link>
+          </span>
         </div>
       </motion.article>
     );
@@ -82,13 +83,11 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
   return (
     <motion.article
       ref={ref}
-      layout
       className="ex-card"
-      initial={{ opacity: 0, y: 24, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.15 } }}
-      transition={{ duration: 0.4, delay: Math.min(index % 12, 11) * 0.03, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -5 }}
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, delay: Math.min(index % 12, 6) * 0.02 }}
+      whileHover={{ y: -4 }}
       onHoverStart={() => setHover(true)}
       onHoverEnd={() => setHover(false)}
     >

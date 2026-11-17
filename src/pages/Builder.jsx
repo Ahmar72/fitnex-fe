@@ -308,10 +308,11 @@ export default function Builder() {
 
   return (
     <>
-      <section className="page-head" style={{ paddingBottom: 30 }}>
+      <section className="page-head" style={{ paddingBottom: 20 }}>
         <div className="container">
-          <Reveal><span className="eyebrow">{t('builder.eyebrow', 'Workout builder')}</span></Reveal>
-          <SplitText as="h1" className="display h1" animateNow delay={0.3} lines={[t('builder.title_1', 'Build it.'), <span key="a" className="accent">{t('builder.title_2', 'Lift it.')}</span>]} />
+          <h1 className="display h1" style={{ whiteSpace: 'nowrap', margin: 0, textTransform: 'uppercase' }}>
+            {t('builder.title_1', 'Build it.')} <span className="accent">{t('builder.title_2', 'Lift it.')}</span>
+          </h1>
         </div>
       </section>
 

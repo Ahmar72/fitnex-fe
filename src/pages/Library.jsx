@@ -144,18 +144,16 @@ export default function Library() {
 
   return (
     <>
-      <section className="page-head">
+      <section className="page-head" style={{ paddingBottom: 20 }}>
         <div className="container">
-          <Reveal><span className="eyebrow">{t('lib.eyebrow', 'Exercise library')}</span></Reveal>
-          <SplitText as="h1" className="display h1" animateNow delay={0.3} lines={[<span key="a"><span className="accent">1,324</span> {t('lib.title_1', 'ways')}</span>, t('lib.title_2', 'to move.')]} />
-          <Reveal delay={0.4}>
-            <p className="lead">{t('lib.lead', 'Search by name, muscle or equipment. Tap the heart to save, the plus to add to your workout.')}</p>
-          </Reveal>
+          <h1 className="display h1" style={{ whiteSpace: 'nowrap', margin: 0, textTransform: 'uppercase' }}>
+            <span className="accent">1,324</span> {t('lib.title_1', 'Ways')} {t('lib.title_2', 'to Move')}
+          </h1>
         </div>
       </section>
 
-      <section className="container" style={{ paddingBottom: 120 }}>
-        <motion.div className="toolbar" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.7 }}>
+      <section className="container" style={{ paddingBottom: 100 }}>
+        <div className="toolbar">
           <div className="toolbar-row">
             <label className="search">
               <Search />
@@ -195,108 +193,109 @@ export default function Library() {
               </button>
             ))}
           </div>
-        </motion.div>
-
-        <div ref={gridTopRef} className="results-bar">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <span>
-              {t('lib.showing', 'Showing')}{' '}
-              <strong>{results.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, results.length)}</strong>{' '}
-              {t('lib.of', 'of')} <strong>{results.length.toLocaleString()}</strong> {t('lib.exercises', 'exercises')}
-              {part && <> in <strong>{t(`part.${part}`, partMeta(part).label)}</strong></>}
-            </span>
-            {active && <button className="link-btn" onClick={reset}>{t('lib.clear_filters', 'Clear all filters')}</button>}
-          </div>
-
-          <div className="view-mode-toggle" role="group" aria-label="View mode">
-            <button
-              type="button"
-              className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
-              onClick={() => handleToggleView('grid')}
-              title="Grid view"
-              aria-pressed={viewMode === 'grid'}
-            >
-              <Grid width={15} height={15} />
-              <span>Grid</span>
-            </button>
-            <button
-              type="button"
-              className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
-              onClick={() => handleToggleView('list')}
-              title="List view"
-              aria-pressed={viewMode === 'list'}
-            >
-              <ListIcon width={15} height={15} />
-              <span>List</span>
-            </button>
-          </div>
         </div>
 
-        {!ready ? (
-          <div className="loader-dots"><i /><i /><i /></div>
-        ) : results.length === 0 ? (
-          <motion.div className="empty" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
-            <div className="display">{t('lib.no_reps', 'No reps here.')}</div>
-            <p>{fav ? 'You haven’t saved any favourites yet — tap the heart on any exercise.' : t('lib.no_reps_desc', 'Nothing matches those filters. Try a broader search.')}</p>
-            <button className="btn btn-primary" onClick={reset} style={{ marginTop: 20 }}>{t('lib.reset_filters', 'Reset filters')}</button>
-          </motion.div>
-        ) : (
-          <>
-            <motion.div layout className={viewMode === 'list' ? 'ex-list' : 'ex-grid'}>
-              <AnimatePresence mode="popLayout">
+        {/* ONE Master White Card containing exercises catalogue and pagination */}
+        <div className="library-main-card">
+          <div ref={gridTopRef} className="results-bar">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <span>
+                {t('lib.showing', 'Showing')}{' '}
+                <strong>{results.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, results.length)}</strong>{' '}
+                {t('lib.of', 'of')} <strong>{results.length.toLocaleString()}</strong> {t('lib.exercises', 'exercises')}
+                {part && <> in <strong>{t(`part.${part}`, partMeta(part).label)}</strong></>}
+              </span>
+              {active && <button className="link-btn" onClick={reset}>{t('lib.clear_filters', 'Clear all filters')}</button>}
+            </div>
+
+            <div className="view-mode-toggle" role="group" aria-label="View mode">
+              <button
+                type="button"
+                className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => handleToggleView('grid')}
+                title="Grid view"
+                aria-pressed={viewMode === 'grid'}
+              >
+                <Grid width={15} height={15} />
+                <span>Grid</span>
+              </button>
+              <button
+                type="button"
+                className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+                onClick={() => handleToggleView('list')}
+                title="List view"
+                aria-pressed={viewMode === 'list'}
+              >
+                <ListIcon width={15} height={15} />
+                <span>List</span>
+              </button>
+            </div>
+          </div>
+
+          {!ready ? (
+            <div className="loader-dots"><i /><i /><i /></div>
+          ) : results.length === 0 ? (
+            <div className="empty">
+              <div className="display">{t('lib.no_reps', 'No reps here.')}</div>
+              <p>{fav ? 'You haven’t saved any favourites yet — tap the heart on any exercise.' : t('lib.no_reps_desc', 'Nothing matches those filters. Try a broader search.')}</p>
+              <button className="btn btn-primary" onClick={reset} style={{ marginTop: 20 }}>{t('lib.reset_filters', 'Reset filters')}</button>
+            </div>
+          ) : (
+            <>
+              <div className={viewMode === 'list' ? 'ex-list' : 'ex-grid'}>
                 {paginatedExercises.map((e, i) => (
                   <ExerciseCard key={e.id} ex={e} index={i} viewMode={viewMode} />
                 ))}
-              </AnimatePresence>
-            </motion.div>
-
-            {totalPages > 1 && (
-              <div className="pagination-bar">
-                <div className="pagination-info">
-                  Showing <strong>{(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, results.length)}</strong> of <strong>{results.length.toLocaleString()}</strong> exercises (Page {safePage} of {totalPages})
-                </div>
-                <div className="pagination-controls">
-                  <button
-                    type="button"
-                    className="pagination-btn"
-                    disabled={safePage === 1}
-                    onClick={() => handlePageChange(safePage - 1)}
-                    aria-label="Previous page"
-                  >
-                    <ArrowLeft width={14} height={14} /> Prev
-                  </button>
-
-                  <div className="pagination-pages">
-                    {pageNumbers.map((p, idx) =>
-                      p === '...' ? (
-                        <span key={`el-${idx}`} className="pagination-ellipsis">…</span>
-                      ) : (
-                        <button
-                          key={p}
-                          type="button"
-                          className={`pagination-num-btn ${safePage === p ? 'active' : ''}`}
-                          onClick={() => handlePageChange(p)}
-                        >
-                          {p}
-                        </button>
-                      )
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="pagination-btn"
-                    disabled={safePage === totalPages}
-                    onClick={() => handlePageChange(safePage + 1)}
-                    aria-label="Next page"
-                  >
-                    Next <Arrow width={14} height={14} />
-                  </button>
-                </div>
               </div>
-            )}
-          </>
-        )}
+
+              {totalPages > 1 && (
+                <div className="pagination-bar">
+                  <div className="pagination-info">
+                    Showing <strong>{(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, results.length)}</strong> of <strong>{results.length.toLocaleString()}</strong> exercises (Page {safePage} of {totalPages})
+                  </div>
+                  <div className="pagination-controls">
+                    <button
+                      type="button"
+                      className="pagination-btn"
+                      disabled={safePage === 1}
+                      onClick={() => handlePageChange(safePage - 1)}
+                      aria-label="Previous page"
+                    >
+                      <ArrowLeft width={14} height={14} /> Prev
+                    </button>
+
+                    <div className="pagination-pages">
+                      {pageNumbers.map((p, idx) =>
+                        p === '...' ? (
+                          <span key={`el-${idx}`} className="pagination-ellipsis">…</span>
+                        ) : (
+                          <button
+                            key={p}
+                            type="button"
+                            className={`pagination-num-btn ${safePage === p ? 'active' : ''}`}
+                            onClick={() => handlePageChange(p)}
+                          >
+                            {p}
+                          </button>
+                        )
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="pagination-btn"
+                      disabled={safePage === totalPages}
+                      onClick={() => handlePageChange(safePage + 1)}
+                      aria-label="Next page"
+                    >
+                      Next <Arrow width={14} height={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </section>
     </>
   );

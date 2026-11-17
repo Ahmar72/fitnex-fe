@@ -1427,15 +1427,8 @@ export default function Plans() {
             </div>
 
             {/* Header Section */}
-            <div className="plans-header">
-              <span className="eyebrow">
-                <Target width={15} height={15} /> Systematic Training Programs
-              </span>
-              <h1 className="dash-title">TRAINING PLANS</h1>
-              <p className="muted plans-lead">
-                Target-specific workout protocols crafted with daily rotating exercises, structured
-                hypertrophy volume, and photorealistic muscle breakdowns.
-              </p>
+            <div className="plans-header" style={{ marginBottom: 20 }}>
+              <h1 className="dash-title" style={{ whiteSpace: 'nowrap', margin: 0, textTransform: 'uppercase' }}>TRAINING PLANS</h1>
             </div>
 
             {/* Active Training Program Resume Banner (Continuity where left off) */}

@@ -68,6 +68,24 @@ export default function Profile() {
   // Search filter for settings
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Cursor color state ('black' | 'white' | 'orange')
+  const [cursorColor, setCursorColor] = useState(() => {
+    try {
+      return localStorage.getItem('fx:cursor-color') || 'black';
+    } catch {
+      return 'black';
+    }
+  });
+
+  const handleCursorColorChange = (color) => {
+    setCursorColor(color);
+    try {
+      localStorage.setItem('fx:cursor-color', color);
+    } catch {}
+    document.documentElement.setAttribute('data-cursor-color', color);
+    toast(`Cursor color updated to ${color}`, 'bolt');
+  };
+
   // Timer alert preferences state (rest duration synced with user profile and storage)
   const [timerAlerts, setTimerAlerts] = useState(() => {
     try {
@@ -810,6 +828,60 @@ export default function Profile() {
                                   />
                                 )}
                                 <Sun width={14} height={14} /> <span>{t('profile.light_theme', 'Light theme')}</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          <div style={{ marginTop: 20 }}>
+                            <div className="settings-field-title" style={{ marginBottom: 10 }}>{t('profile.cursor_color', 'Cursor Color')}</div>
+                            <div className="filter-chips">
+                              <button
+                                type="button"
+                                className={`fchip ${cursorColor === 'black' ? 'active' : ''}`}
+                                onClick={() => handleCursorColorChange('black')}
+                              >
+                                {cursorColor === 'black' && (
+                                  <motion.span
+                                    className="bg"
+                                    initial={{ scale: 0.6, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+                                  />
+                                )}
+                                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#111827', display: 'inline-block' }}></span>
+                                <span>{t('profile.cursor_black', 'Black')}</span>
+                              </button>
+                              <button
+                                type="button"
+                                className={`fchip ${cursorColor === 'white' ? 'active' : ''}`}
+                                onClick={() => handleCursorColorChange('white')}
+                              >
+                                {cursorColor === 'white' && (
+                                  <motion.span
+                                    className="bg"
+                                    initial={{ scale: 0.6, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+                                  />
+                                )}
+                                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffffff', border: '1px solid #d1d5db', display: 'inline-block' }}></span>
+                                <span>{t('profile.cursor_white', 'White (Dark mode)')}</span>
+                              </button>
+                              <button
+                                type="button"
+                                className={`fchip ${cursorColor === 'orange' ? 'active' : ''}`}
+                                onClick={() => handleCursorColorChange('orange')}
+                              >
+                                {cursorColor === 'orange' && (
+                                  <motion.span
+                                    className="bg"
+                                    initial={{ scale: 0.6, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+                                  />
+                                )}
+                                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5500', display: 'inline-block' }}></span>
+                                <span>{t('profile.cursor_orange', 'Orange')}</span>
                               </button>
                             </div>
                           </div>
