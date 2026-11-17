@@ -6,10 +6,10 @@ import { useWorkout } from '../context/WorkoutContext.jsx';
 import { useLanguage } from '../context/LanguageContext.jsx';
 import ExerciseCard from '../components/ExerciseCard.jsx';
 import { Reveal, SplitText } from '../components/Motion.jsx';
-import { Search, X } from '../components/Icons.jsx';
+import { Arrow, ArrowLeft, Grid, ListIcon, Search, X } from '../components/Icons.jsx';
 import { BODY_PARTS, partMeta } from '../lib/utils.js';
 
-const PAGE = 36;
+const PAGE_SIZE = 24;
 
 export default function Library() {
   const { exercises, facets, ready } = useData();
@@ -18,15 +18,33 @@ export default function Library() {
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get('q') || '');
   const deferred = useDeferredValue(query);
-  const [visible, setVisible] = useState(PAGE);
-  const sentinel = useRef(null);
   const input = useRef(null);
+  const gridTopRef = useRef(null);
+
+  // View Mode: 'grid' or 'list' (persisted in localStorage)
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem('fx:library-view-mode') || 'grid';
+    } catch {
+      return 'grid';
+    }
+  });
+
+  const handleToggleView = (mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('fx:library-view-mode', mode);
+    } catch {}
+  };
 
   const part = params.get('part') || '';
   const eq = params.get('eq') || '';
   const target = params.get('target') || '';
   const fav = params.get('fav') === '1';
   const sort = params.get('sort') || 'az';
+
+  const initialPage = parseInt(params.get('page'), 10);
+  const [currentPage, setCurrentPage] = useState(!isNaN(initialPage) && initialPage > 0 ? initialPage : 1);
 
   const set = (k, v) => {
     setParams(
@@ -78,17 +96,44 @@ export default function Library() {
     return list;
   }, [exercises, deferred, part, eq, target, fav, favorites, sort]);
 
-  useEffect(() => setVisible(PAGE), [deferred, part, eq, target, fav, sort]);
-
+  // Reset to page 1 whenever any filter or search query changes
   useEffect(() => {
-    const el = sentinel.current;
-    if (!el) return;
-    const io = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) setVisible((v) => v + PAGE);
-    }, { rootMargin: '600px' });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [results.length]);
+    setCurrentPage(1);
+    set('page', '');
+  }, [deferred, part, eq, target, fav, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedExercises = useMemo(() => {
+    const start = (safePage - 1) * PAGE_SIZE;
+    return results.slice(start, start + PAGE_SIZE);
+  }, [results, safePage]);
+
+  const handlePageChange = (newPage) => {
+    const valid = Math.min(Math.max(1, newPage), totalPages);
+    setCurrentPage(valid);
+    set('page', valid > 1 ? String(valid) : '');
+    if (gridTopRef.current) {
+      const offset = gridTopRef.current.getBoundingClientRect().top + window.scrollY - 110;
+      window.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (safePage <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+    if (safePage >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', safePage - 1, safePage, safePage + 1, '...', totalPages];
+  }, [totalPages, safePage]);
 
   const counts = Object.fromEntries(facets.bodyPart);
   const active = part || eq || target || fav || deferred;
@@ -152,12 +197,39 @@ export default function Library() {
           </div>
         </motion.div>
 
-        <div className="results-bar">
-          <span>
-            {t('lib.showing', 'Showing')} <strong>{Math.min(visible, results.length)}</strong> {t('lib.of', 'of')} <strong>{results.length}</strong> {t('lib.exercises', 'exercises')}
-            {part && <> in <strong>{t(`part.${part}`, partMeta(part).label)}</strong></>}
-          </span>
-          {active && <button className="link-btn" onClick={reset}>{t('lib.clear_filters', 'Clear all filters')}</button>}
+        <div ref={gridTopRef} className="results-bar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <span>
+              {t('lib.showing', 'Showing')}{' '}
+              <strong>{results.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, results.length)}</strong>{' '}
+              {t('lib.of', 'of')} <strong>{results.length.toLocaleString()}</strong> {t('lib.exercises', 'exercises')}
+              {part && <> in <strong>{t(`part.${part}`, partMeta(part).label)}</strong></>}
+            </span>
+            {active && <button className="link-btn" onClick={reset}>{t('lib.clear_filters', 'Clear all filters')}</button>}
+          </div>
+
+          <div className="view-mode-toggle" role="group" aria-label="View mode">
+            <button
+              type="button"
+              className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+              onClick={() => handleToggleView('grid')}
+              title="Grid view"
+              aria-pressed={viewMode === 'grid'}
+            >
+              <Grid width={15} height={15} />
+              <span>Grid</span>
+            </button>
+            <button
+              type="button"
+              className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+              onClick={() => handleToggleView('list')}
+              title="List view"
+              aria-pressed={viewMode === 'list'}
+            >
+              <ListIcon width={15} height={15} />
+              <span>List</span>
+            </button>
+          </div>
         </div>
 
         {!ready ? (
@@ -169,14 +241,61 @@ export default function Library() {
             <button className="btn btn-primary" onClick={reset} style={{ marginTop: 20 }}>{t('lib.reset_filters', 'Reset filters')}</button>
           </motion.div>
         ) : (
-          <motion.div layout className="ex-grid">
-            <AnimatePresence mode="popLayout">
-              {results.slice(0, visible).map((e, i) => <ExerciseCard key={e.id} ex={e} index={i} />)}
-            </AnimatePresence>
-          </motion.div>
-        )}
-        {visible < results.length && (
-          <div ref={sentinel} className="loader-dots"><i /><i /><i /></div>
+          <>
+            <motion.div layout className={viewMode === 'list' ? 'ex-list' : 'ex-grid'}>
+              <AnimatePresence mode="popLayout">
+                {paginatedExercises.map((e, i) => (
+                  <ExerciseCard key={e.id} ex={e} index={i} viewMode={viewMode} />
+                ))}
+              </AnimatePresence>
+            </motion.div>
+
+            {totalPages > 1 && (
+              <div className="pagination-bar">
+                <div className="pagination-info">
+                  Showing <strong>{(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, results.length)}</strong> of <strong>{results.length.toLocaleString()}</strong> exercises (Page {safePage} of {totalPages})
+                </div>
+                <div className="pagination-controls">
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    disabled={safePage === 1}
+                    onClick={() => handlePageChange(safePage - 1)}
+                    aria-label="Previous page"
+                  >
+                    <ArrowLeft width={14} height={14} /> Prev
+                  </button>
+
+                  <div className="pagination-pages">
+                    {pageNumbers.map((p, idx) =>
+                      p === '...' ? (
+                        <span key={`el-${idx}`} className="pagination-ellipsis">…</span>
+                      ) : (
+                        <button
+                          key={p}
+                          type="button"
+                          className={`pagination-num-btn ${safePage === p ? 'active' : ''}`}
+                          onClick={() => handlePageChange(p)}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    disabled={safePage === totalPages}
+                    onClick={() => handlePageChange(safePage + 1)}
+                    aria-label="Next page"
+                  >
+                    Next <Arrow width={14} height={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </section>
     </>

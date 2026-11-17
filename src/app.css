@@ -97,7 +97,7 @@
 .auth-panel { display: flex; align-items: center; justify-content: center; padding: 48px var(--gutter); }
 .auth-card { width: 100%; max-width: 520px; }
 .auth-logo { margin-bottom: 44px; }
-.auth-title { font-size: clamp(48px, 5vw, 76px); }
+.auth-title { font-size: clamp(26px, 3.2vw, 36px); line-height: 1.15; }
 .auth-sub { margin: 12px 0 30px; font-size: 16px; }
 .auth-form { display: flex; flex-direction: column; gap: 16px; }
 .auth-step { display: flex; flex-direction: column; gap: 16px; }
@@ -211,13 +211,13 @@
    ============================================================ */
 .dash { padding: 150px 0 110px; }
 .dash-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; margin-bottom: 44px; }
-.dash-title { font-size: clamp(54px, 8vw, 120px); margin: 14px 0 18px; }
+.dash-title { font-size: clamp(26px, 3.2vw, 36px); margin: 10px 0 16px; line-height: 1.15; font-weight: 900; }
 .dash-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .dash-chips .chip { height: 34px; font-size: 13px; }
 .dash-cta { display: flex; gap: 10px; flex-wrap: wrap; }
 .dash-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
 .dash-stat { gap: 4px; }
-.dash-stat b { font-family: var(--display); font-weight: 900; font-size: clamp(44px, 4.5vw, 64px); line-height: 1; margin-top: 18px; }
+.dash-stat b { font-family: var(--display); font-weight: 900; font-size: clamp(32px, 3.5vw, 48px); line-height: 1; margin-top: 14px; }
 .dash-stat > span:last-child { color: var(--muted); font-size: 14px; }
 .dash-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
 .dash-icon svg { width: 22px; height: 22px; }
@@ -257,7 +257,7 @@
 }
 
 .profile-hero { display: flex; align-items: center; gap: 28px; margin-bottom: 36px; flex-wrap: wrap; }
-.profile-hero .dash-title { font-size: clamp(40px, 5.5vw, 84px); margin: 8px 0 6px; }
+.profile-hero .dash-title { font-size: clamp(24px, 3vw, 32px); margin: 6px 0 6px; line-height: 1.15; }
 
 /* Sequenced iOS-Style Grouped Settings - Full screen width edge-to-edge */
 .settings-container {
