@@ -440,8 +440,30 @@
 .app-header-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-shrink: 0;
+}
+
+.header-theme-toggle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.header-theme-toggle:hover {
+  background: var(--surface);
+  color: var(--accent, #ff5500);
+  border-color: rgba(255, 85, 0, 0.35);
+  transform: scale(1.06);
 }
 
 /* User chip in header */
@@ -463,18 +485,19 @@
 }
 
 .chip-avatar {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: var(--accent);
   color: var(--accent-ink);
   font-weight: 800;
-  font-size: 11px;
+  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
 }
 
 .chip-avatar-img {

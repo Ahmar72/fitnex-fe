@@ -914,55 +914,44 @@ select.input option { background: var(--surface); }
 .ex-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
 @media (hover: none) { .ex-card .ex-actions .action-circle-btn { transform: none; opacity: 1; } }
 
-/* Cards Per Page Selector */
-.cards-per-page-selector {
+/* Bottom Dropdown for Cards Per Page (5 - 25) */
+.pagination-size-wrap {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
-.selector-label {
+.pagination-size-label {
   font-size: 13px;
   font-weight: 600;
   color: var(--muted, #71717a);
 }
-.selector-pills {
-  display: inline-flex;
-  align-items: center;
-  background: var(--surface-2, #f4f4f5);
-  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
-  border-radius: 12px;
-  padding: 3px;
-  gap: 3px;
-}
-.selector-pill-btn {
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 9px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted, #71717a);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.selector-pill-btn:hover:not(.active) {
-  color: var(--text, #18181b);
-}
-.selector-pill-btn.active {
+.pagination-size-select {
+  height: 38px;
+  padding: 0 32px 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
   background: #ffffff;
-  color: var(--accent, #ff5500);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  color: var(--text, #18181b);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
 }
-[data-theme="dark"] .selector-pills {
+.pagination-size-select:hover {
+  border-color: rgba(255, 85, 0, 0.4);
+}
+[data-theme="dark"] .pagination-size-select {
   background: #27272a;
-  border-color: rgba(255, 255, 255, 0.08);
-}
-[data-theme="dark"] .selector-pill-btn.active {
-  background: #18181b;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f4f4f5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%23a1a1aa' stroke-width='2'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
 }
 
 /* Circular Action Buttons (Heart & Plus in White Circle) */

@@ -198,14 +198,48 @@ export default function Profile() {
       <div className="container">
         {/* Profile Hero Header */}
         <div className="profile-hero">
-          <motion.div
-            className="avatar xl"
-            initial={{ scale: 0, rotate: -20 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200, damping: 15 }}
-          >
-            {initials(user.name)}
-          </motion.div>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <motion.div
+              className="avatar xl"
+              style={{ overflow: 'hidden', padding: 0 }}
+              initial={{ scale: 0, rotate: -20 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ delay: 0.2, type: 'spring', stiffness: 200, damping: 15 }}
+            >
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user?.name || 'Profile'}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                initials(user?.name)
+              )}
+            </motion.div>
+            <label
+              title="Change profile photo"
+              style={{
+                position: 'absolute',
+                bottom: -2,
+                right: -2,
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: 'var(--accent, #ff5500)',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                border: '2px solid var(--surface, #ffffff)',
+                transition: 'transform 0.2s',
+              }}
+            >
+              <Upload width={14} height={14} />
+              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
+            </label>
+          </div>
           <div>
             <Reveal>
               <span className="eyebrow">{t('profile.eyebrow', 'Profile & settings')}</span>
@@ -832,58 +866,36 @@ export default function Profile() {
                             </div>
                           </div>
 
-                          <div style={{ marginTop: 20 }}>
-                            <div className="settings-field-title" style={{ marginBottom: 10 }}>{t('profile.cursor_color', 'Cursor Color')}</div>
-                            <div className="filter-chips">
-                              <button
-                                type="button"
-                                className={`fchip ${cursorColor === 'black' ? 'active' : ''}`}
-                                onClick={() => handleCursorColorChange('black')}
-                              >
-                                {cursorColor === 'black' && (
-                                  <motion.span
-                                    className="bg"
-                                    initial={{ scale: 0.6, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-                                  />
-                                )}
-                                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#111827', display: 'inline-block' }}></span>
-                                <span>{t('profile.cursor_black', 'Black')}</span>
-                              </button>
-                              <button
-                                type="button"
-                                className={`fchip ${cursorColor === 'white' ? 'active' : ''}`}
-                                onClick={() => handleCursorColorChange('white')}
-                              >
-                                {cursorColor === 'white' && (
-                                  <motion.span
-                                    className="bg"
-                                    initial={{ scale: 0.6, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-                                  />
-                                )}
-                                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffffff', border: '1px solid #d1d5db', display: 'inline-block' }}></span>
-                                <span>{t('profile.cursor_white', 'White (Dark mode)')}</span>
-                              </button>
-                              <button
-                                type="button"
-                                className={`fchip ${cursorColor === 'orange' ? 'active' : ''}`}
-                                onClick={() => handleCursorColorChange('orange')}
-                              >
-                                {cursorColor === 'orange' && (
-                                  <motion.span
-                                    className="bg"
-                                    initial={{ scale: 0.6, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-                                  />
-                                )}
-                                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5500', display: 'inline-block' }}></span>
-                                <span>{t('profile.cursor_orange', 'Orange')}</span>
-                              </button>
-                            </div>
+                          <div style={{ marginTop: 22 }}>
+                            <label className="field" style={{ maxWidth: 360, margin: 0 }}>
+                              <span className="field-label" style={{ fontWeight: 700, marginBottom: 8, display: 'block' }}>
+                                {t('profile.cursor_color', 'Cursor Color')}
+                              </span>
+                              <div className="select-wrap" style={{ position: 'relative' }}>
+                                <select
+                                  className="input cursor-color-select"
+                                  value={cursorColor}
+                                  onChange={(e) => handleCursorColorChange(e.target.value)}
+                                  style={{
+                                    width: '100%',
+                                    height: 48,
+                                    padding: '0 40px 0 16px',
+                                    fontSize: 14,
+                                    fontWeight: 600,
+                                    borderRadius: 12,
+                                    textAlign: 'left',
+                                    cursor: 'pointer',
+                                    background: 'var(--surface-1, #ffffff)',
+                                    border: '1px solid var(--line-2, #e4e4e7)',
+                                    color: 'var(--text, #18181b)'
+                                  }}
+                                >
+                                  <option value="black">⚫ Black (Classic clean)</option>
+                                  <option value="white">⚪ White (Recommended for Dark mode)</option>
+                                  <option value="orange">🟠 Orange (Brand signature)</option>
+                                </select>
+                              </div>
+                            </label>
                           </div>
                         </motion.div>
                       )}

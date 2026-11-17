@@ -27,6 +27,27 @@ export function ThemeProvider({ children }) {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  // Global 'd' keyboard shortcut to toggle dark/light mode
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      if (
+        tag === 'input' ||
+        tag === 'textarea' ||
+        tag === 'select' ||
+        document.activeElement?.isContentEditable
+      ) {
+        return;
+      }
+      if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        toggleTheme();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const value = {
     theme,
     setTheme,

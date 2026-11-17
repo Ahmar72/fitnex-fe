@@ -19,13 +19,13 @@ export default function Library() {
   const input = useRef(null);
   const gridTopRef = useRef(null);
 
-  // Cards per page setting (selectable: 12, 24, 48, 96, default 24)
+  // Cards per page setting (selectable: 5-25 cards per page, default 20)
   const [pageSize, setPageSize] = useState(() => {
     try {
       const saved = Number(localStorage.getItem('fx:library-page-size'));
-      if ([12, 24, 48, 96].includes(saved)) return saved;
+      if ([5, 10, 15, 20, 25].includes(saved)) return saved;
     } catch {}
-    return 24;
+    return 20;
   });
 
   const handlePageSizeChange = (newSize) => {
@@ -234,46 +234,27 @@ export default function Library() {
               {active && <button className="link-btn" onClick={reset}>{t('lib.clear_filters', 'Clear all filters')}</button>}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              {/* Option to select how many cards to show on a page */}
-              <div className="cards-per-page-selector" title="Select cards to show per page">
-                <span className="selector-label">Per page:</span>
-                <div className="selector-pills">
-                  {[12, 24, 48, 96].map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      className={`selector-pill-btn ${pageSize === num ? 'active' : ''}`}
-                      onClick={() => handlePageSizeChange(num)}
-                    >
-                      {num}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="view-mode-toggle" role="group" aria-label="View mode">
-                <button
-                  type="button"
-                  className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                  onClick={() => handleToggleView('grid')}
-                  title="Grid view"
-                  aria-pressed={viewMode === 'grid'}
-                >
-                  <Grid width={15} height={15} />
-                  <span>Grid</span>
-                </button>
-                <button
-                  type="button"
-                  className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
-                  onClick={() => handleToggleView('list')}
-                  title="List view"
-                  aria-pressed={viewMode === 'list'}
-                >
-                  <ListIcon width={15} height={15} />
-                  <span>List</span>
-                </button>
-              </div>
+            <div className="view-mode-toggle" role="group" aria-label="View mode">
+              <button
+                type="button"
+                className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => handleToggleView('grid')}
+                title="Grid view"
+                aria-pressed={viewMode === 'grid'}
+              >
+                <Grid width={15} height={15} />
+                <span>Grid</span>
+              </button>
+              <button
+                type="button"
+                className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+                onClick={() => handleToggleView('list')}
+                title="List view"
+                aria-pressed={viewMode === 'list'}
+              >
+                <ListIcon width={15} height={15} />
+                <span>List</span>
+              </button>
             </div>
           </div>
 
@@ -305,10 +286,29 @@ export default function Library() {
 
               {totalPages > 1 && (
                 <div className="pagination-bar">
+                  {/* In img2 just show page data not of exercises */}
                   <div className="pagination-info">
-                    Showing <strong>{(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, results.length)}</strong> of <strong>{results.length.toLocaleString()}</strong> exercises (Page {safePage} of {totalPages})
+                    Page <strong>{safePage}</strong> of <strong>{totalPages}</strong>
                   </div>
+
                   <div className="pagination-controls">
+                    {/* Dropdown at the bottom from 5-25 cards per page */}
+                    <div className="pagination-size-wrap">
+                      <span className="pagination-size-label">Per page:</span>
+                      <select
+                        className="pagination-size-select"
+                        value={pageSize}
+                        onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                        aria-label="Cards per page"
+                      >
+                        <option value={5}>5 cards</option>
+                        <option value={10}>10 cards</option>
+                        <option value={15}>15 cards</option>
+                        <option value={20}>20 cards</option>
+                        <option value={25}>25 cards</option>
+                      </select>
+                    </div>
+
                     <button
                       type="button"
                       className="pagination-btn"

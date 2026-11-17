@@ -13,11 +13,14 @@ import {
   MenuIcon,
   SidebarIcon,
   X,
+  Sun,
+  Moon,
 } from './Icons.jsx';
 import AppSpinner, { TopProgressBar } from './AppSpinner.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useWorkout } from '../context/WorkoutContext.jsx';
 import { useLanguage } from '../context/LanguageContext.jsx';
+import { useTheme } from '../context/ThemeContext.jsx';
 import { useToast } from './Toast.jsx';
 import { lockScroll } from '../lib/useSmoothScroll.js';
 
@@ -33,6 +36,7 @@ export default function AppLayout({ children }) {
   const { user, logout } = useAuth();
   const { workout, favorites } = useWorkout();
   const { t, isRtl } = useLanguage();
+  const { isDark, toggleTheme } = useTheme();
   const toast = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -399,6 +403,17 @@ export default function AppLayout({ children }) {
           </div>
 
           <div className="app-header-right">
+            {/* Dark / Light Mode Toggle Button (along with profile button, shortcut: 'D') */}
+            <button
+              type="button"
+              className="header-theme-toggle"
+              onClick={toggleTheme}
+              title={`Switch to ${isDark ? 'Light' : 'Dark'} mode (Press 'D')`}
+              aria-label={`Switch to ${isDark ? 'Light' : 'Dark'} mode`}
+            >
+              {isDark ? <Sun width={18} height={18} /> : <Moon width={18} height={18} />}
+            </button>
+
             {/* User Avatar linking to Profile */}
             <Link to="/profile" className="header-user-chip" title="Go to Profile">
               <div className="chip-avatar">
