@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useData } from '../context/DataContext.jsx';
@@ -7,13 +7,13 @@ import { useLanguage } from '../context/LanguageContext.jsx';
 import { Paper, Reveal, SplitText } from '../components/Motion.jsx';
 import { Arrow, Check, Down, Play, Plus, Search, Trash, Up, X } from '../components/Icons.jsx';
 import { ROUTINES } from '../sections/Programs.jsx';
-import { BODY_PARTS, asset, dayKey, fmt } from '../lib/utils.js';
+import { BODY_PARTS, asset, dayKey, fmt, playChimeSound, playWhistleSound, speakVoice } from '../lib/utils.js';
 import { createPortal } from 'react-dom';
 import { lockScroll } from '../lib/useSmoothScroll.js';
 
 const ease = [0.22, 1, 0.36, 1];
 
-const WorkoutItem = forwardRef(function WorkoutItem({ item, ex, index, total }, ref) {
+const WorkoutItem = forwardRef(function WorkoutItem({ item, ex, index, total, onStartSet }, ref) {
   const { removeItem, moveItem, addSet, removeSet, updateSet } = useWorkout();
   const { t } = useLanguage();
   return (
@@ -103,7 +103,7 @@ const WorkoutItem = forwardRef(function WorkoutItem({ item, ex, index, total }, 
                   <button
                     type="button"
                     className="builder-set-start-btn"
-                    onClick={() => updateSet(item.uid, s.id, { done: true })}
+                    onClick={() => onStartSet?.(s.id, i)}
                     aria-label={`Start set ${i + 1}`}
                   >
                     <Play width={12} height={12} /> Start
@@ -128,44 +128,168 @@ const WorkoutItem = forwardRef(function WorkoutItem({ item, ex, index, total }, 
   );
 });
 
-function LiveMode({ items, byId, onClose }) {
+function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId = null }) {
   const { updateSet, finish } = useWorkout();
   const { t } = useLanguage();
-  const [idx, setIdx] = useState(0);
-  const [rest, setRest] = useState(0);
-  const [restMax, setRestMax] = useState(60);
+  const [idx, setIdx] = useState(() => Math.min(Math.max(0, initialIndex), Math.max(0, items.length - 1)));
+
+  // activeTimer: {
+  //   mode: 'set' | 'rest',
+  //   itemUid: string,
+  //   setId: string,
+  //   setIndex: number,
+  //   secondsLeft: number,
+  //   totalSeconds: number,
+  //   isRunning: boolean,
+  //   halfwayAnnounced: boolean,
+  // } | null
+  const [activeTimer, setActiveTimer] = useState(null);
+  const initialTriggerRef = useRef(false);
 
   useEffect(() => {
     lockScroll(true);
     return () => lockScroll(false);
   }, []);
 
-  useEffect(() => {
-    if (rest <= 0) return;
-    const timeOut = setTimeout(() => setRest((r) => r - 1), 1000);
-    return () => clearTimeout(timeOut);
-  }, [rest]);
-
-  useEffect(() => {
-    if (rest === 0 && restMax && navigator.vibrate) navigator.vibrate?.(200);
-  }, [rest, restMax]);
-
   const item = items[Math.min(idx, items.length - 1)];
-  if (!item) return null;
-  const ex = byId.get(item.exerciseId);
+  const ex = item ? byId.get(item.exerciseId) : null;
   const allSets = items.flatMap((i) => i.sets);
   const doneCount = allSets.filter((s) => s.done).length;
   const C = 2 * Math.PI * 56;
 
-  const tick = (s) => {
-    if (s.done) return;
-    updateSet(item.uid, s.id, { done: true });
-    setRestMax(60);
-    setRest(60);
+  const startSetTimer = (targetItemUid, targetSetId, targetSetIndex) => {
+    const currentItem = items.find((it) => it.uid === targetItemUid) || item;
+    if (!currentItem) return;
+    const currentSet = currentItem.sets.find((s) => s.id === targetSetId);
+    if (currentSet?.done) return;
+
+    // Blow marathon sports whistle
+    playWhistleSound();
+
+    // 40 seconds set duration
+    const SET_DURATION = 40;
+    setActiveTimer({
+      mode: 'set',
+      itemUid: currentItem.uid,
+      setId: targetSetId,
+      setIndex: targetSetIndex,
+      secondsLeft: SET_DURATION,
+      totalSeconds: SET_DURATION,
+      isRunning: true,
+      halfwayAnnounced: false,
+    });
   };
+
+  // Auto-start target set if passed from builder table
+  useEffect(() => {
+    if (initialTriggerRef.current) return;
+    if (initialTargetSetId && item) {
+      initialTriggerRef.current = true;
+      const sIdx = item.sets.findIndex((s) => s.id === initialTargetSetId);
+      if (sIdx !== -1 && !item.sets[sIdx].done) {
+        startSetTimer(item.uid, initialTargetSetId, sIdx);
+      }
+    }
+  }, [initialTargetSetId, item]);
+
+  // Main countdown timer interval
+  useEffect(() => {
+    if (!activeTimer?.isRunning) return;
+
+    const interval = setInterval(() => {
+      setActiveTimer((prev) => {
+        if (!prev?.isRunning) return prev;
+        const nextLeft = prev.secondsLeft - 1;
+
+        // Check halfway mark for SET mode and speak "Halfway there"
+        let nextHalfway = prev.halfwayAnnounced;
+        if (prev.mode === 'set' && !prev.halfwayAnnounced) {
+          const halfPoint = Math.floor(prev.totalSeconds / 2);
+          if (nextLeft <= halfPoint) {
+            speakVoice('Halfway there');
+            nextHalfway = true;
+          }
+        }
+
+        if (nextLeft <= 0) {
+          if (prev.mode === 'set') {
+            // SET COMPLETED!
+            // 1. Mark set as done
+            updateSet(prev.itemUid, prev.setId, { done: true });
+            // 2. Play chime
+            playChimeSound();
+            if (navigator.vibrate) navigator.vibrate(200);
+
+            // 3. AUTOMATICALLY start REST TIMER!
+            const REST_DURATION = 60;
+            return {
+              mode: 'rest',
+              itemUid: prev.itemUid,
+              setId: prev.setId,
+              setIndex: prev.setIndex,
+              secondsLeft: REST_DURATION,
+              totalSeconds: REST_DURATION,
+              isRunning: true,
+              halfwayAnnounced: false,
+            };
+          } else {
+            // REST FINISHED!
+            playChimeSound();
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+            return null;
+          }
+        }
+
+        return {
+          ...prev,
+          secondsLeft: nextLeft,
+          halfwayAnnounced: nextHalfway,
+        };
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [activeTimer?.isRunning, updateSet]);
+
+  // Complete set early and start rest timer immediately
+  const completeSetEarly = () => {
+    if (!activeTimer || activeTimer.mode !== 'set') return;
+    updateSet(activeTimer.itemUid, activeTimer.setId, { done: true });
+    playChimeSound();
+    if (navigator.vibrate) navigator.vibrate(200);
+    const REST_DURATION = 60;
+    setActiveTimer({
+      mode: 'rest',
+      itemUid: activeTimer.itemUid,
+      setId: activeTimer.setId,
+      setIndex: activeTimer.setIndex,
+      secondsLeft: REST_DURATION,
+      totalSeconds: REST_DURATION,
+      isRunning: true,
+      halfwayAnnounced: false,
+    });
+  };
+
+  const skipRest = () => {
+    setActiveTimer(null);
+    playChimeSound();
+  };
+
+  const add15s = () => {
+    setActiveTimer((prev) =>
+      prev ? { ...prev, secondsLeft: prev.secondsLeft + 15, totalSeconds: prev.totalSeconds + 15 } : null
+    );
+  };
+
+  const togglePause = () => {
+    setActiveTimer((prev) => (prev ? { ...prev, isRunning: !prev.isRunning } : null));
+  };
+
   const end = () => {
     if (finish()) onClose();
   };
+
+  if (!item || !ex) return null;
 
   return (
     <motion.div
@@ -204,42 +328,115 @@ function LiveMode({ items, byId, onClose }) {
         </AnimatePresence>
 
         <div className="sets">
-          {item.sets.map((s, i) => (
-            <div key={s.id} className={`set-row ${s.done ? 'done' : ''}`} style={{ gridTemplateColumns: '46px 1fr 1fr 90px' }}>
-              <span className="n">{i + 1}</span>
-              <input className="num-input" type="number" value={s.weight} disabled={s.done} onChange={(e) => updateSet(item.uid, s.id, { weight: e.target.value })} aria-label="Weight" />
-              <input className="num-input" type="number" value={s.reps} disabled={s.done} onChange={(e) => updateSet(item.uid, s.id, { reps: e.target.value })} aria-label="Reps" />
-              {s.done ? (
-                <span className="builder-set-done-badge" title="Set completed (locked)">
-                  <Check width={14} height={14} /> Done
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  className="builder-set-start-btn"
-                  onClick={() => tick(s)}
-                  aria-label={`Start set ${i + 1}`}
-                >
-                  <Play width={12} height={12} /> Start
-                </button>
-              )}
-            </div>
-          ))}
+          {item.sets.map((s, i) => {
+            const isSetTimerActive = activeTimer?.mode === 'set' && activeTimer?.setId === s.id && activeTimer?.itemUid === item.uid;
+            const isRestActive = activeTimer?.mode === 'rest' && activeTimer?.setId === s.id && activeTimer?.itemUid === item.uid;
+
+            return (
+              <div key={s.id} className={`set-row ${s.done ? 'done' : ''}`} style={{ gridTemplateColumns: '46px 1fr 1fr 100px' }}>
+                <span className="n">{i + 1}</span>
+                <input
+                  className="num-input"
+                  type="number"
+                  value={s.weight}
+                  disabled={s.done}
+                  onChange={(e) => updateSet(item.uid, s.id, { weight: e.target.value })}
+                  aria-label="Weight"
+                />
+                <input
+                  className="num-input"
+                  type="number"
+                  value={s.reps}
+                  disabled={s.done}
+                  onChange={(e) => updateSet(item.uid, s.id, { reps: e.target.value })}
+                  aria-label="Reps"
+                />
+                {s.done ? (
+                  <span className="builder-set-done-badge" title="Set completed (locked)">
+                    <Check width={14} height={14} /> Done
+                  </span>
+                ) : isSetTimerActive ? (
+                  <span className="builder-set-active-badge" title="Set timer counting down">
+                    <span className="pulse-dot" /> {activeTimer.secondsLeft}s
+                  </span>
+                ) : isRestActive ? (
+                  <span className="builder-set-rest-badge" title="Rest in progress">
+                    Rest {activeTimer.secondsLeft}s
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="builder-set-start-btn"
+                    onClick={() => startSetTimer(item.uid, s.id, i)}
+                    aria-label={`Start set ${i + 1}`}
+                  >
+                    <Play width={12} height={12} /> Start
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <AnimatePresence>
-          {rest > 0 && (
-            <motion.div className="rest" initial={{ opacity: 0, y: 20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
-              <svg viewBox="0 0 130 130">
+          {activeTimer && (
+            <motion.div
+              className={`live-active-timer-box ${activeTimer.mode === 'set' ? 'set-mode' : 'rest-mode'}`}
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.96 }}
+              transition={{ duration: 0.3 }}
+            >
+              <svg viewBox="0 0 130 130" className="timer-svg">
                 <circle cx="65" cy="65" r="56" stroke="var(--ring-track)" strokeWidth="10" fill="none" />
-                <circle cx="65" cy="65" r="56" stroke="var(--accent)" strokeWidth="10" fill="none" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - rest / restMax)} transform="rotate(-90 65 65)" style={{ transition: 'stroke-dashoffset 1s linear' }} />
+                <circle
+                  cx="65"
+                  cy="65"
+                  r="56"
+                  stroke={activeTimer.mode === 'set' ? 'var(--accent)' : '#10b981'}
+                  strokeWidth="10"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={C}
+                  strokeDashoffset={C * (1 - Math.max(0, activeTimer.secondsLeft) / Math.max(1, activeTimer.totalSeconds))}
+                  transform="rotate(-90 65 65)"
+                  style={{ transition: 'stroke-dashoffset 0.8s linear' }}
+                />
               </svg>
-              <div>
-                <span className="eyebrow">{t('builder.rest', 'Rest')}</span>
-                <div className="t">{Math.floor(rest / 60)}:{String(rest % 60).padStart(2, '0')}</div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => { setRest((r) => r + 15); setRestMax((m) => m + 15); }}>+15s</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setRest(0)}>{t('builder.skip', 'Skip')}</button>
+              <div className="timer-content">
+                <div className="timer-tagline">
+                  {activeTimer.mode === 'set' ? (
+                    <span className="tag-set">
+                      <span className="whistle-icon" title="Marathon whistle active">📣</span> SET {activeTimer.setIndex + 1} TIMER
+                    </span>
+                  ) : (
+                    <span className="tag-rest">
+                      ☕ REST TIMER (SET {activeTimer.setIndex + 1} DONE)
+                    </span>
+                  )}
+                  {activeTimer.halfwayAnnounced && activeTimer.mode === 'set' && (
+                    <span className="halfway-tag">Voice: "Halfway there" ✓</span>
+                  )}
+                </div>
+                <div className="timer-digits">
+                  {Math.floor(activeTimer.secondsLeft / 60)}:{String(activeTimer.secondsLeft % 60).padStart(2, '0')}
+                </div>
+                <div className="timer-actions">
+                  {activeTimer.mode === 'set' ? (
+                    <button className="btn btn-primary btn-sm" onClick={completeSetEarly} title="Complete set now and start rest timer">
+                      <Check width={14} height={14} /> Done set & Rest
+                    </button>
+                  ) : (
+                    <button className="btn btn-primary btn-sm" onClick={skipRest} title="Skip remaining rest">
+                      Skip rest
+                    </button>
+                  )}
+                  <button className="btn btn-ghost btn-sm" onClick={togglePause}>
+                    {activeTimer.isRunning ? 'Pause' : 'Resume'}
+                  </button>
+                  <button className="btn btn-ghost btn-sm" onClick={add15s}>
+                    +15s
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -265,8 +462,16 @@ export default function Builder() {
   const { t } = useLanguage();
   const [q, setQ] = useState('');
   const [live, setLive] = useState(false);
+  const [liveIndex, setLiveIndex] = useState(0);
+  const [liveTargetSetId, setLiveTargetSetId] = useState(null);
 
   const items = workout.items.filter((i) => byId.has(i.exerciseId));
+
+  const handleStartSet = (exerciseIndex, setId) => {
+    setLiveIndex(exerciseIndex);
+    setLiveTargetSetId(setId);
+    setLive(true);
+  };
 
   const stats = useMemo(() => {
     const sets = items.flatMap((i) => i.sets);
@@ -322,7 +527,19 @@ export default function Builder() {
             <div className="wk-title">
               <input value={workout.name} onChange={(e) => rename(e.target.value)} aria-label="Workout name" maxLength={40} />
               {items.length > 0 && (
-                <button className="btn btn-primary" onClick={() => setLive(true)}><Play /> {t('builder.start', 'Start workout')}</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    const firstIncompleteExIdx = items.findIndex((it) => it.sets.some((s) => !s.done));
+                    const targetExIdx = firstIncompleteExIdx !== -1 ? firstIncompleteExIdx : 0;
+                    const firstIncompleteSet = items[targetExIdx]?.sets.find((s) => !s.done);
+                    setLiveIndex(targetExIdx);
+                    setLiveTargetSetId(firstIncompleteSet?.id || null);
+                    setLive(true);
+                  }}
+                >
+                  <Play /> {t('builder.start', 'Start workout')}
+                </button>
               )}
             </div>
 
@@ -350,7 +567,14 @@ export default function Builder() {
             ) : (
               <AnimatePresence mode="popLayout">
                 {items.map((it, i) => (
-                  <WorkoutItem key={it.uid} item={it} ex={byId.get(it.exerciseId)} index={i} total={items.length} />
+                  <WorkoutItem
+                    key={it.uid}
+                    item={it}
+                    ex={byId.get(it.exerciseId)}
+                    index={i}
+                    total={items.length}
+                    onStartSet={(setId) => handleStartSet(i, setId)}
+                  />
                 ))}
               </AnimatePresence>
             )}
@@ -432,7 +656,18 @@ export default function Builder() {
 
       {createPortal(
         <AnimatePresence>
-          {live && items.length > 0 && <LiveMode items={items} byId={byId} onClose={() => setLive(false)} />}
+          {live && items.length > 0 && (
+            <LiveMode
+              items={items}
+              byId={byId}
+              initialIndex={liveIndex}
+              initialTargetSetId={liveTargetSetId}
+              onClose={() => {
+                setLive(false);
+                setLiveTargetSetId(null);
+              }}
+            />
+          )}
         </AnimatePresence>,
         document.body
       )}

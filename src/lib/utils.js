@@ -103,3 +103,98 @@ export function playChimeSound() {
     /* ignore audio policy errors */
   }
 }
+
+/**
+ * Authentic marathon / sports referee whistle burst.
+ * Uses Web Audio API dual-oscillator acoustic beating (2620Hz + 2890Hz)
+ * modulated with a 32Hz pea-flutter LFO and bandpass cavity resonance.
+ */
+export function playWhistleSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    const now = ctx.currentTime;
+    const duration = 0.52;
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0.001, now);
+    masterGain.gain.linearRampToValueAtTime(0.24, now + 0.04);
+    masterGain.gain.setValueAtTime(0.24, now + duration - 0.09);
+    masterGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    masterGain.connect(ctx.destination);
+
+    // Bandpass resonant cavity filter
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(2750, now);
+    filter.Q.setValueAtTime(3.8, now);
+    filter.connect(masterGain);
+
+    // Dual tone oscillators creating the classic referee flutter beat
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(2620, now);
+    osc2.frequency.setValueAtTime(2890, now);
+
+    // Pea flutter / air turbulence LFO (32 Hz)
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(32, now);
+    lfoGain.gain.setValueAtTime(130, now);
+    lfo.connect(osc1.frequency);
+    lfo.connect(osc2.frequency);
+
+    osc1.connect(filter);
+    osc2.connect(filter);
+
+    lfo.start(now);
+    osc1.start(now);
+    osc2.start(now);
+
+    lfo.stop(now + duration);
+    osc1.stop(now + duration);
+    osc2.stop(now + duration);
+
+    setTimeout(() => {
+      try { ctx.close(); } catch {}
+    }, (duration + 0.25) * 1000);
+  } catch (err) {
+    /* AudioContext policy or unsupported */
+  }
+}
+
+/**
+ * Text-to-speech announcement for workouts (e.g. "Halfway there").
+ * Uses native Web Speech API with fallback.
+ */
+export function speakVoice(text = 'Halfway there') {
+  try {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    utterance.lang = 'en-US';
+    const voices = window.speechSynthesis.getVoices?.() || [];
+    const enVoice = voices.find(
+      (v) =>
+        v.lang?.startsWith('en') &&
+        (v.name?.includes('Natural') ||
+          v.name?.includes('Google') ||
+          v.name?.includes('Samantha') ||
+          v.name?.includes('David') ||
+          v.name?.includes('English'))
+    );
+    if (enVoice) utterance.voice = enVoice;
+    window.speechSynthesis.speak(utterance);
+  } catch {
+    /* speech synthesis unavailable or blocked */
+  }
+}

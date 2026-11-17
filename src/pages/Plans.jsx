@@ -23,7 +23,7 @@ import {
   Clock,
 } from '../components/Icons.jsx';
 import { PLANS, PLAN_CATEGORIES } from '../lib/plansData.js';
-import { asset, dayKey, readLS, writeLS, playChimeSound, partMeta } from '../lib/utils.js';
+import { asset, dayKey, readLS, writeLS, playChimeSound, playWhistleSound, speakVoice, partMeta } from '../lib/utils.js';
 
 /**
  * Calculates current week days (Monday - Sunday) with calendar dates and relative time status.
@@ -358,6 +358,16 @@ export default function Plans() {
         if (!prev?.activeTimer?.isRunning) return prev;
         const nextLeft = prev.activeTimer.secondsLeft - 1;
 
+        // Check halfway mark for SET mode and announce "Halfway there"
+        let nextHalfway = prev.activeTimer.halfwayAnnounced;
+        if (prev.activeTimer.mode === 'set' && !prev.activeTimer.halfwayAnnounced) {
+          const halfPoint = Math.floor(prev.activeTimer.totalSeconds / 2);
+          if (nextLeft <= halfPoint) {
+            speakVoice('Halfway there');
+            nextHalfway = true;
+          }
+        }
+
         if (nextLeft <= 0) {
           const { mode, exId, setIdx } = prev.activeTimer;
 
@@ -368,6 +378,7 @@ export default function Plans() {
 
             // AUTOMATICALLY start REST TIMER!
             const restDuration = prev.restDuration || 60;
+            playChimeSound();
             return {
               ...prev,
               setsMap: {
@@ -381,10 +392,12 @@ export default function Plans() {
                 secondsLeft: restDuration,
                 totalSeconds: restDuration,
                 isRunning: true,
+                halfwayAnnounced: false,
               },
             };
           } else {
             // Rest timer finished! Clear timer and signal ready for next set
+            playChimeSound();
             return {
               ...prev,
               activeTimer: null,
@@ -397,6 +410,7 @@ export default function Plans() {
           activeTimer: {
             ...prev.activeTimer,
             secondsLeft: nextLeft,
+            halfwayAnnounced: nextHalfway,
           },
         };
       });
@@ -415,6 +429,9 @@ export default function Plans() {
     // If already done, it CANNOT be edited or restarted
     if (thisSet?.done) return;
 
+    // Blow marathon sports whistle
+    playWhistleSound();
+
     // Set duration countdown (40s work time)
     const SET_DURATION = 40;
     setLiveWorkoutSession((prev) => ({
@@ -426,6 +443,7 @@ export default function Plans() {
         secondsLeft: SET_DURATION,
         totalSeconds: SET_DURATION,
         isRunning: true,
+        halfwayAnnounced: false,
       },
     }));
     toast(`Set ${setIdx + 1} started! Timer is tracking your set duration.`, 'bolt');
