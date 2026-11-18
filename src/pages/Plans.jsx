@@ -24,6 +24,7 @@ import {
 } from '../components/Icons.jsx';
 import { PLANS, PLAN_CATEGORIES } from '../lib/plansData.js';
 import { asset, dayKey, readLS, writeLS, playChimeSound, playWhistleSound, speakVoice, getExerciseVoiceOverview, partMeta } from '../lib/utils.js';
+import WorkoutCompleteModal from '../components/WorkoutCompleteModal.jsx';
 
 /**
  * Calculates current week days (Monday - Sunday) with calendar dates and relative time status.
@@ -132,6 +133,7 @@ export default function Plans() {
   const [liveWorkoutSession, setLiveWorkoutSession] = useState(null);
   // Full-screen dedicated workout completion summary state
   const [completedWorkoutSummary, setCompletedWorkoutSummary] = useState(null);
+  const [planCompleteModalData, setPlanCompleteModalData] = useState(null);
 
   // Active program object resolved from activePlanData
   const activePlan = useMemo(() => {
@@ -286,6 +288,7 @@ export default function Plans() {
     if (!selectedPlan || !currentDayRoutine || currentDayRoutine.isRest) return;
 
     if (routineExercises[0]) {
+      lastAnnouncedPlanExIdRef.current = routineExercises[0].id;
       speakVoice(getExerciseVoiceOverview(routineExercises[0]), { rate: 0.96, pitch: 1.02, interrupt: true });
     }
 
@@ -353,6 +356,9 @@ export default function Plans() {
 
   // Voice guide: state name first and 1-2 sentence overview when starting or switching exercise in plans
   const lastAnnouncedPlanExIdRef = useRef(null);
+  const liveWorkoutSessionRef = useRef(liveWorkoutSession);
+  liveWorkoutSessionRef.current = liveWorkoutSession;
+  const completedPlanSetVoiceRef = useRef(null);
   useEffect(() => {
     if (!liveWorkoutSession) {
       lastAnnouncedPlanExIdRef.current = null;
@@ -376,44 +382,54 @@ export default function Plans() {
     if (!liveWorkoutSession?.activeTimer?.isRunning) return;
 
     const interval = setInterval(() => {
-      setLiveWorkoutSession((prev) => {
-        if (!prev?.activeTimer?.isRunning) return prev;
-        const nextLeft = prev.activeTimer.secondsLeft - 1;
+      const session = liveWorkoutSessionRef.current;
+      if (!session?.activeTimer?.isRunning) return;
 
-        // Check halfway mark for SET mode and announce "Halfway there"
-        let nextHalfway = prev.activeTimer.halfwayAnnounced;
-        if (prev.activeTimer.mode === 'set' && !prev.activeTimer.halfwayAnnounced) {
-          const halfPoint = Math.floor(prev.activeTimer.totalSeconds / 2);
-          if (nextLeft <= halfPoint) {
-            speakVoice('Halfway there', { rate: 1.05, interrupt: true });
-            nextHalfway = true;
-          }
+      const curTimer = session.activeTimer;
+      const nextLeft = curTimer.secondsLeft - 1;
+
+      // Check halfway mark for SET mode and announce "Halfway there" at exact half time
+      let nextHalfway = curTimer.halfwayAnnounced;
+      if (curTimer.mode === 'set' && !curTimer.halfwayAnnounced) {
+        const halfPoint = Math.floor(curTimer.totalSeconds / 2);
+        if (nextLeft <= halfPoint) {
+          speakVoice('Halfway there', { rate: 1.05, interrupt: true });
+          nextHalfway = true;
         }
+      }
 
-        // Voice countdown for the last 3 seconds of a set: 3, 2, 1, "done"
-        if (prev.activeTimer.mode === 'set') {
-          if (nextLeft === 3) {
-            speakVoice('Three', { rate: 1.18, interrupt: true });
-          } else if (nextLeft === 2) {
-            speakVoice('Two', { rate: 1.18, interrupt: true });
-          } else if (nextLeft === 1) {
-            speakVoice('One', { rate: 1.18, interrupt: true });
-          }
+      // Voice countdown for the last 3 seconds of a set: 3, 2, 1
+      if (curTimer.mode === 'set') {
+        if (nextLeft === 3) {
+          speakVoice('Three', { rate: 1.18, interrupt: true });
+        } else if (nextLeft === 2) {
+          speakVoice('Two', { rate: 1.18, interrupt: true });
+        } else if (nextLeft === 1) {
+          speakVoice('One', { rate: 1.18, interrupt: true });
         }
+      }
 
-        if (nextLeft <= 0) {
-          const { mode, exId, setIdx } = prev.activeTimer;
+      if (nextLeft <= 0) {
+        const { mode, exId, setIdx } = curTimer;
 
-          if (mode === 'set') {
-            // Set completed! Voice speaks "Done"
-            speakVoice('Done', { rate: 1.1, interrupt: true });
-            // Set completed! Mark DONE automatically!
-            const currentSets = prev.setsMap[exId] || [];
-            const updatedSets = currentSets.map((s, idx) => (idx === setIdx ? { ...s, done: true } : s));
+        if (mode === 'set') {
+          // Set completed! Guard so it speaks "Done" and rest cue only once
+          const setKey = `${exId}-${setIdx}`;
+          if (completedPlanSetVoiceRef.current !== setKey) {
+            completedPlanSetVoiceRef.current = setKey;
+            speakVoice('Done. Take rest and get ready for the next set.', { rate: 1.02, interrupt: true });
+          }
 
-            // AUTOMATICALLY start REST TIMER!
-            const restDuration = prev.restDuration || 60;
-            playChimeSound();
+          // Set completed! Mark DONE automatically!
+          const currentSets = session.setsMap[exId] || [];
+          const updatedSets = currentSets.map((s, idx) => (idx === setIdx ? { ...s, done: true } : s));
+
+          // AUTOMATICALLY start REST TIMER!
+          const restDuration = session.restDuration || 60;
+          playChimeSound();
+
+          setLiveWorkoutSession((prev) => {
+            if (!prev) return prev;
             return {
               ...prev,
               setsMap: {
@@ -430,25 +446,25 @@ export default function Plans() {
                 halfwayAnnounced: false,
               },
             };
-          } else {
-            // Rest timer finished! Clear timer and signal ready for next set
-            playChimeSound();
-            return {
-              ...prev,
-              activeTimer: null,
-            };
-          }
+          });
+        } else {
+          // Rest timer finished! Clear timer and signal ready for next set
+          playChimeSound();
+          setLiveWorkoutSession((prev) => (prev ? { ...prev, activeTimer: null } : prev));
         }
-
-        return {
-          ...prev,
-          activeTimer: {
-            ...prev.activeTimer,
-            secondsLeft: nextLeft,
-            halfwayAnnounced: nextHalfway,
-          },
-        };
-      });
+      } else {
+        setLiveWorkoutSession((prev) => {
+          if (!prev?.activeTimer) return prev;
+          return {
+            ...prev,
+            activeTimer: {
+              ...prev.activeTimer,
+              secondsLeft: nextLeft,
+              halfwayAnnounced: nextHalfway,
+            },
+          };
+        });
+      }
     }, 1000);
 
     return () => clearInterval(interval);
@@ -487,11 +503,16 @@ export default function Plans() {
   // Complete set early and immediately start the automatic rest timer
   const handleCompleteSetEarly = () => {
     if (!liveWorkoutSession?.activeTimer || liveWorkoutSession.activeTimer.mode !== 'set') return;
-    speakVoice('Done', { rate: 1.1 });
     const { exId, setIdx } = liveWorkoutSession.activeTimer;
+    const setKey = `${exId}-${setIdx}`;
+    if (completedPlanSetVoiceRef.current !== setKey) {
+      completedPlanSetVoiceRef.current = setKey;
+      speakVoice('Done. Take rest and get ready for the next set.', { rate: 1.02, interrupt: true });
+    }
     const currentSets = liveWorkoutSession.setsMap[exId] || [];
     const updatedSets = currentSets.map((s, idx) => (idx === setIdx ? { ...s, done: true } : s));
     const restDuration = liveWorkoutSession.restDuration || 60;
+    playChimeSound();
 
     setLiveWorkoutSession((prev) => ({
       ...prev,
@@ -662,6 +683,18 @@ export default function Plans() {
           : totalSetsDone > 0
           ? 'Moderate Effort'
           : 'Light Session',
+    });
+
+    setPlanCompleteModalData({
+      durationSecs: finalElapsedSeconds,
+      durationMinutes: Math.max(1, Math.round(finalElapsedSeconds / 60)),
+      volume: totalVolume,
+      setsCount: totalSetsDone,
+      workSetsCount: totalSetsDone,
+      caloriesBurned: burnedCalories,
+      trainedMuscles: [...new Set(exercises.map((e) => e.bodyPart).filter(Boolean))],
+      trainedTargets: [...new Set(exercises.map((e) => e.target).filter(Boolean))],
+      routineName: `${plan.name} (${dayName})`,
     });
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -924,7 +957,6 @@ export default function Plans() {
                           e.currentTarget.src = asset(currentEx.image || 'images/0001-2gPfomN.jpg');
                         }}
                       />
-                      <span className="scan" />
                       <span className="corner tl" /><span className="corner tr" /><span className="corner bl" /><span className="corner br" />
                       <span className="media-tag">Target · {currentEx.target}</span>
                     </div>
@@ -1933,6 +1965,12 @@ export default function Plans() {
           )}
         </AnimatePresence>
       </div>
+
+      <WorkoutCompleteModal
+        isOpen={Boolean(planCompleteModalData)}
+        onClose={() => setPlanCompleteModalData(null)}
+        data={planCompleteModalData}
+      />
     </section>
   );
 }

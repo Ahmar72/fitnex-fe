@@ -8,6 +8,8 @@ import { Paper, Reveal, SplitText } from '../components/Motion.jsx';
 import { Arrow, Check, Down, Play, Plus, Search, Trash, Up, X } from '../components/Icons.jsx';
 import { ROUTINES } from '../sections/Programs.jsx';
 import { BODY_PARTS, asset, dayKey, fmt, playChimeSound, playWhistleSound, speakVoice, getExerciseVoiceOverview } from '../lib/utils.js';
+import PageShimmer from '../components/AppSpinner.jsx';
+import WorkoutCompleteModal from '../components/WorkoutCompleteModal.jsx';
 import { createPortal } from 'react-dom';
 import { lockScroll } from '../lib/useSmoothScroll.js';
 
@@ -128,7 +130,7 @@ const WorkoutItem = forwardRef(function WorkoutItem({ item, ex, index, total, on
   );
 });
 
-function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId = null }) {
+function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId = null, initialAnnouncedExId = null, onFinishWorkout }) {
   const { updateSet, finish } = useWorkout();
   const { t } = useLanguage();
   const [idx, setIdx] = useState(() => Math.min(Math.max(0, initialIndex), Math.max(0, items.length - 1)));
@@ -144,8 +146,11 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
   //   halfwayAnnounced: boolean,
   // } | null
   const [activeTimer, setActiveTimer] = useState(null);
+  const activeTimerRef = useRef(activeTimer);
+  activeTimerRef.current = activeTimer;
+  const completedSetVoiceRef = useRef(null);
   const initialTriggerRef = useRef(false);
-  const lastAnnouncedExIdRef = useRef(null);
+  const lastAnnouncedExIdRef = useRef(initialAnnouncedExId);
 
   const handleClose = () => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -176,7 +181,7 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
     if (lastAnnouncedExIdRef.current === ex.id) return;
     lastAnnouncedExIdRef.current = ex.id;
 
-    speakVoice(getExerciseVoiceOverview(ex), { rate: 0.96, pitch: 1.02 });
+    speakVoice(getExerciseVoiceOverview(ex), { rate: 0.96, pitch: 1.02, interrupt: true });
   }, [ex?.id]);
 
   const startSetTimer = (targetItemUid, targetSetId, targetSetIndex) => {
@@ -184,6 +189,9 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
     if (!currentItem) return;
     const currentSet = currentItem.sets.find((s) => s.id === targetSetId);
     if (currentSet?.done) return;
+
+    // Reset completed voice guard for new set
+    completedSetVoiceRef.current = null;
 
     // Blow marathon sports whistle
     playWhistleSound();
@@ -219,67 +227,72 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
     if (!activeTimer?.isRunning) return;
 
     const interval = setInterval(() => {
-      setActiveTimer((prev) => {
-        if (!prev?.isRunning) return prev;
-        const nextLeft = prev.secondsLeft - 1;
+      const cur = activeTimerRef.current;
+      if (!cur || !cur.isRunning) return;
 
-        // Check halfway mark for SET mode and speak "Halfway there"
-        let nextHalfway = prev.halfwayAnnounced;
-        if (prev.mode === 'set' && !prev.halfwayAnnounced) {
-          const halfPoint = Math.floor(prev.totalSeconds / 2);
-          if (nextLeft <= halfPoint) {
-            speakVoice('Halfway there', { rate: 1.05, interrupt: true });
-            nextHalfway = true;
-          }
+      const nextLeft = cur.secondsLeft - 1;
+
+      // Check halfway mark for SET mode and speak "Halfway there" at exact half time
+      let nextHalfway = cur.halfwayAnnounced;
+      if (cur.mode === 'set' && !cur.halfwayAnnounced) {
+        const halfPoint = Math.floor(cur.totalSeconds / 2);
+        if (nextLeft <= halfPoint) {
+          speakVoice('Halfway there', { rate: 1.05, interrupt: true });
+          nextHalfway = true;
         }
+      }
 
-        // Voice countdown for the last 3 seconds of a set: 3, 2, 1, "done"
-        if (prev.mode === 'set') {
-          if (nextLeft === 3) {
-            speakVoice('Three', { rate: 1.18, interrupt: true });
-          } else if (nextLeft === 2) {
-            speakVoice('Two', { rate: 1.18, interrupt: true });
-          } else if (nextLeft === 1) {
-            speakVoice('One', { rate: 1.18, interrupt: true });
-          }
+      // Voice countdown for the last 3 seconds of a set: 3, 2, 1
+      if (cur.mode === 'set') {
+        if (nextLeft === 3) {
+          speakVoice('Three', { rate: 1.18, interrupt: true });
+        } else if (nextLeft === 2) {
+          speakVoice('Two', { rate: 1.18, interrupt: true });
+        } else if (nextLeft === 1) {
+          speakVoice('One', { rate: 1.18, interrupt: true });
         }
+      }
 
-        if (nextLeft <= 0) {
-          if (prev.mode === 'set') {
-            // SET COMPLETED! Voice speaks "Done"
-            speakVoice('Done', { rate: 1.1, interrupt: true });
-            // 1. Mark set as done
-            updateSet(prev.itemUid, prev.setId, { done: true });
-            // 2. Play chime
-            playChimeSound();
-            if (navigator.vibrate) navigator.vibrate(200);
-
-            // 3. AUTOMATICALLY start REST TIMER!
-            const REST_DURATION = 60;
-            return {
-              mode: 'rest',
-              itemUid: prev.itemUid,
-              setId: prev.setId,
-              setIndex: prev.setIndex,
-              secondsLeft: REST_DURATION,
-              totalSeconds: REST_DURATION,
-              isRunning: true,
-              halfwayAnnounced: false,
-            };
-          } else {
-            // REST FINISHED!
-            playChimeSound();
-            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-            return null;
+      if (nextLeft <= 0) {
+        if (cur.mode === 'set') {
+          // SET COMPLETED! Guard so it speaks "Done" and rest cue only once
+          const setKey = `${cur.itemUid}-${cur.setId}`;
+          if (completedSetVoiceRef.current !== setKey) {
+            completedSetVoiceRef.current = setKey;
+            speakVoice('Done. Take rest and get ready for the next set.', { rate: 1.02, interrupt: true });
           }
-        }
 
-        return {
-          ...prev,
+          // 1. Mark set as done
+          updateSet(cur.itemUid, cur.setId, { done: true });
+          // 2. Play chime
+          playChimeSound();
+          if (navigator.vibrate) navigator.vibrate(200);
+
+          // 3. AUTOMATICALLY start REST TIMER!
+          const REST_DURATION = 60;
+          setActiveTimer({
+            mode: 'rest',
+            itemUid: cur.itemUid,
+            setId: cur.setId,
+            setIndex: cur.setIndex,
+            secondsLeft: REST_DURATION,
+            totalSeconds: REST_DURATION,
+            isRunning: true,
+            halfwayAnnounced: false,
+          });
+        } else {
+          // REST FINISHED!
+          playChimeSound();
+          if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+          setActiveTimer(null);
+        }
+      } else {
+        setActiveTimer({
+          ...cur,
           secondsLeft: nextLeft,
           halfwayAnnounced: nextHalfway,
-        };
-      });
+        });
+      }
     }, 1000);
 
     return () => clearInterval(interval);
@@ -288,7 +301,11 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
   // Complete set early and start rest timer immediately
   const completeSetEarly = () => {
     if (!activeTimer || activeTimer.mode !== 'set') return;
-    speakVoice('Done', { rate: 1.1 });
+    const setKey = `${activeTimer.itemUid}-${activeTimer.setId}`;
+    if (completedSetVoiceRef.current !== setKey) {
+      completedSetVoiceRef.current = setKey;
+      speakVoice('Done. Take rest and get ready for the next set.', { rate: 1.02, interrupt: true });
+    }
     updateSet(activeTimer.itemUid, activeTimer.setId, { done: true });
     playChimeSound();
     if (navigator.vibrate) navigator.vibrate(200);
@@ -324,7 +341,11 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
-    if (finish()) onClose();
+    if (onFinishWorkout) {
+      onFinishWorkout();
+    } else if (finish()) {
+      onClose();
+    }
   };
 
   if (!item || !ex) return null;
@@ -482,12 +503,7 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
           <button
             className="btn btn-ghost"
             onClick={() => {
-              const prevIdx = Math.max(0, idx - 1);
-              const prevEx = byId.get(items[prevIdx]?.exerciseId);
-              if (prevEx) {
-                speakVoice(getExerciseVoiceOverview(prevEx), { rate: 0.96, pitch: 1.02, interrupt: true });
-              }
-              setIdx(prevIdx);
+              setIdx((prev) => Math.max(0, prev - 1));
             }}
             disabled={idx === 0}
           >
@@ -497,12 +513,7 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
             <button
               className="btn btn-primary"
               onClick={() => {
-                const nextIdx = idx + 1;
-                const nextEx = byId.get(items[nextIdx]?.exerciseId);
-                if (nextEx) {
-                  speakVoice(getExerciseVoiceOverview(nextEx), { rate: 0.96, pitch: 1.02, interrupt: true });
-                }
-                setIdx(nextIdx);
+                setIdx((prev) => Math.min(items.length - 1, prev + 1));
               }}
             >
               {t('builder.next_ex', 'Next exercise →')} <Arrow />
@@ -524,13 +535,60 @@ export default function Builder() {
   const [live, setLive] = useState(false);
   const [liveIndex, setLiveIndex] = useState(0);
   const [liveTargetSetId, setLiveTargetSetId] = useState(null);
+  const [initialAnnouncedId, setInitialAnnouncedId] = useState(null);
+  const [completeModalData, setCompleteModalData] = useState(null);
 
   const items = workout.items.filter((i) => byId.has(i.exerciseId));
 
+  const handleStartWorkout = () => {
+    const firstIncompleteExIdx = items.findIndex((it) => it.sets.some((s) => !s.done));
+    const targetExIdx = firstIncompleteExIdx !== -1 ? firstIncompleteExIdx : 0;
+    const targetItem = items[targetExIdx];
+    const targetEx = targetItem ? byId.get(targetItem.exerciseId) : null;
+    if (targetEx) {
+      speakVoice(getExerciseVoiceOverview(targetEx), { rate: 0.96, pitch: 1.02, interrupt: true });
+    }
+    setLiveIndex(targetExIdx);
+    setLiveTargetSetId(null);
+    setInitialAnnouncedId(targetEx?.id || null);
+    setLive(true);
+  };
+
   const handleStartSet = (exerciseIndex, setId) => {
+    const targetItem = items[exerciseIndex];
+    const targetEx = targetItem ? byId.get(targetItem.exerciseId) : null;
+    if (targetEx) {
+      speakVoice(getExerciseVoiceOverview(targetEx), { rate: 0.96, pitch: 1.02, interrupt: true });
+    }
     setLiveIndex(exerciseIndex);
     setLiveTargetSetId(setId);
+    setInitialAnnouncedId(targetEx?.id || null);
     setLive(true);
+  };
+
+  const handleFinishWorkout = () => {
+    const sets = items.flatMap((i) => i.sets);
+    const done = sets.filter((s) => s.done);
+    const vol = done.reduce((a, s) => a + Number(s.reps || 0) * Number(s.weight || 0), 0);
+    const trainedMuscles = [...new Set(items.map((it) => byId.get(it.exerciseId)?.bodyPart).filter(Boolean))];
+    const trainedTargets = [...new Set(items.map((it) => byId.get(it.exerciseId)?.target).filter(Boolean))];
+    const durationMinutes = Math.max(1, Math.round((done.length || 1) * 2.5));
+    const caloriesBurned = Math.round(done.length * 18 + durationMinutes * 6);
+
+    const success = finish();
+    setLive(false);
+    setLiveTargetSetId(null);
+    setCompleteModalData({
+      durationMinutes,
+      volume: vol,
+      setsCount: sets.length,
+      workSetsCount: done.length,
+      caloriesBurned,
+      trainedMuscles,
+      trainedTargets,
+      workoutName: workout.name,
+    });
+    return success;
   };
 
   const stats = useMemo(() => {
@@ -589,18 +647,7 @@ export default function Builder() {
               {items.length > 0 && (
                 <button
                   className="btn btn-primary"
-                  onClick={() => {
-                    const firstIncompleteExIdx = items.findIndex((it) => it.sets.some((s) => !s.done));
-                    const targetExIdx = firstIncompleteExIdx !== -1 ? firstIncompleteExIdx : 0;
-                    const targetItem = items[targetExIdx];
-                    const targetEx = targetItem ? byId.get(targetItem.exerciseId) : null;
-                    if (targetEx) {
-                      speakVoice(getExerciseVoiceOverview(targetEx), { rate: 0.96, pitch: 1.02, interrupt: true });
-                    }
-                    setLiveIndex(targetExIdx);
-                    setLiveTargetSetId(null);
-                    setLive(true);
-                  }}
+                  onClick={handleStartWorkout}
                 >
                   <Play /> {t('builder.start', 'Start workout')}
                 </button>
@@ -608,7 +655,7 @@ export default function Builder() {
             </div>
 
             {!ready ? (
-              <div className="loader-dots"><i /><i /><i /></div>
+              <PageShimmer cardsCount={3} />
             ) : items.length === 0 ? (
               <motion.div className="card" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} style={{ padding: 36 }}>
                 <span className="tag">{t('builder.empty_title', 'Empty workout')}</span>
@@ -668,7 +715,7 @@ export default function Builder() {
               )}
               {items.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
-                  <button className="btn btn-primary btn-sm" onClick={finish} style={{ flex: 1 }}><Check /> {t('builder.finish', 'Finish & log')}</button>
+                  <button className="btn btn-primary btn-sm" onClick={handleFinishWorkout} style={{ flex: 1 }}><Check /> {t('builder.finish', 'Finish & log')}</button>
                   <button className="btn btn-ghost btn-sm" onClick={() => window.confirm('Remove all exercises from this workout?') && clear()}><Trash /> {t('builder.clear', 'Clear')}</button>
                 </div>
               )}
@@ -726,13 +773,25 @@ export default function Builder() {
               byId={byId}
               initialIndex={liveIndex}
               initialTargetSetId={liveTargetSetId}
+              initialAnnouncedExId={initialAnnouncedId}
               onClose={() => {
                 setLive(false);
                 setLiveTargetSetId(null);
+                setInitialAnnouncedId(null);
               }}
+              onFinishWorkout={handleFinishWorkout}
             />
           )}
         </AnimatePresence>,
+        document.body
+      )}
+
+      {createPortal(
+        <WorkoutCompleteModal
+          isOpen={Boolean(completeModalData)}
+          onClose={() => setCompleteModalData(null)}
+          data={completeModalData}
+        />,
         document.body
       )}
     </>

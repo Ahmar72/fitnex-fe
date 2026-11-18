@@ -1103,3 +1103,198 @@
   to { opacity: 1; }
 }
 
+/* ==========================================================================
+   Workout Complete Success Modal & Targeted Muscle Map
+   ========================================================================== */
+.workout-complete-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.workout-complete-card {
+  background: #17181d;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(34, 197, 94, 0.08);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: #ffffff;
+  margin: auto;
+}
+
+.workout-complete-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #24262d;
+  border: none;
+  color: #a1a1aa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.workout-complete-close-btn:hover {
+  background: #32353e;
+  color: #ffffff;
+}
+
+.workout-complete-trophy-wrap {
+  color: #10b981;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.4));
+}
+
+.workout-complete-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 18px;
+  letter-spacing: -0.01em;
+}
+
+.workout-complete-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 18px;
+}
+
+.complete-stat-tile {
+  background: #202228;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 4px;
+}
+
+.stat-tile-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+.stat-tile-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.workout-complete-nice-btn {
+  width: 100%;
+  height: 46px;
+  background: #22c55e;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 800;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 18px rgba(34, 197, 94, 0.35);
+  margin-bottom: 20px;
+}
+
+.workout-complete-nice-btn:hover {
+  background: #16a34a;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(34, 197, 94, 0.45);
+}
+
+.workout-complete-trained-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.trained-muscles-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #9ca3af;
+  margin: 6px 0 0;
+  text-align: left;
+}
+
+.trained-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+
+.trained-muscle-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: 999px;
+  padding: 3px 10px;
+  text-transform: capitalize;
+}
+
+.workout-muscle-map-wrap {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 12px 0 4px;
+}
+
+.muscle-map-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 105px;
+}
+
+.figure-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: #6b7280;
+  letter-spacing: 0.12em;
+}
+
+.figure-svg {
+  width: 100%;
+  height: 250px;
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.55));
+}
+
+

@@ -85,7 +85,6 @@ export default function ExerciseDetail() {
               animate={{ scale: 1 }}
               transition={{ duration: 1.4, delay: 0.2, ease }}
             />
-            <span className="scan" />
             <span className="corner tl" /><span className="corner tr" /><span className="corner bl" /><span className="corner br" />
             <span className="media-tag">{t('detail.target', 'Target')} · {ex.target}</span>
           </motion.div>
