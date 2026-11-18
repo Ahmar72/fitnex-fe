@@ -220,6 +220,9 @@ export function getAttractiveVoice() {
   return list.find((v) => v.lang?.startsWith('en')) || list[0] || null;
 }
 
+// Retain reference to active utterances to prevent V8 garbage collection bug in Chrome
+let activeUtterances = [];
+
 /**
  * Text-to-speech announcement for workouts (guidance, alerts, countdown).
  * Uses native Web Speech API with tuned attractive voice.
@@ -227,21 +230,56 @@ export function getAttractiveVoice() {
 export function speakVoice(text = '', options = {}) {
   try {
     if (typeof window === 'undefined' || !('speechSynthesis' in window) || !text) return;
-    if (!options.queue) {
-      window.speechSynthesis.cancel();
+
+    const synth = window.speechSynthesis;
+
+    // Wake up synth if paused by browser
+    if (synth.paused) {
+      synth.resume();
     }
-    const utterance = new SpeechSynthesisUtterance(text);
+
+    // Only cancel prior speech if caller explicitly requested interrupt
+    const isSpeakingNow = synth.speaking || synth.pending;
+    if (options.interrupt && isSpeakingNow) {
+      synth.cancel();
+      if (synth.paused) synth.resume();
+    }
+
+    const utterance = new SpeechSynthesisUtterance(String(text).trim());
     utterance.rate = options.rate || 0.98;
     utterance.pitch = options.pitch || 1.02;
     utterance.volume = options.volume !== undefined ? options.volume : 1.0;
-    utterance.lang = 'en-US';
 
     const voice = getAttractiveVoice();
-    if (voice) utterance.voice = voice;
+    if (voice) {
+      utterance.voice = voice;
+      utterance.lang = voice.lang || 'en-US';
+    } else {
+      utterance.lang = 'en-US';
+    }
 
-    window.speechSynthesis.speak(utterance);
-  } catch {
-    /* speech synthesis unavailable or blocked */
+    // Keep active reference
+    activeUtterances.push(utterance);
+    utterance.onend = () => {
+      activeUtterances = activeUtterances.filter((u) => u !== utterance);
+    };
+    utterance.onerror = (e) => {
+      activeUtterances = activeUtterances.filter((u) => u !== utterance);
+      console.warn('SpeechSynthesis error:', e);
+    };
+
+    // If cancelled, give 30ms for audio thread to settle before speaking
+    if (options.interrupt && isSpeakingNow) {
+      setTimeout(() => {
+        if (synth.paused) synth.resume();
+        synth.speak(utterance);
+      }, 30);
+    } else {
+      synth.speak(utterance);
+      if (synth.paused) synth.resume();
+    }
+  } catch (err) {
+    console.warn('speakVoice exception:', err);
   }
 }
 

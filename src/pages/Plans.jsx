@@ -285,6 +285,10 @@ export default function Plans() {
   const handleStartWorkout = () => {
     if (!selectedPlan || !currentDayRoutine || currentDayRoutine.isRest) return;
 
+    if (routineExercises[0]) {
+      speakVoice(getExerciseVoiceOverview(routineExercises[0]), { rate: 0.96, pitch: 1.02, interrupt: true });
+    }
+
     const restDuration = Number(user?.profile?.rest || readLS('fx:rest-timer', 60)) || 60;
 
     const initialSets = {};
@@ -362,11 +366,7 @@ export default function Plans() {
     if (lastAnnouncedPlanExIdRef.current === curEx.id) return;
     lastAnnouncedPlanExIdRef.current = curEx.id;
 
-    const timer = setTimeout(() => {
-      speakVoice(getExerciseVoiceOverview(curEx), { rate: 0.96, pitch: 1.02 });
-    }, 450);
-
-    return () => clearTimeout(timer);
+    speakVoice(getExerciseVoiceOverview(curEx), { rate: 0.96, pitch: 1.02, interrupt: true });
   }, [liveWorkoutSession?.currentExIdx, Boolean(liveWorkoutSession)]);
 
   // Countdown timer effect:
@@ -385,7 +385,7 @@ export default function Plans() {
         if (prev.activeTimer.mode === 'set' && !prev.activeTimer.halfwayAnnounced) {
           const halfPoint = Math.floor(prev.activeTimer.totalSeconds / 2);
           if (nextLeft <= halfPoint) {
-            speakVoice('Halfway there');
+            speakVoice('Halfway there', { rate: 1.05, interrupt: true });
             nextHalfway = true;
           }
         }
@@ -393,11 +393,11 @@ export default function Plans() {
         // Voice countdown for the last 3 seconds of a set: 3, 2, 1, "done"
         if (prev.activeTimer.mode === 'set') {
           if (nextLeft === 3) {
-            speakVoice('Three', { rate: 1.15 });
+            speakVoice('Three', { rate: 1.18, interrupt: true });
           } else if (nextLeft === 2) {
-            speakVoice('Two', { rate: 1.15 });
+            speakVoice('Two', { rate: 1.18, interrupt: true });
           } else if (nextLeft === 1) {
-            speakVoice('One', { rate: 1.15 });
+            speakVoice('One', { rate: 1.18, interrupt: true });
           }
         }
 
@@ -406,7 +406,7 @@ export default function Plans() {
 
           if (mode === 'set') {
             // Set completed! Voice speaks "Done"
-            speakVoice('Done', { rate: 1.1 });
+            speakVoice('Done', { rate: 1.1, interrupt: true });
             // Set completed! Mark DONE automatically!
             const currentSets = prev.setsMap[exId] || [];
             const updatedSets = currentSets.map((s, idx) => (idx === setIdx ? { ...s, done: true } : s));
@@ -1157,9 +1157,14 @@ export default function Plans() {
                 className="btn btn-ghost"
                 disabled={liveWorkoutSession.currentExIdx === 0}
                 onClick={() => {
+                  const prevIdx = Math.max(0, liveWorkoutSession.currentExIdx - 1);
+                  const prevEx = liveWorkoutSession.exercises[prevIdx];
+                  if (prevEx) {
+                    speakVoice(getExerciseVoiceOverview(prevEx), { rate: 0.96, pitch: 1.02, interrupt: true });
+                  }
                   setLiveWorkoutSession((prev) => ({
                     ...prev,
-                    currentExIdx: Math.max(0, prev.currentExIdx - 1),
+                    currentExIdx: prevIdx,
                   }));
                 }}
               >
@@ -1179,6 +1184,10 @@ export default function Plans() {
                         isDone ? 'completed' : ''
                       }`}
                       onClick={() => {
+                        const targetEx = liveWorkoutSession.exercises[idx];
+                        if (targetEx) {
+                          speakVoice(getExerciseVoiceOverview(targetEx), { rate: 0.96, pitch: 1.02, interrupt: true });
+                        }
                         setLiveWorkoutSession((prev) => ({ ...prev, currentExIdx: idx }));
                       }}
                       title={ex.name}
@@ -1205,9 +1214,14 @@ export default function Plans() {
                   type="button"
                   className="btn btn-primary"
                   onClick={() => {
+                    const nextIdx = Math.min(liveWorkoutSession.exercises.length - 1, liveWorkoutSession.currentExIdx + 1);
+                    const nextEx = liveWorkoutSession.exercises[nextIdx];
+                    if (nextEx) {
+                      speakVoice(getExerciseVoiceOverview(nextEx), { rate: 0.96, pitch: 1.02, interrupt: true });
+                    }
                     setLiveWorkoutSession((prev) => ({
                       ...prev,
-                      currentExIdx: Math.min(prev.exercises.length - 1, prev.currentExIdx + 1),
+                      currentExIdx: nextIdx,
                     }));
                   }}
                 >

@@ -176,11 +176,7 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
     if (lastAnnouncedExIdRef.current === ex.id) return;
     lastAnnouncedExIdRef.current = ex.id;
 
-    const timer = setTimeout(() => {
-      speakVoice(getExerciseVoiceOverview(ex), { rate: 0.96, pitch: 1.02 });
-    }, 450);
-
-    return () => clearTimeout(timer);
+    speakVoice(getExerciseVoiceOverview(ex), { rate: 0.96, pitch: 1.02 });
   }, [ex?.id]);
 
   const startSetTimer = (targetItemUid, targetSetId, targetSetIndex) => {
@@ -232,7 +228,7 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
         if (prev.mode === 'set' && !prev.halfwayAnnounced) {
           const halfPoint = Math.floor(prev.totalSeconds / 2);
           if (nextLeft <= halfPoint) {
-            speakVoice('Halfway there');
+            speakVoice('Halfway there', { rate: 1.05, interrupt: true });
             nextHalfway = true;
           }
         }
@@ -240,18 +236,18 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
         // Voice countdown for the last 3 seconds of a set: 3, 2, 1, "done"
         if (prev.mode === 'set') {
           if (nextLeft === 3) {
-            speakVoice('Three', { rate: 1.15 });
+            speakVoice('Three', { rate: 1.18, interrupt: true });
           } else if (nextLeft === 2) {
-            speakVoice('Two', { rate: 1.15 });
+            speakVoice('Two', { rate: 1.18, interrupt: true });
           } else if (nextLeft === 1) {
-            speakVoice('One', { rate: 1.15 });
+            speakVoice('One', { rate: 1.18, interrupt: true });
           }
         }
 
         if (nextLeft <= 0) {
           if (prev.mode === 'set') {
             // SET COMPLETED! Voice speaks "Done"
-            speakVoice('Done', { rate: 1.1 });
+            speakVoice('Done', { rate: 1.1, interrupt: true });
             // 1. Mark set as done
             updateSet(prev.itemUid, prev.setId, { done: true });
             // 2. Play chime
@@ -456,9 +452,6 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
                       ☕ REST TIMER (SET {activeTimer.setIndex + 1} DONE)
                     </span>
                   )}
-                  {activeTimer.halfwayAnnounced && activeTimer.mode === 'set' && (
-                    <span className="halfway-tag">Voice: "Halfway there" ✓</span>
-                  )}
                 </div>
                 <div className="timer-digits">
                   {Math.floor(activeTimer.secondsLeft / 60)}:{String(activeTimer.secondsLeft % 60).padStart(2, '0')}
@@ -486,9 +479,34 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
         </AnimatePresence>
 
         <div className="live-nav">
-          <button className="btn btn-ghost" onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0}>{t('builder.prev', '← Previous')}</button>
+          <button
+            className="btn btn-ghost"
+            onClick={() => {
+              const prevIdx = Math.max(0, idx - 1);
+              const prevEx = byId.get(items[prevIdx]?.exerciseId);
+              if (prevEx) {
+                speakVoice(getExerciseVoiceOverview(prevEx), { rate: 0.96, pitch: 1.02, interrupt: true });
+              }
+              setIdx(prevIdx);
+            }}
+            disabled={idx === 0}
+          >
+            {t('builder.prev', '← Previous')}
+          </button>
           {idx < items.length - 1 ? (
-            <button className="btn btn-primary" onClick={() => setIdx((i) => i + 1)}>{t('builder.next_ex', 'Next exercise →')} <Arrow /></button>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                const nextIdx = idx + 1;
+                const nextEx = byId.get(items[nextIdx]?.exerciseId);
+                if (nextEx) {
+                  speakVoice(getExerciseVoiceOverview(nextEx), { rate: 0.96, pitch: 1.02, interrupt: true });
+                }
+                setIdx(nextIdx);
+              }}
+            >
+              {t('builder.next_ex', 'Next exercise →')} <Arrow />
+            </button>
           ) : (
             <button className="btn btn-primary" onClick={end}><Check /> {t('builder.finish_live', 'Finish & log')}</button>
           )}
@@ -574,9 +592,13 @@ export default function Builder() {
                   onClick={() => {
                     const firstIncompleteExIdx = items.findIndex((it) => it.sets.some((s) => !s.done));
                     const targetExIdx = firstIncompleteExIdx !== -1 ? firstIncompleteExIdx : 0;
-                    const firstIncompleteSet = items[targetExIdx]?.sets.find((s) => !s.done);
+                    const targetItem = items[targetExIdx];
+                    const targetEx = targetItem ? byId.get(targetItem.exerciseId) : null;
+                    if (targetEx) {
+                      speakVoice(getExerciseVoiceOverview(targetEx), { rate: 0.96, pitch: 1.02, interrupt: true });
+                    }
                     setLiveIndex(targetExIdx);
-                    setLiveTargetSetId(firstIncompleteSet?.id || null);
+                    setLiveTargetSetId(null);
                     setLive(true);
                   }}
                 >
