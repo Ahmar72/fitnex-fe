@@ -186,38 +186,55 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 
 /**
  * Selects an attractive, natural-sounding voice for the workout guide.
- * Prioritizes high-definition neural/natural voices (Edge/Chrome/Safari).
+ * Prioritizes high-definition local (offline) voices to eliminate network round-trip latency
+ * (which causes delays in countdown cues and announcements).
  */
 export function getAttractiveVoice() {
   updateVoices();
   const list = cachedVoices.length ? cachedVoices : (window.speechSynthesis?.getVoices?.() || []);
   if (!list.length) return null;
 
-  // 1. Natural / Neural Microsoft Online voices (best clarity and tone)
-  const natural = list.find(
-    (v) =>
-      v.lang?.startsWith('en') &&
-      (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Online'))
-  );
+  // Filter for English voices
+  const enVoices = list.filter((v) => v.lang?.startsWith('en'));
+  if (!enVoices.length) return list[0];
+
+  // Prioritize LOCAL (offline) voices to eliminate network round-trip latency
+  // Cloud voices (like Edge "Online" voices) take 1.5 - 2.5s of network time to download audio
+  const localEn = enVoices.filter((v) => !v.name.includes('Online') && v.localService !== false);
+  const candidateList = localEn.length > 0 ? localEn : enVoices;
+
+  // 1. High-quality natural / neural local voices
+  const natural = candidateList.find((v) => v.name.includes('Natural') || v.name.includes('Neural'));
   if (natural) return natural;
 
-  // 2. High-quality Google or Apple voices
-  const googleOrApple = list.find(
+  // 2. High-quality Google or Apple local voices
+  const googleOrApple = candidateList.find(
     (v) =>
       v.name.includes('Google US English') ||
-      v.name.includes('Google UK English Female') ||
+      v.name.includes('Google UK English') ||
       v.name.includes('Samantha') ||
-      v.name.includes('Aria') ||
-      v.name.includes('Jenny')
+      v.name.includes('Daniel') ||
+      v.name.includes('Karen') ||
+      v.name.includes('Alex')
   );
   if (googleOrApple) return googleOrApple;
 
-  // 3. Any standard English voice except older robotic Zira
-  const standardEn = list.find((v) => v.lang?.startsWith('en') && !v.name.includes('Zira'));
-  if (standardEn) return standardEn;
+  // 3. Clear Microsoft desktop local voices (David, Mark, Jenny, Aria)
+  const msLocal = candidateList.find(
+    (v) =>
+      v.name.includes('David') ||
+      v.name.includes('Mark') ||
+      v.name.includes('Aria') ||
+      v.name.includes('Jenny')
+  );
+  if (msLocal) return msLocal;
 
-  // 4. Fallback
-  return list.find((v) => v.lang?.startsWith('en')) || list[0] || null;
+  // 4. Any candidate English voice except robotic Zira
+  const preferredEn = candidateList.find((v) => !v.name.includes('Zira'));
+  if (preferredEn) return preferredEn;
+
+  // 5. Fallback
+  return candidateList[0] || enVoices[0] || list[0];
 }
 
 // Retain reference to active utterances to prevent V8 garbage collection bug in Chrome
@@ -225,7 +242,7 @@ let activeUtterances = [];
 
 /**
  * Text-to-speech announcement for workouts (guidance, alerts, countdown).
- * Uses native Web Speech API with tuned attractive voice.
+ * Uses native Web Speech API with tuned attractive voice and zero-latency playback.
  */
 export function speakVoice(text = '', options = {}) {
   try {
@@ -238,16 +255,15 @@ export function speakVoice(text = '', options = {}) {
       synth.resume();
     }
 
-    // Only cancel prior speech if caller explicitly requested interrupt
-    const isSpeakingNow = synth.speaking || synth.pending;
-    if (options.interrupt && isSpeakingNow) {
+    // Cancel prior speech immediately if interrupt is requested
+    if (options.interrupt) {
       synth.cancel();
       if (synth.paused) synth.resume();
     }
 
     const utterance = new SpeechSynthesisUtterance(String(text).trim());
-    utterance.rate = options.rate || 0.98;
-    utterance.pitch = options.pitch || 1.02;
+    utterance.rate = options.rate || 1.0;
+    utterance.pitch = options.pitch || 1.0;
     utterance.volume = options.volume !== undefined ? options.volume : 1.0;
 
     const voice = getAttractiveVoice();
@@ -268,16 +284,8 @@ export function speakVoice(text = '', options = {}) {
       console.warn('SpeechSynthesis error:', e);
     };
 
-    // If cancelled, give 30ms for audio thread to settle before speaking
-    if (options.interrupt && isSpeakingNow) {
-      setTimeout(() => {
-        if (synth.paused) synth.resume();
-        synth.speak(utterance);
-      }, 30);
-    } else {
-      synth.speak(utterance);
-      if (synth.paused) synth.resume();
-    }
+    synth.speak(utterance);
+    if (synth.paused) synth.resume();
   } catch (err) {
     console.warn('speakVoice exception:', err);
   }

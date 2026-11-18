@@ -8,6 +8,7 @@ import ExerciseCard from '../components/ExerciseCard.jsx';
 import { Reveal, SplitText } from '../components/Motion.jsx';
 import { Arrow, ArrowLeft, Grid, ListIcon, Search, X } from '../components/Icons.jsx';
 import { BODY_PARTS, partMeta } from '../lib/utils.js';
+import PageShimmer from '../components/AppSpinner.jsx';
 
 export default function Library() {
   const { exercises, facets, ready } = useData();
@@ -259,7 +260,7 @@ export default function Library() {
           </div>
 
           {!ready ? (
-            <div className="loader-dots"><i /><i /><i /></div>
+            <PageShimmer variant="grid" cardsCount={pageSize || 8} />
           ) : results.length === 0 ? (
             <div className="empty">
               <div className="display">{t('lib.no_reps', 'No reps here.')}</div>

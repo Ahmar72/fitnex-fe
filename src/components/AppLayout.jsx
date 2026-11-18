@@ -16,7 +16,7 @@ import {
   Sun,
   Moon,
 } from './Icons.jsx';
-import AppSpinner, { TopProgressBar } from './AppSpinner.jsx';
+import PageShimmer, { TopProgressBar } from './AppSpinner.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useWorkout } from '../context/WorkoutContext.jsx';
 import { useLanguage } from '../context/LanguageContext.jsx';
@@ -429,12 +429,12 @@ export default function AppLayout({ children }) {
         </header>
 
         {/* ============================================================
-            4. Main App Content with Smooth Loading Spinner Navigation
+            4. Main App Content with Smooth Shimmer Loading Navigation
             ============================================================ */}
         <main className="app-main" id="main-content">
-          <Suspense fallback={<AppSpinner label={t('common.loading', 'Loading...')} />}>
+          <Suspense fallback={<PageShimmer label={t('common.loading', 'Loading...')} />}>
             {navigating ? (
-              <AppSpinner label={t('common.loading', 'Loading...')} />
+              <PageShimmer label={t('common.loading', 'Loading...')} />
             ) : (
               <div className="app-view-content" key={location.pathname}>
                 {children || <Outlet />}

@@ -8,6 +8,7 @@ import ExerciseCard from '../components/ExerciseCard.jsx';
 import { Paper, Reveal } from '../components/Motion.jsx';
 import { Arrow, Heart, Plus } from '../components/Icons.jsx';
 import { asset, partMeta, sample } from '../lib/utils.js';
+import PageShimmer from '../components/AppSpinner.jsx';
 
 const ease = [0.22, 1, 0.36, 1];
 
@@ -44,7 +45,7 @@ export default function ExerciseDetail() {
     };
   }, [ex, exercises]);
 
-  if (!ready) return <div className="detail"><div className="loader-dots"><i /><i /><i /></div></div>;
+  if (!ready) return <div className="detail"><PageShimmer variant="detail" /></div>;
   if (!ex) {
     return (
       <div className="nf">
