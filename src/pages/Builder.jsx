@@ -7,7 +7,7 @@ import { useLanguage } from '../context/LanguageContext.jsx';
 import { Paper, Reveal, SplitText } from '../components/Motion.jsx';
 import { Arrow, Check, Down, Play, Plus, Search, Trash, Up, X } from '../components/Icons.jsx';
 import { ROUTINES } from '../sections/Programs.jsx';
-import { BODY_PARTS, asset, dayKey, fmt, playChimeSound, playWhistleSound, speakVoice } from '../lib/utils.js';
+import { BODY_PARTS, asset, dayKey, fmt, playChimeSound, playWhistleSound, speakVoice, getExerciseVoiceOverview } from '../lib/utils.js';
 import { createPortal } from 'react-dom';
 import { lockScroll } from '../lib/useSmoothScroll.js';
 
@@ -145,10 +145,23 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
   // } | null
   const [activeTimer, setActiveTimer] = useState(null);
   const initialTriggerRef = useRef(false);
+  const lastAnnouncedExIdRef = useRef(null);
+
+  const handleClose = () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    onClose();
+  };
 
   useEffect(() => {
     lockScroll(true);
-    return () => lockScroll(false);
+    return () => {
+      lockScroll(false);
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
   }, []);
 
   const item = items[Math.min(idx, items.length - 1)];
@@ -156,6 +169,19 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
   const allSets = items.flatMap((i) => i.sets);
   const doneCount = allSets.filter((s) => s.done).length;
   const C = 2 * Math.PI * 56;
+
+  // Voice guide: state name first and 1-2 sentence overview when starting or switching exercise
+  useEffect(() => {
+    if (!ex || !ex.id) return;
+    if (lastAnnouncedExIdRef.current === ex.id) return;
+    lastAnnouncedExIdRef.current = ex.id;
+
+    const timer = setTimeout(() => {
+      speakVoice(getExerciseVoiceOverview(ex), { rate: 0.96, pitch: 1.02 });
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [ex?.id]);
 
   const startSetTimer = (targetItemUid, targetSetId, targetSetIndex) => {
     const currentItem = items.find((it) => it.uid === targetItemUid) || item;
@@ -211,9 +237,21 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
           }
         }
 
+        // Voice countdown for the last 3 seconds of a set: 3, 2, 1, "done"
+        if (prev.mode === 'set') {
+          if (nextLeft === 3) {
+            speakVoice('Three', { rate: 1.15 });
+          } else if (nextLeft === 2) {
+            speakVoice('Two', { rate: 1.15 });
+          } else if (nextLeft === 1) {
+            speakVoice('One', { rate: 1.15 });
+          }
+        }
+
         if (nextLeft <= 0) {
           if (prev.mode === 'set') {
-            // SET COMPLETED!
+            // SET COMPLETED! Voice speaks "Done"
+            speakVoice('Done', { rate: 1.1 });
             // 1. Mark set as done
             updateSet(prev.itemUid, prev.setId, { done: true });
             // 2. Play chime
@@ -254,6 +292,7 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
   // Complete set early and start rest timer immediately
   const completeSetEarly = () => {
     if (!activeTimer || activeTimer.mode !== 'set') return;
+    speakVoice('Done', { rate: 1.1 });
     updateSet(activeTimer.itemUid, activeTimer.setId, { done: true });
     playChimeSound();
     if (navigator.vibrate) navigator.vibrate(200);
@@ -286,6 +325,9 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
   };
 
   const end = () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
     if (finish()) onClose();
   };
 
@@ -316,7 +358,7 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
       <div className="live-panel">
         <div className="live-top">
           <span className="eyebrow">{t('builder.eyebrow', 'Workout builder')} · {idx + 1} / {items.length}</span>
-          <button className="icon-btn" onClick={onClose} aria-label="Close live mode"><X /></button>
+          <button className="icon-btn" onClick={handleClose} aria-label="Close live mode"><X /></button>
         </div>
         <div className="live-progress"><span style={{ width: `${(doneCount / Math.max(1, allSets.length)) * 100}%` }} /></div>
         <AnimatePresence mode="wait">

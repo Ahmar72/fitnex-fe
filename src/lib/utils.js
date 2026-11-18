@@ -170,31 +170,111 @@ export function playWhistleSound() {
 }
 
 /**
- * Text-to-speech announcement for workouts (e.g. "Halfway there").
- * Uses native Web Speech API with fallback.
+ * Cached voices for instant, synchronous access.
  */
-export function speakVoice(text = 'Halfway there') {
+let cachedVoices = [];
+function updateVoices() {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    const v = window.speechSynthesis.getVoices();
+    if (v && v.length) cachedVoices = v;
+  }
+}
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  updateVoices();
+  window.speechSynthesis.onvoiceschanged = updateVoices;
+}
+
+/**
+ * Selects an attractive, natural-sounding voice for the workout guide.
+ * Prioritizes high-definition neural/natural voices (Edge/Chrome/Safari).
+ */
+export function getAttractiveVoice() {
+  updateVoices();
+  const list = cachedVoices.length ? cachedVoices : (window.speechSynthesis?.getVoices?.() || []);
+  if (!list.length) return null;
+
+  // 1. Natural / Neural Microsoft Online voices (best clarity and tone)
+  const natural = list.find(
+    (v) =>
+      v.lang?.startsWith('en') &&
+      (v.name.includes('Natural') || v.name.includes('Neural') || v.name.includes('Online'))
+  );
+  if (natural) return natural;
+
+  // 2. High-quality Google or Apple voices
+  const googleOrApple = list.find(
+    (v) =>
+      v.name.includes('Google US English') ||
+      v.name.includes('Google UK English Female') ||
+      v.name.includes('Samantha') ||
+      v.name.includes('Aria') ||
+      v.name.includes('Jenny')
+  );
+  if (googleOrApple) return googleOrApple;
+
+  // 3. Any standard English voice except older robotic Zira
+  const standardEn = list.find((v) => v.lang?.startsWith('en') && !v.name.includes('Zira'));
+  if (standardEn) return standardEn;
+
+  // 4. Fallback
+  return list.find((v) => v.lang?.startsWith('en')) || list[0] || null;
+}
+
+/**
+ * Text-to-speech announcement for workouts (guidance, alerts, countdown).
+ * Uses native Web Speech API with tuned attractive voice.
+ */
+export function speakVoice(text = '', options = {}) {
   try {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
+    if (typeof window === 'undefined' || !('speechSynthesis' in window) || !text) return;
+    if (!options.queue) {
+      window.speechSynthesis.cancel();
+    }
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
+    utterance.rate = options.rate || 0.98;
+    utterance.pitch = options.pitch || 1.02;
+    utterance.volume = options.volume !== undefined ? options.volume : 1.0;
     utterance.lang = 'en-US';
-    const voices = window.speechSynthesis.getVoices?.() || [];
-    const enVoice = voices.find(
-      (v) =>
-        v.lang?.startsWith('en') &&
-        (v.name?.includes('Natural') ||
-          v.name?.includes('Google') ||
-          v.name?.includes('Samantha') ||
-          v.name?.includes('David') ||
-          v.name?.includes('English'))
-    );
-    if (enVoice) utterance.voice = enVoice;
+
+    const voice = getAttractiveVoice();
+    if (voice) utterance.voice = voice;
+
     window.speechSynthesis.speak(utterance);
   } catch {
     /* speech synthesis unavailable or blocked */
   }
+}
+
+/**
+ * Generates a concise, attractive 1-2 sentence overview for an exercise.
+ * Says the name first, followed by clear overview guidance.
+ */
+export function getExerciseVoiceOverview(ex) {
+  if (!ex) return '';
+  const rawName = (ex.name || 'Exercise').trim();
+  // Capitalize name properly for speech phrasing
+  const name = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+
+  let guidance = '';
+  if (Array.isArray(ex.steps) && ex.steps.length > 0) {
+    const s1 = (ex.steps[0] || '').trim();
+    const s2 = (ex.steps[1] || '').trim();
+    if (s1 && s1.length < 55 && s2) {
+      guidance = `${s1} ${s2}`;
+    } else {
+      guidance = s1;
+    }
+  }
+
+  if (!guidance) {
+    const target = ex.target ? `targeting your ${ex.target}` : '';
+    const equip = ex.equipment && ex.equipment !== 'body weight' ? `using ${ex.equipment}` : 'with your bodyweight';
+    guidance = `Perform this exercise with controlled form ${target} ${equip}. Keep your core engaged throughout.`;
+  }
+
+  // Ensure clean punctuation
+  guidance = guidance.replace(/\s+/g, ' ').trim();
+  if (!guidance.endsWith('.')) guidance += '.';
+
+  return `${name}. ${guidance}`;
 }

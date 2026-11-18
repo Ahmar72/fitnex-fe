@@ -23,7 +23,7 @@ import {
   Clock,
 } from '../components/Icons.jsx';
 import { PLANS, PLAN_CATEGORIES } from '../lib/plansData.js';
-import { asset, dayKey, readLS, writeLS, playChimeSound, playWhistleSound, speakVoice, partMeta } from '../lib/utils.js';
+import { asset, dayKey, readLS, writeLS, playChimeSound, playWhistleSound, speakVoice, getExerciseVoiceOverview, partMeta } from '../lib/utils.js';
 
 /**
  * Calculates current week days (Monday - Sunday) with calendar dates and relative time status.
@@ -347,6 +347,28 @@ export default function Plans() {
       : { mode: null, setIdx: null };
   }, [liveWorkoutSession?.activeTimer, toast]);
 
+  // Voice guide: state name first and 1-2 sentence overview when starting or switching exercise in plans
+  const lastAnnouncedPlanExIdRef = useRef(null);
+  useEffect(() => {
+    if (!liveWorkoutSession) {
+      lastAnnouncedPlanExIdRef.current = null;
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      return;
+    }
+    const curEx = liveWorkoutSession.exercises?.[liveWorkoutSession.currentExIdx];
+    if (!curEx || !curEx.id) return;
+    if (lastAnnouncedPlanExIdRef.current === curEx.id) return;
+    lastAnnouncedPlanExIdRef.current = curEx.id;
+
+    const timer = setTimeout(() => {
+      speakVoice(getExerciseVoiceOverview(curEx), { rate: 0.96, pitch: 1.02 });
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [liveWorkoutSession?.currentExIdx, Boolean(liveWorkoutSession)]);
+
   // Countdown timer effect:
   // 1. SET mode: runs for set work duration. When finished, marks set DONE and AUTOMATICALLY starts REST timer!
   // 2. REST mode: counts down rest duration. When finished, clears timer and notifies ready for next set!
@@ -368,10 +390,23 @@ export default function Plans() {
           }
         }
 
+        // Voice countdown for the last 3 seconds of a set: 3, 2, 1, "done"
+        if (prev.activeTimer.mode === 'set') {
+          if (nextLeft === 3) {
+            speakVoice('Three', { rate: 1.15 });
+          } else if (nextLeft === 2) {
+            speakVoice('Two', { rate: 1.15 });
+          } else if (nextLeft === 1) {
+            speakVoice('One', { rate: 1.15 });
+          }
+        }
+
         if (nextLeft <= 0) {
           const { mode, exId, setIdx } = prev.activeTimer;
 
           if (mode === 'set') {
+            // Set completed! Voice speaks "Done"
+            speakVoice('Done', { rate: 1.1 });
             // Set completed! Mark DONE automatically!
             const currentSets = prev.setsMap[exId] || [];
             const updatedSets = currentSets.map((s, idx) => (idx === setIdx ? { ...s, done: true } : s));
@@ -452,6 +487,7 @@ export default function Plans() {
   // Complete set early and immediately start the automatic rest timer
   const handleCompleteSetEarly = () => {
     if (!liveWorkoutSession?.activeTimer || liveWorkoutSession.activeTimer.mode !== 'set') return;
+    speakVoice('Done', { rate: 1.1 });
     const { exId, setIdx } = liveWorkoutSession.activeTimer;
     const currentSets = liveWorkoutSession.setsMap[exId] || [];
     const updatedSets = currentSets.map((s, idx) => (idx === setIdx ? { ...s, done: true } : s));
