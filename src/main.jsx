@@ -11,6 +11,7 @@ import { ToastProvider } from './components/Toast.jsx';
 import './index.css';
 import './app.css';
 import './layout.css';
+import './nutrition.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

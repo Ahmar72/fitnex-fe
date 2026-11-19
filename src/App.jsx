@@ -19,13 +19,15 @@ const Builder = lazy(() => import('./pages/Builder.jsx'));
 const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
 const Plans = lazy(() => import('./pages/Plans.jsx'));
 const Profile = lazy(() => import('./pages/Profile.jsx'));
+const Nutrition = lazy(() => import('./pages/Nutrition.jsx'));
+const MealDetail = lazy(() => import('./pages/MealDetail.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 const Login = lazy(() => import('./pages/Auth.jsx').then((m) => ({ default: m.Login })));
 const Signup = lazy(() => import('./pages/Auth.jsx').then((m) => ({ default: m.Signup })));
 const Onboarding = lazy(() => import('./pages/Onboarding.jsx'));
 
 const AUTH_PAGES = ['/login', '/signup', '/onboarding'];
-const APP_ROUTES = ['/dashboard', '/plans', '/profile', '/exercises', '/builder'];
+const APP_ROUTES = ['/dashboard', '/plans', '/profile', '/exercises', '/builder', '/nutrition'];
 
 const page = (el, protect = false) => <PageTransition>{protect ? <RequireAuth>{el}</RequireAuth> : el}</PageTransition>;
 const appPage = (el) => (
@@ -59,6 +61,7 @@ export default function App() {
       '/exercises': 'Exercise library — Fitnex',
       '/builder': 'Workout builder — Fitnex',
       '/profile': 'Profile — Fitnex',
+      '/nutrition': 'Nutrition — Fitnex',
     }[location.pathname] || 'Fitnex — Train with intent';
   }, [location.pathname]);
 
@@ -103,6 +106,8 @@ export default function App() {
             <Route path="/exercises" element={<Library />} />
             <Route path="/exercises/:id" element={<ExerciseDetail />} />
             <Route path="/builder" element={<Builder />} />
+            <Route path="/nutrition" element={<Nutrition />} />
+            <Route path="/nutrition/:mealId" element={<MealDetail />} />
           </Route>
 
           <Route path="*" element={page(<NotFound />)} />

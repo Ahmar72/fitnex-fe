@@ -1,5 +1,16 @@
 const base = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', viewBox: '0 0 24 24' };
 
+export const SaladIcon = (p) => (
+  <svg {...base} {...p}>
+    <path d="M12 22V12" />
+    <path d="M12 12C12 12 7 10 5 6c3 0 5.5 1.5 7 3.5C13.5 7.5 16 6 19 6c-2 4-7 6-7 6z" />
+    <path d="M5 6C3 4 2 2 2 2s3 0 5 2" />
+    <path d="M19 6c2-2 3-4 3-4s-3 0-5 2" />
+    <path d="M3 22h18" />
+    <path d="M8 22c0-2.5 1.8-4.5 4-4.5S16 19.5 16 22" />
+  </svg>
+);
+
 export const Arrow = (p) => (
   <svg {...base} className="arrow" {...p}><path d="M5 12h14M13 6l6 6-6 6" /></svg>
 );

@@ -15,6 +15,7 @@ import {
   X,
   Sun,
   Moon,
+  SaladIcon,
 } from './Icons.jsx';
 import PageShimmer, { TopProgressBar } from './AppSpinner.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -120,6 +121,7 @@ export default function AppLayout({ children }) {
     if (p.startsWith('/exercises/')) return t('header.detail', 'Exercise Details');
     if (p === '/builder') return t('header.builder', 'Workout Builder');
     if (p === '/profile') return t('header.profile', 'Profile');
+    if (p === '/nutrition' || p.startsWith('/nutrition/')) return t('header.nutrition', 'Nutrition');
     return 'Fitnex';
   };
 
@@ -159,6 +161,12 @@ export default function AppLayout({ children }) {
       isActive: location.pathname === '/exercises' && location.search.includes('fav=1'),
     },
     {
+      to: '/nutrition',
+      label: t('nav.nutrition', 'Nutrition'),
+      icon: SaladIcon,
+      isActive: location.pathname === '/nutrition' || location.pathname.startsWith('/nutrition/'),
+    },
+    {
       to: '/profile',
       label: t('nav.profile', 'Profile'),
       icon: User,
@@ -188,15 +196,6 @@ export default function AppLayout({ children }) {
               </div>
             )}
           </Link>
-          <button
-            type="button"
-            className="sidebar-collapse-btn desktop-only"
-            onClick={toggleCollapsed}
-            title={collapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <SidebarIcon />
-          </button>
         </div>
 
         {/* Primary Nav Links */}
