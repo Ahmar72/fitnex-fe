@@ -30,6 +30,7 @@ import { useTheme } from '../context/ThemeContext.jsx';
 import { useLanguage } from '../context/LanguageContext.jsx';
 import { StrengthMeter } from './Auth.jsx';
 import { GOALS, LEVELS } from '../lib/goals.js';
+import { isVoiceEnabled, setVoiceEnabled } from '../lib/utils.js';
 
 const initials = (name = '') =>
   name
@@ -94,6 +95,22 @@ export default function Profile() {
     } catch {}
     return { duration: user?.profile?.rest || 60 };
   });
+
+  // Voice guidelines toggle state
+  const [voiceEnabled, setVoiceEnabledState] = useState(() => isVoiceEnabled());
+
+  const handleToggleVoice = () => {
+    const next = !voiceEnabled;
+    setVoiceEnabledState(next);
+    setVoiceEnabled(next);
+    if (user) {
+      updateUser({ profile: { ...(user.profile || {}), voiceGuidelines: next } });
+    }
+    toast(
+      next ? 'Voice guidelines enabled' : 'Voice guidelines disabled',
+      next ? 'bolt' : 'info'
+    );
+  };
 
   const toggleSection = (key) => {
     setOpenSection((prev) => (prev === key ? null : key));
@@ -621,6 +638,43 @@ export default function Profile() {
                     </AnimatePresence>
                   </div>
                 )}
+
+                {/* Row 3: Voice Guidelines Toggle */}
+                <div className="settings-item">
+                  <div
+                    className="settings-row"
+                    style={{ cursor: 'pointer' }}
+                    onClick={handleToggleVoice}
+                  >
+                    <div className="settings-badge" style={{ background: '#3b82f622', color: '#3b82f6' }}>
+                      <Volume width={18} height={18} />
+                    </div>
+                    <div className="settings-info">
+                      <span className="settings-title">Voice guidelines</span>
+                      <span className="settings-sub">
+                        {voiceEnabled
+                          ? 'Spoken cues for technique, countdowns & rest alerts'
+                          : 'Voice audio cues are muted during workouts'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className={`toggle ${voiceEnabled ? 'on' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleVoice();
+                      }}
+                      aria-pressed={voiceEnabled}
+                      aria-label="Toggle voice guidelines"
+                      style={{ height: 38, padding: '0 12px', flexShrink: 0 }}
+                    >
+                      <span className="sw" />
+                      <span style={{ fontSize: 13, fontWeight: 700, minWidth: 26 }}>
+                        {voiceEnabled ? 'ON' : 'OFF'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

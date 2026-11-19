@@ -241,12 +241,46 @@ export function getAttractiveVoice() {
 let activeUtterances = [];
 
 /**
+ * Checks whether voice guidelines are enabled by user preference.
+ */
+export function isVoiceEnabled() {
+  try {
+    if (typeof window === 'undefined') return true;
+    const stored = localStorage.getItem('fx:voice-guidelines');
+    if (stored !== null) return stored === 'true';
+    const rawUser = localStorage.getItem('fx_user');
+    if (rawUser) {
+      const u = JSON.parse(rawUser);
+      if (u?.profile?.voiceGuidelines !== undefined) {
+        return Boolean(u.profile.voiceGuidelines);
+      }
+    }
+  } catch {}
+  return true;
+}
+
+/**
+ * Sets voice guidelines enabled / disabled state and saves to localStorage.
+ */
+export function setVoiceEnabled(enabled) {
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fx:voice-guidelines', String(enabled));
+      if (!enabled && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    }
+  } catch {}
+}
+
+/**
  * Text-to-speech announcement for workouts (guidance, alerts, countdown).
  * Uses native Web Speech API with tuned attractive voice and zero-latency playback.
  */
 export function speakVoice(text = '', options = {}) {
   try {
     if (typeof window === 'undefined' || !('speechSynthesis' in window) || !text) return;
+    if (!isVoiceEnabled()) return;
 
     const synth = window.speechSynthesis;
 
