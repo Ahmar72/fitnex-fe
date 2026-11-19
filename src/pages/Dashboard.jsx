@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -9,7 +9,7 @@ import { Counter, GlowCard, Paper, Reveal, SplitText } from '../components/Motio
 import { Arrow, Bolt, Dumbbell, Flame, Heart, Play, Trophy } from '../components/Icons.jsx';
 import { ROUTINES } from '../sections/Programs.jsx';
 import { goalOf, routineFor } from '../lib/goals.js';
-import { dayKey, fmt, sample, title } from '../lib/utils.js';
+import { dayKey, fmt, sample, title, readLS, writeLS } from '../lib/utils.js';
 
 const ease = [0.22, 1, 0.36, 1];
 const FOCUS = {
@@ -35,14 +35,14 @@ export default function Dashboard() {
   const first = user?.name ? user.name.split(' ')[0] : 'Athlete';
 
   const plan = useMemo(() => {
-    if (!user) return ROUTINES[1];
+    if (!user || !ready) return ROUTINES[1];
     const r = ROUTINES.find((x) => x.name === routineFor(profile)) || ROUTINES[1];
     return { ...r, items: r.list.map(([n, sets, reps]) => ({ ex: findByName(n), sets, reps })).filter((x) => x.ex) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, profile.goal, profile.level]);
+  }, [ready, profile.goal, profile.level, profile.days]);
 
   const stats = useMemo(() => {
-    const volume = history.reduce((a, h) => a + (h.volume || 0), 0);
+    const volume = history.reduce((a, h) => a + (Number(h.volume) || 0), 0);
     const sets = history.reduce((a, h) => a + (h.sets || 0), 0);
     const week = [];
     const today = new Date();
@@ -86,7 +86,7 @@ export default function Dashboard() {
       <div className="container">
         <div className="dash-head">
           <div>
-            <h1 className="display dash-title" style={{ whiteSpace: 'nowrap', margin: '0 0 8px', textTransform: 'uppercase' }}>
+            <h1 className="dash-title" style={{ margin: '0 0 6px', fontSize: '1.25rem', fontWeight: 700 }}>
               {t('dash.hey', 'Hey')} {first}, <span className="accent">{t('dash.lets_train', 'let’s train.')}</span>
             </h1>
           </div>
@@ -121,8 +121,8 @@ export default function Dashboard() {
               <div className="plan-top">
                 <div>
                   <span className="tag">{t('dash.todays_plan', 'Today’s plan')} · {t('dash.picked_for', 'picked for')} “{goal.label}”</span>
-                  <h3>{plan.name}</h3>
-                  <p>{plan.blurb}</p>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '4px 0 6px', textTransform: 'capitalize' }}>{plan.name}</h3>
+                  <p style={{ fontSize: '0.88rem', color: 'var(--muted)', margin: 0, lineHeight: 1.45 }}>{plan.blurb}</p>
                 </div>
                 <button className="btn btn-primary" onClick={startPlan}>{t('dash.load_start', 'Load & start')} <Arrow /></button>
               </div>
@@ -143,7 +143,7 @@ export default function Dashboard() {
           <Reveal className="span-4" delay={0.1} style={{ display: 'flex' }}>
             <GlowCard style={{ flex: 1 }}>
               <span className="tag">{t('dash.weekly_goal', 'Weekly goal')}</span>
-              <h3>{stats.daysThisWeek} {t('dash.of_days', 'of')} {target} {t('dash.days', 'days')}</h3>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '4px 0 8px', textTransform: 'none' }}>{stats.daysThisWeek} {t('dash.of_days', 'of')} {target} {t('dash.days', 'days')}</h3>
               <div className="ring-wrap">
                 <svg viewBox="0 0 120 120">
                   <circle cx="60" cy="60" r="52" stroke="var(--ring-track)" strokeWidth="12" fill="none" />

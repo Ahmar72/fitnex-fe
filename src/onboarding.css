@@ -1,5 +1,5 @@
 /* ==========================================================================
-   FITNEX ONBOARDING STYLING
+   FITNEX ONBOARDING STYLING — REFINED & RESPONSIVE
    ========================================================================== */
 
 .onboarding-page {
@@ -12,6 +12,19 @@
   overflow-x: hidden;
 }
 
+/* Universal pointer for all clickable buttons and interactive items */
+.onboarding-page button,
+.onboarding-page .btn,
+.onboarding-page .onboarding-goal-card,
+.onboarding-page .experience-row-card,
+.onboarding-page .unit-pill,
+.onboarding-page .experience-days-select,
+.onboarding-page .onboarding-skip-btn,
+.onboarding-page .onboarding-back-btn,
+.onboarding-page select {
+  cursor: pointer !important;
+}
+
 /* Subtle background accent glow */
 .onboarding-page::before {
   content: "";
@@ -19,29 +32,31 @@
   top: -150px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(800px, 90vw);
-  height: 400px;
+  width: min(900px, 95vw);
+  height: 420px;
   background: radial-gradient(ellipse at center, rgba(255, 94, 26, 0.12) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
 
-/* Header */
+/* --------------------------------------------------------------------------
+   Header & Progress Bar (Clearly Visible & Enhanced Size)
+   -------------------------------------------------------------------------- */
 .onboarding-header {
   position: relative;
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px clamp(16px, 4vw, 48px);
+  padding: 14px clamp(16px, 4vw, 48px);
   border-bottom: 1px solid var(--line);
-  background: rgba(11, 11, 12, 0.85);
+  background: rgba(11, 11, 13, 0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
 
 :root[data-theme="light"] .onboarding-header {
-  background: rgba(247, 247, 248, 0.9);
+  background: rgba(248, 249, 250, 0.92);
 }
 
 .onboarding-logo {
@@ -49,7 +64,7 @@
   align-items: center;
   gap: 8px;
   font-family: var(--display);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 900;
   letter-spacing: 0.04em;
   color: var(--text);
@@ -68,39 +83,42 @@
   gap: 6px;
 }
 
+/* Enhanced visibility for the multi-step progress bar */
 .onboarding-progress-bar {
-  width: clamp(140px, 24vw, 240px);
-  height: 6px;
+  width: clamp(200px, 28vw, 320px);
+  height: 8px;
   border-radius: 999px;
   background: var(--surface-2);
+  border: 1px solid var(--line-2);
   overflow: hidden;
   position: relative;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .onboarding-progress-fill {
   height: 100%;
-  background: var(--accent);
+  background: linear-gradient(90deg, #ff5e1a 0%, #ff854d 100%);
   border-radius: 999px;
+  box-shadow: 0 0 10px rgba(255, 94, 26, 0.5);
 }
 
 .onboarding-step-indicator {
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 .onboarding-skip-btn {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--muted);
   background: transparent;
   border: 1px solid var(--line-2);
   border-radius: 100px;
-  padding: 8px 16px;
-  cursor: pointer;
-  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+  padding: 6px 14px;
+  transition: all 0.2s;
 }
 
 .onboarding-skip-btn:hover {
@@ -109,7 +127,9 @@
   background: var(--surface);
 }
 
-/* Container */
+/* --------------------------------------------------------------------------
+   Container & Step Cards
+   -------------------------------------------------------------------------- */
 .onboarding-container {
   position: relative;
   z-index: 1;
@@ -117,15 +137,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(24px, 5vw, 56px) clamp(16px, 4vw, 32px);
+  padding: clamp(20px, 4vw, 48px) clamp(14px, 3vw, 28px);
 }
 
 .onboarding-step-card {
   width: 100%;
-  max-width: 680px;
+  max-width: 760px;
   display: flex;
   flex-direction: column;
-  gap: clamp(16px, 3vw, 24px);
+  gap: clamp(14px, 2.5vw, 22px);
+  transition: max-width 0.3s ease;
+}
+
+/* Expand step 0 so 4 goal cards fit side by side in one line */
+.onboarding-step-card.step-0 {
+  max-width: 1040px;
 }
 
 /* Heading */
@@ -134,15 +160,15 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .onboarding-badge {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
+  padding: 2.5px 10px;
   border-radius: 100px;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -153,55 +179,55 @@
 
 .onboarding-title {
   font-family: var(--display);
-  font-size: clamp(20px, 2.5vw, 28px);
+  font-size: clamp(20px, 2.4vw, 28px);
   font-weight: 900;
   line-height: 1.15;
   letter-spacing: -0.02em;
   color: var(--text);
   margin: 0;
-  max-width: 26ch;
+  max-width: 32ch;
 }
 
 .onboarding-subtitle {
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--muted);
   margin: 0;
   max-width: 48ch;
   line-height: 1.45;
 }
 
-/* ------------------------------------------------------------------ */
-/* Step 0: Goals Grid                                                 */
-/* ------------------------------------------------------------------ */
+/* --------------------------------------------------------------------------
+   Step 0: Goal Cards (1 Line / 4 Columns with Real Athlete Photos)
+   -------------------------------------------------------------------------- */
 .onboarding-goals-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
 }
 
 .onboarding-goal-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 20px;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
   background: var(--surface);
   border: 1.5px solid var(--line);
   text-align: left;
-  cursor: pointer;
-  transition: border-color 0.25s, background-color 0.25s, box-shadow 0.25s;
+  transition: all 0.25s var(--ease);
 }
 
 .onboarding-goal-card:hover {
   border-color: var(--line-2);
   background: var(--surface-2);
+  transform: translateY(-3px);
 }
 
 .onboarding-goal-card.selected {
   border-color: var(--accent);
   background: var(--accent-soft);
-  box-shadow: 0 0 0 1px var(--accent), 0 8px 24px var(--accent-glow);
+  box-shadow: 0 0 0 1.5px var(--accent), 0 8px 24px var(--accent-glow);
 }
 
 .goal-card-top {
@@ -211,14 +237,15 @@
 }
 
 .goal-icon-badge {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   background: var(--surface-2);
   border: 1px solid var(--line);
   display: grid;
   place-items: center;
   color: var(--accent);
+  transition: all 0.2s;
 }
 
 .onboarding-goal-card.selected .goal-icon-badge {
@@ -228,8 +255,8 @@
 }
 
 .goal-check-pill {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   border: 1.5px solid var(--line-2);
   display: grid;
@@ -244,90 +271,121 @@
   color: var(--accent-ink);
 }
 
+/* Real athlete photo styling */
 .goal-media-wrap {
   position: relative;
-  aspect-ratio: 16 / 9;
+  width: 100%;
+  aspect-ratio: 16 / 11;
   border-radius: 12px;
   overflow: hidden;
   background: var(--surface-2);
   border: 1px solid var(--line);
 }
 
-.goal-media-wrap .paper {
+.goal-real-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+  transition: transform 0.4s var(--ease);
+}
+
+.onboarding-goal-card:hover .goal-real-img {
+  transform: scale(1.04);
+}
+
+.goal-media-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 65%, rgba(0, 0, 0, 0.35) 100%);
+  pointer-events: none;
 }
 
 .goal-info h3 {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 800;
   color: var(--text);
-  margin: 0 0 4px;
+  margin: 0 0 3px;
+  letter-spacing: -0.01em;
 }
 
 .goal-info p {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
   margin: 0;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
-/* ------------------------------------------------------------------ */
-/* Step 1: Experience & Plan Frequency                                */
-/* ------------------------------------------------------------------ */
+/* --------------------------------------------------------------------------
+   Step 1: Experience & Frequency in Columns + Dropdown
+   -------------------------------------------------------------------------- */
 .onboarding-plan-section {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 16px;
 }
 
 .plan-block {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+}
+
+.plan-block-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .section-label {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   color: var(--muted);
 }
 
-.section-label b {
-  color: var(--accent);
-  font-weight: 900;
+.section-sublabel {
+  font-size: 12px;
+  color: var(--dim);
 }
 
-.experience-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-
-.experience-card {
+/* Vertical column list of experience rows */
+.experience-columns-list {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 16px;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.experience-row-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
   border-radius: 16px;
   background: var(--surface);
   border: 1.5px solid var(--line);
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.25s, background-color 0.25s;
+  transition: all 0.25s var(--ease);
+  gap: 16px;
 }
 
-.experience-card:hover {
+.experience-row-card:hover {
   border-color: var(--line-2);
+  background: var(--surface-2);
+  transform: translateY(-1px);
 }
 
-.experience-card.selected {
+.experience-row-card.selected {
   border-color: var(--accent);
   background: var(--accent-soft);
   box-shadow: 0 0 0 1px var(--accent);
+}
+
+.exp-left-col {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
 }
 
 .exp-radio {
@@ -337,12 +395,11 @@
   border: 1.5px solid var(--line-2);
   display: grid;
   place-items: center;
-  margin-top: 2px;
   flex-shrink: 0;
   transition: border-color 0.2s;
 }
 
-.experience-card.selected .exp-radio {
+.experience-row-card.selected .exp-radio {
   border-color: var(--accent);
 }
 
@@ -353,229 +410,267 @@
   background: var(--accent);
 }
 
-.exp-details b {
-  display: block;
+.exp-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.exp-title {
   font-size: 15px;
   font-weight: 800;
   color: var(--text);
-  margin-bottom: 2px;
 }
 
-.exp-details span {
+.exp-desc {
   font-size: 12px;
   color: var(--muted);
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
-.days-picker {
-  display: flex;
-  gap: 10px;
+.exp-right-col {
+  flex-shrink: 0;
 }
 
-.day-btn {
-  flex: 1;
-  height: 72px;
-  border-radius: 16px;
-  background: var(--surface);
-  border: 1.5px solid var(--line);
+.exp-days-dropdown-wrap {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.day-btn:hover {
-  border-color: var(--line-2);
-  transform: translateY(-2px);
+.experience-days-select {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1.5px solid var(--line-2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  outline: none;
+  transition: all 0.2s;
 }
 
-.day-number {
-  font-family: var(--display);
-  font-size: 26px;
-  font-weight: 900;
-  line-height: 1;
+.experience-days-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.experience-row-card.selected .experience-days-select {
+  border-color: var(--accent);
+  background: var(--surface);
   color: var(--text);
 }
 
-.day-label {
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  color: var(--muted);
-  letter-spacing: 0.05em;
-  margin-top: 2px;
-}
-
-.day-btn.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px var(--accent-glow);
-}
-
-.day-btn.active .day-number,
-.day-btn.active .day-label {
-  color: var(--accent-ink);
-}
-
-.days-hint {
-  font-size: 13px;
-  color: var(--muted);
-  margin: 0;
-  line-height: 1.5;
-}
-
-/* ------------------------------------------------------------------ */
-/* Step 2: Body Metrics                                               */
-/* ------------------------------------------------------------------ */
+/* --------------------------------------------------------------------------
+   Step 2: Body Metrics (Light Placeholders & Live Conversions)
+   -------------------------------------------------------------------------- */
 .onboarding-metrics-section {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 14px;
 }
 
 .metric-card {
-  padding: 24px;
-  border-radius: 20px;
+  padding: 18px 20px;
+  border-radius: 18px;
   background: var(--surface);
   border: 1.5px solid var(--line);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+}
+
+.metric-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .metric-label {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--muted);
 }
 
+/* Segmented Unit Toggle Pills */
+.unit-toggle-pills {
+  display: inline-flex;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  padding: 2px;
+  gap: 2px;
+}
+
+.unit-pill {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  transition: all 0.2s;
+}
+
+.unit-pill:hover {
+  color: var(--text);
+}
+
+.unit-pill.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 2px 6px rgba(255, 94, 26, 0.3);
+}
+
 .metric-input-wrap {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: var(--surface-2);
   border: 1.5px solid var(--line-2);
-  border-radius: 14px;
-  padding: 6px 18px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  border-radius: 12px;
+  padding: 4px 14px;
+  transition: all 0.2s;
 }
 
 .metric-input-wrap:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
+/* Light, clean, proportional placeholders */
 .metric-input {
   width: 100%;
   background: transparent;
   border: none;
   outline: none;
   font-family: var(--display);
-  font-size: 36px;
-  font-weight: 900;
+  font-size: 26px;
+  font-weight: 700;
   color: var(--text);
-  padding: 4px 0;
+  padding: 2px 0;
+}
+
+.metric-input::placeholder {
+  font-weight: 300 !important;
+  font-size: 22px !important;
+  color: var(--dim);
+  opacity: 0.45;
 }
 
 .metric-unit {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 800;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--accent);
 }
 
-.metric-desc {
+/* Live conversion line directly under input */
+.metric-conversion-line {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+}
+
+.conversion-active {
   font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+.conversion-placeholder {
+  font-size: 11px;
   color: var(--dim);
 }
 
-.metrics-note {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  border-radius: 14px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  font-size: 13px;
-  color: var(--muted);
+.metric-desc {
+  font-size: 11.5px;
+  color: var(--dim);
+  line-height: 1.35;
 }
 
-.note-icon {
-  font-size: 16px;
+.field-error {
+  font-size: 11.5px;
+  color: #ff3355;
+  font-weight: 700;
 }
 
-/* ------------------------------------------------------------------ */
-/* Step 3: Recap & Confirmation                                       */
-/* ------------------------------------------------------------------ */
+/* --------------------------------------------------------------------------
+   Step 3: Program Confirmation & Action Plan (Direct & Unambiguous)
+   -------------------------------------------------------------------------- */
 .onboarding-recap-section {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .recap-card {
-  padding: clamp(24px, 4vw, 36px);
-  border-radius: 24px;
+  padding: clamp(20px, 3.5vw, 28px);
+  border-radius: 20px;
   background: var(--surface);
   border: 1.5px solid var(--line);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 18px;
 }
 
 .recap-header {
   display: flex;
-  align-items: center;
-  gap: 16px;
+  align-items: flex-start;
+  gap: 14px;
 }
 
 .recap-badge-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
   background: var(--accent);
   color: var(--accent-ink);
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  box-shadow: 0 8px 24px var(--accent-glow);
+  box-shadow: 0 6px 20px var(--accent-glow);
 }
 
 .recap-tag {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   color: var(--accent);
   text-transform: uppercase;
 }
 
 .recap-title {
   font-family: var(--display);
-  font-size: clamp(24px, 3.5vw, 34px);
+  font-size: clamp(22px, 3vw, 30px);
   font-weight: 900;
-  line-height: 1.2;
+  line-height: 1.15;
   color: var(--text);
-  margin: 4px 0 0;
+  margin: 2px 0 4px;
+}
+
+.recap-blurb {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.4;
 }
 
 .recap-details-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  padding: 18px;
-  border-radius: 16px;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 14px;
   background: var(--surface-2);
   border: 1px solid var(--line);
 }
@@ -583,11 +678,11 @@
 .recap-detail {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .recap-lbl {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -595,64 +690,107 @@
 }
 
 .recap-detail b {
-  font-size: 15px;
+  font-size: 13.5px;
   font-weight: 800;
   color: var(--text);
+  line-height: 1.25;
 }
 
-.recap-feature-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.feature-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.feature-item svg {
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-/* ------------------------------------------------------------------ */
-/* Navigation Buttons                                                 */
-/* ------------------------------------------------------------------ */
+/* --------------------------------------------------------------------------
+   Navigation Actions
+   -------------------------------------------------------------------------- */
 .onboarding-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  margin-top: 8px;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.onboarding-back-btn {
+  padding: 10px 18px;
+  font-size: 13.5px;
+  font-weight: 700;
 }
 
 .onboarding-submit-btn {
   margin-left: auto;
-  min-width: 180px;
-  padding: 14px 28px;
-  font-size: 15px;
+  min-width: 160px;
+  padding: 11px 22px;
+  font-size: 13.5px;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-/* ------------------------------------------------------------------ */
-/* Responsive Breakpoints                                             */
-/* ------------------------------------------------------------------ */
-@media (max-width: 768px) {
+/* --------------------------------------------------------------------------
+   Dark Mode High-Contrast Refinements
+   -------------------------------------------------------------------------- */
+:root[data-theme="dark"],
+[data-theme="dark"] {
+  --muted: #b0b2be;
+  --dim: #888a99;
+}
+
+[data-theme="dark"] .onboarding-heading .onboarding-subtitle {
+  color: #c4c6d2;
+}
+
+[data-theme="dark"] .goal-info p {
+  color: #b2b4c2;
+}
+
+[data-theme="dark"] .exp-desc {
+  color: #b2b4c2;
+}
+
+[data-theme="dark"] .metric-label {
+  color: #e2e4ed;
+}
+
+[data-theme="dark"] .metric-input {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .metric-input::placeholder {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+[data-theme="dark"] .metric-unit {
+  color: #ff854d;
+}
+
+[data-theme="dark"] .metric-desc {
+  color: #9ea0b0;
+}
+
+[data-theme="dark"] .recap-blurb {
+  color: #b6b8c6;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive Breakpoints
+   -------------------------------------------------------------------------- */
+@media (max-width: 960px) {
   .onboarding-goals-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .experience-row-card {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  .experience-cards {
-    grid-template-columns: 1fr;
+  .exp-right-col {
+    width: 100%;
+  }
+
+  .experience-days-select {
+    width: 100%;
   }
 
   .metrics-grid {
@@ -661,7 +799,16 @@
 
   .recap-details-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
+  }
+}
+
+@media (max-width: 520px) {
+  .onboarding-goals-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .onboarding-header {
+    padding: 10px 14px;
   }
 
   .onboarding-actions {
@@ -675,37 +822,5 @@
   .onboarding-submit-btn {
     margin-left: 0;
     width: 100%;
-  }
-}
-
-@media (max-width: 520px) {
-  .onboarding-header {
-    padding: 12px 16px;
-  }
-
-  .onboarding-skip-btn {
-    padding: 6px 12px;
-    font-size: 12px;
-  }
-
-  .days-picker {
-    gap: 6px;
-  }
-
-  .day-btn {
-    height: 60px;
-  }
-
-  .day-number {
-    font-size: 22px;
-  }
-
-  .day-label {
-    font-size: 10px;
-  }
-
-  .recap-header {
-    flex-direction: column;
-    align-items: flex-start;
   }
 }

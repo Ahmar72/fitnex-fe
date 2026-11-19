@@ -387,6 +387,25 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
         </AnimatePresence>
 
         <div className="sets">
+          <div
+            className="sets-header-row"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '46px 1fr 1fr 100px',
+              gap: 10,
+              padding: '0 8px 6px',
+              fontSize: '11px',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--muted)',
+            }}
+          >
+            <span style={{ textAlign: 'center' }}>Set</span>
+            <span style={{ textAlign: 'center' }}>Kg</span>
+            <span style={{ textAlign: 'center' }}>Reps</span>
+            <span></span>
+          </div>
           {item.sets.map((s, i) => {
             const isSetTimerActive = activeTimer?.mode === 'set' && activeTimer?.setId === s.id && activeTimer?.itemUid === item.uid;
             const isRestActive = activeTimer?.mode === 'rest' && activeTimer?.setId === s.id && activeTimer?.itemUid === item.uid;
@@ -440,75 +459,55 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
         <AnimatePresence>
           {activeTimer && (
             <motion.div
-              className={`live-active-timer-box ${activeTimer.mode === 'set' ? 'set-mode' : 'rest-mode'}`}
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              className="live-active-timer-box"
+              initial={{ opacity: 0, y: 14, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.96 }}
-              transition={{ duration: 0.3 }}
+              exit={{ opacity: 0, y: -10, scale: 0.98 }}
+              transition={{ duration: 0.25 }}
             >
-              <svg viewBox="0 0 130 130" className="timer-svg">
-                <circle cx="65" cy="65" r="56" stroke="var(--ring-track)" strokeWidth="10" fill="none" />
-                <circle
-                  cx="65"
-                  cy="65"
-                  r="56"
-                  stroke={activeTimer.mode === 'set' ? 'var(--accent)' : '#10b981'}
-                  strokeWidth="10"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeDasharray={C}
-                  strokeDashoffset={C * (1 - Math.max(0, activeTimer.secondsLeft) / Math.max(1, activeTimer.totalSeconds))}
-                  transform="rotate(-90 65 65)"
-                  style={{ transition: 'stroke-dashoffset 0.8s linear' }}
-                />
-              </svg>
-              <div className="timer-content">
-                <div className="timer-tagline">
-                  {activeTimer.mode === 'set' ? (
-                    <span className="tag-set">
-                      <span className="whistle-icon" title="Marathon whistle active">📣</span> SET {activeTimer.setIndex + 1} TIMER
-                    </span>
-                  ) : (
-                    <span className="tag-rest">
-                      ☕ REST TIMER (SET {activeTimer.setIndex + 1} DONE)
-                    </span>
-                  )}
-                </div>
-                <div className="timer-digits">
+              <div className="timer-info-col">
+                <span className="timer-clean-label">
+                  {activeTimer.mode === 'set' ? `Set ${activeTimer.setIndex + 1}` : 'Rest Timer'}
+                </span>
+                <div className="timer-clean-digits">
                   {Math.floor(activeTimer.secondsLeft / 60)}:{String(activeTimer.secondsLeft % 60).padStart(2, '0')}
                 </div>
-                <div className="timer-actions">
-                  {activeTimer.mode === 'set' ? (
-                    <button className="btn btn-primary btn-sm" onClick={completeSetEarly} title="Complete set now and start rest timer">
-                      <Check width={14} height={14} /> Done set & Rest
-                    </button>
-                  ) : (
-                    <button className="btn btn-primary btn-sm" onClick={skipRest} title="Skip remaining rest">
-                      Skip rest
-                    </button>
-                  )}
-                  <button className="btn btn-ghost btn-sm" onClick={togglePause}>
-                    {activeTimer.isRunning ? 'Pause' : 'Resume'}
+              </div>
+
+              <div className="timer-actions">
+                {activeTimer.mode === 'set' ? (
+                  <button className="btn btn-primary btn-sm" onClick={completeSetEarly} title="Complete set now and start rest timer">
+                    <Check width={14} height={14} /> Done set & Rest
                   </button>
-                  <button className="btn btn-ghost btn-sm" onClick={add15s}>
-                    +15s
+                ) : (
+                  <button className="btn btn-primary btn-sm" onClick={skipRest} title="Skip remaining rest">
+                    Skip rest
                   </button>
-                </div>
+                )}
+                <button className="btn btn-ghost btn-sm" onClick={togglePause}>
+                  {activeTimer.isRunning ? 'Pause' : 'Resume'}
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={add15s}>
+                  +15s
+                </button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
         <div className="live-nav">
-          <button
-            className="btn btn-ghost"
-            onClick={() => {
-              setIdx((prev) => Math.max(0, prev - 1));
-            }}
-            disabled={idx === 0}
-          >
-            {t('builder.prev', '← Previous')}
-          </button>
+          {idx > 0 ? (
+            <button
+              className="btn btn-ghost"
+              onClick={() => {
+                setIdx((prev) => Math.max(0, prev - 1));
+              }}
+            >
+              {t('builder.prev', '← Previous')}
+            </button>
+          ) : (
+            <div />
+          )}
           {idx < items.length - 1 ? (
             <button
               className="btn btn-primary"
@@ -573,7 +572,7 @@ export default function Builder() {
       finish();
       return false;
     }
-    const vol = done.reduce((a, s) => a + Number(s.reps || 0) * Number(s.weight || 0), 0);
+    const vol = done.reduce((a, s) => a + Number(s.weight || 0), 0);
     const trainedMuscles = [...new Set(items.filter((it) => it.sets.some((s) => s.done)).map((it) => byId.get(it.exerciseId)?.bodyPart).filter(Boolean))];
     const durationMinutes = Math.max(1, Math.round(done.length * 2.5));
     const caloriesBurned = Math.round(done.length * 18 + durationMinutes * 6);
@@ -598,7 +597,7 @@ export default function Builder() {
   const stats = useMemo(() => {
     const sets = items.flatMap((i) => i.sets);
     const done = sets.filter((s) => s.done);
-    const vol = sets.reduce((a, s) => a + Number(s.reps || 0) * Number(s.weight || 0), 0);
+    const vol = sets.reduce((a, s) => a + Number(s.weight || 0), 0);
     const parts = {};
     items.forEach((i) => {
       const p = byId.get(i.exerciseId)?.bodyPart;
@@ -610,7 +609,7 @@ export default function Builder() {
   const matches = useMemo(() => {
     const t = q.trim().toLowerCase();
     if (!t) return [];
-    return exercises.filter((e) => `${e.name} ${e.target} ${e.equipment}`.toLowerCase().includes(t)).slice(0, 10);
+    return exercises.filter((e) => `${e.name} ${e.target} ${e.equipment}`.toLowerCase().includes(t)).slice(0, 12);
   }, [q, exercises]);
 
   const weeks = useMemo(() => {
@@ -635,29 +634,140 @@ export default function Builder() {
 
   return (
     <>
-      <section className="container" style={{ paddingTop: 24, paddingBottom: 120 }}>
-        <div className="builder">
-          <div>
-            <div className="wk-title">
-              <input value={workout.name} onChange={(e) => rename(e.target.value)} aria-label="Workout name" maxLength={40} />
+      <section className="container" style={{ paddingTop: 20, paddingBottom: 120 }}>
+        {/* Top Header Bar: Full Width Across the Layout */}
+        <div className="builder-top-bar">
+          <div className="wk-title">
+            <div className="wk-title-field">
+              <input
+                value={workout.name}
+                onChange={(e) => rename(e.target.value)}
+                aria-label="Workout name"
+                maxLength={40}
+                placeholder="Workout Name..."
+              />
+              <span className="wk-title-meta">
+                {items.length} {items.length === 1 ? 'exercise' : 'exercises'} · {stats.sets} sets · {fmt(stats.vol)} kg volume
+              </span>
+            </div>
+            <div className="wk-title-actions">
+              <Link to="/exercises" className="btn btn-ghost btn-sm" title="Browse full exercise library">
+                {t('builder.browse_lib', 'Browse library')} <Arrow width={14} height={14} />
+              </Link>
               {items.length > 0 && (
                 <button
-                  className="btn btn-primary"
+                  className="btn btn-primary start-workout-main-btn"
                   onClick={handleStartWorkout}
                 >
-                  <Play /> {t('builder.start', 'Start workout')}
+                  <Play width={16} height={16} /> {t('builder.start', 'Start workout')}
                 </button>
               )}
             </div>
+          </div>
+        </div>
 
+        {/* 2-Column Grid: Cards aligned on left and right */}
+        <div className="builder">
+          <div className="builder-main">
+            {/* WIDE QUICK ADD CARD - Placed widely right under the start workout button & title */}
+            <div className="card builder-quick-add-card">
+              <div className="quick-add-card-header">
+                <div className="quick-add-eyebrow-wrap">
+                  <span className="quick-add-indicator-dot" />
+                  <h4 className="eyebrow" style={{ margin: 0 }}>
+                    {t('builder.quick_add', 'Quick add')}
+                  </h4>
+                </div>
+                <span className="quick-add-hint">
+                  {q ? `${matches.length} matches` : 'Type to search exercises or click popular picks'}
+                </span>
+              </div>
+
+              <div className="quick-add-input-bar">
+                <label className="search quick-add-search-label">
+                  <Search width={16} height={16} />
+                  <input
+                    className="input"
+                    placeholder={t('builder.search_ph', 'e.g. squat, biceps, cable, bench press')}
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                  />
+                  {q && (
+                    <button
+                      type="button"
+                      className="quick-add-clear-btn"
+                      onClick={() => setQ('')}
+                      aria-label="Clear search"
+                    >
+                      <X width={14} height={14} />
+                    </button>
+                  )}
+                </label>
+              </div>
+
+              {/* Popular quick-pick chips when search input is empty */}
+              {!q && popularExercises.length > 0 && (
+                <div className="quick-add-popular-row">
+                  <span className="quick-add-popular-label">Popular picks:</span>
+                  <div className="quick-add-popular-chips">
+                    {popularExercises.map((e) => (
+                      <button
+                        key={e.id}
+                        type="button"
+                        className="quick-add-chip-btn"
+                        onClick={() => addToWorkout(e.id)}
+                        title={`Add ${e.name} to workout`}
+                      >
+                        <Plus width={12} height={12} />
+                        <span>{e.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Live Search Match Cards in a Wide Responsive Grid */}
+              {q && (
+                <div className="quick-add-results-grid" data-lenis-prevent>
+                  <AnimatePresence>
+                    {matches.map((e, i) => (
+                      <motion.button
+                        key={e.id}
+                        type="button"
+                        className="quick-add-result-card"
+                        onClick={() => addToWorkout(e.id)}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0, transition: { delay: i * 0.02 } }}
+                        exit={{ opacity: 0 }}
+                        whileHover={{ y: -2 }}
+                      >
+                        <Paper src={e.image} />
+                        <div className="quick-add-result-details">
+                          <span className="result-name">{e.name}</span>
+                          <span className="result-meta">{e.target} · {e.equipment}</span>
+                        </div>
+                        <span className="result-add-badge">
+                          <Plus width={14} height={14} /> Add
+                        </span>
+                      </motion.button>
+                    ))}
+                  </AnimatePresence>
+                  {matches.length === 0 && (
+                    <p className="muted quick-add-no-match">No exercises match "{q}".</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Routine Exercise Items List */}
             {!ready ? (
               <PageShimmer cardsCount={3} />
             ) : items.length === 0 ? (
-              <motion.div className="card" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} style={{ padding: 36 }}>
+              <motion.div className="card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} style={{ padding: 32 }}>
                 <span className="tag">{t('builder.empty_title', 'Empty workout')}</span>
                 <h3>{t('builder.empty_sub', 'Start from scratch — or a template.')}</h3>
-                <p>{t('builder.empty_desc', 'Add exercises from the library, use quick add, or load one of our programmes below.')}</p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 26 }}>
+                <p>{t('builder.empty_desc', 'Use Quick Add above, or load one of our programs below.')}</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 22 }}>
                   {ROUTINES.map((r) => {
                     const first = findByName(r.list[0][0]);
                     return (
@@ -669,26 +779,28 @@ export default function Builder() {
                     );
                   })}
                 </div>
-                <Link to="/exercises" className="btn btn-ghost" style={{ marginTop: 20, alignSelf: 'flex-start' }}>{t('builder.browse_lib', 'Browse library')} <Arrow /></Link>
               </motion.div>
             ) : (
-              <AnimatePresence mode="popLayout">
-                {items.map((it, i) => (
-                  <WorkoutItem
-                    key={it.uid}
-                    item={it}
-                    ex={byId.get(it.exerciseId)}
-                    index={i}
-                    total={items.length}
-                    onStartSet={(setId) => handleStartSet(i, setId)}
-                  />
-                ))}
-              </AnimatePresence>
+              <div className="builder-items-list">
+                <AnimatePresence mode="popLayout">
+                  {items.map((it, i) => (
+                    <WorkoutItem
+                      key={it.uid}
+                      item={it}
+                      ex={byId.get(it.exerciseId)}
+                      index={i}
+                      total={items.length}
+                      onStartSet={(setId) => handleStartSet(i, setId)}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
             )}
           </div>
 
+          {/* Right Sidebar: Aligned with the left column */}
           <aside className="builder-side">
-            <Reveal delay={0.3} className="card summary">
+            <Reveal delay={0.2} className="card summary">
               <h4>{t('builder.summary_title', 'Session summary')}</h4>
               <div className="summary-grid">
                 <div><b>{items.length}</b><small>{t('builder.stat_exercises', 'Exercises')}</small></div>
@@ -717,27 +829,7 @@ export default function Builder() {
               )}
             </Reveal>
 
-            <Reveal delay={0.4} className="card">
-              <h4 className="eyebrow" style={{ margin: 0 }}>{t('builder.quick_add', 'Quick add')}</h4>
-              <label className="search" style={{ marginTop: 14, flex: 'none' }}>
-                <Search />
-                <input className="input" placeholder={t('builder.search_ph', 'e.g. squat, biceps, cable')} value={q} onChange={(e) => setQ(e.target.value)} />
-              </label>
-              <div className="quick-add" data-lenis-prevent>
-                <AnimatePresence>
-                  {matches.map((e, i) => (
-                    <motion.button key={e.id} onClick={() => addToWorkout(e.id)} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0, transition: { delay: i * 0.03 } }} exit={{ opacity: 0 }}>
-                      <Paper src={e.image} />
-                      <span>{e.name}</span>
-                      <span className="plus"><Plus width={18} height={18} /></span>
-                    </motion.button>
-                  ))}
-                </AnimatePresence>
-                {q && matches.length === 0 && <p className="muted" style={{ fontSize: 14 }}>No matches.</p>}
-              </div>
-            </Reveal>
-
-            <Reveal delay={0.5} className="card">
+            <Reveal delay={0.3} className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h4 className="eyebrow" style={{ margin: 0 }}>{t('builder.training_log', 'Training log')}</h4>
                 {history.length > 0 && <button className="link-btn" onClick={() => window.confirm('Delete your whole training log?') && clearHistory()}>{t('builder.reset', 'Reset')}</button>}

@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getMealById, MEALS } from '../data/meals.js';
 import { ArrowLeft, ArrowUpRight } from '../components/Icons.jsx';
+import { PLANS } from '../lib/plansData.js';
+import { readLS } from '../lib/utils.js';
 
 export default function MealDetail() {
   const { mealId } = useParams();
@@ -10,6 +12,41 @@ export default function MealDetail() {
 
   const [servings, setServings] = useState(1);
   const [imgLoaded, setImgLoaded] = useState(false);
+
+  // Active Plan determination
+  const activePlanData = useMemo(() => readLS('fx:active-plan-data', null), []);
+  const activePlan = useMemo(() => {
+    if (!activePlanData?.planId) return null;
+    return PLANS.find((p) => p.id === activePlanData.planId) || null;
+  }, [activePlanData]);
+
+  // Plan-specific brief explaining why and for which muscle group this meal helps
+  const planBrief = useMemo(() => {
+    if (!activePlan || !meal) return null;
+    const target = (activePlan.targetMuscle || '').toLowerCase();
+    const isCore = target.includes('abs') || target.includes('core');
+    const isArms = target.includes('arm') || target.includes('bicep') || target.includes('tricep');
+    const isChest = target.includes('chest');
+    const isBack = target.includes('back');
+    const isLegs = target.includes('leg') || target.includes('quad');
+
+    if (isCore) {
+      return `Provides ${meal.macros.protein}g protein to rebuild core muscle fibers after your abdominal training, with ${meal.macros.calories} kcal to stay lean and avoid bloating around the waist.`;
+    }
+    if (isArms) {
+      return `Supplies ${meal.macros.protein}g protein to support biceps and triceps recovery and repair micro-tears from arm workouts.`;
+    }
+    if (isChest) {
+      return `Delivers ${meal.macros.protein}g protein and complex carbs to refuel chest and pectoral muscle groups following heavy pressing movements.`;
+    }
+    if (isBack) {
+      return `Replenishes glycogen stores with ${meal.macros.protein}g protein to accelerate lat and upper back repair after pulling exercises.`;
+    }
+    if (isLegs) {
+      return `Gives ${meal.macros.protein}g protein and clean carbs to repair quad and hamstring tissues after strenuous leg workouts.`;
+    }
+    return `Provides ${meal.macros.protein}g protein to support recovery for ${meal.targetMuscles.join(' and ')} training.`;
+  }, [activePlan, meal]);
 
   if (!meal) {
     return (
@@ -49,12 +86,12 @@ export default function MealDetail() {
       {/* Navigation Breadcrumb */}
       <div className="meal-detail-nav">
         <button
-          onClick={() => navigate('/nutrition')}
-          className="meal-back-btn"
-          aria-label="Back to Nutrition catalog"
+          onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/nutrition'))}
+          className="nav-back-pill"
+          aria-label="Back to previous page"
         >
-          <ArrowLeft width={18} height={18} />
-          <span>Back to Nutrition</span>
+          <ArrowLeft width={16} height={16} />
+          <span>Back</span>
         </button>
         <div className="meal-nav-cat">
           <span className="cat-pill">{meal.category}</span>
@@ -81,6 +118,17 @@ export default function MealDetail() {
         <div className="meal-detail-intro">
           <h1 className="meal-detail-title">{meal.name}</h1>
           <p className="meal-detail-brief">{meal.brief}</p>
+
+          {/* Active Plan Context & Targeted Body Part Brief */}
+          {activePlan && planBrief && (
+            <div className="meal-plan-support-card">
+              <div className="plan-support-head">
+                <span className="plan-support-dot" />
+                <span>Fits your active plan: <strong>{activePlan.name}</strong></span>
+              </div>
+              <p className="plan-support-text">{planBrief}</p>
+            </div>
+          )}
 
           {/* Clean Effective For / Target Muscles */}
           <div className="meal-effective-row">
@@ -113,10 +161,10 @@ export default function MealDetail() {
         </div>
       </header>
 
-      {/* Collective Macros Breakdown Strip */}
+      {/* Clean Nutrition Breakdown Strip */}
       <section className="meal-macros-section" aria-label="Nutritional Summary">
         <div className="section-header-compact">
-          <h2>Collective Nutritional Breakdown</h2>
+          <h2>Nutrition Breakdown</h2>
           <span className="serving-note">Values scaled for {servings} {servings > 1 ? 'servings' : 'serving'}</span>
         </div>
 
@@ -124,27 +172,27 @@ export default function MealDetail() {
           <div className="macro-card cals">
             <span className="macro-card-val">{scaledCalories}</span>
             <span className="macro-card-unit">kcal</span>
-            <span className="macro-card-title">Total Energy</span>
+            <span className="macro-card-title">Calories</span>
           </div>
           <div className="macro-card protein">
             <span className="macro-card-val">{scaledProtein}</span>
             <span className="macro-card-unit">grams</span>
-            <span className="macro-card-title">Pure Protein</span>
+            <span className="macro-card-title">Protein</span>
           </div>
           <div className="macro-card carbs">
             <span className="macro-card-val">{scaledCarbs}</span>
             <span className="macro-card-unit">grams</span>
-            <span className="macro-card-title">Complex Carbs</span>
+            <span className="macro-card-title">Carbs</span>
           </div>
           <div className="macro-card fat">
             <span className="macro-card-val">{scaledFat}</span>
             <span className="macro-card-unit">grams</span>
-            <span className="macro-card-title">Healthy Fats</span>
+            <span className="macro-card-title">Fats</span>
           </div>
           <div className="macro-card fiber">
             <span className="macro-card-val">{scaledFiber}</span>
             <span className="macro-card-unit">grams</span>
-            <span className="macro-card-title">Dietary Fiber</span>
+            <span className="macro-card-title">Fiber</span>
           </div>
         </div>
 

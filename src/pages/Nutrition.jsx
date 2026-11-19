@@ -8,6 +8,8 @@ import {
   mealsByCategory,
   recommendedMeals,
 } from '../data/meals.js';
+import { PLANS } from '../lib/plansData.js';
+import { readLS } from '../lib/utils.js';
 
 export default function Nutrition() {
   const { user } = useAuth();
@@ -17,27 +19,45 @@ export default function Nutrition() {
   const [selectedGoal, setSelectedGoal] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Determine user's active goal and trained muscles
-  const userGoal = user?.profile?.goal || 'muscle';
+  // Active Plan determination
+  const activePlanData = useMemo(() => readLS('fx:active-plan-data', null), []);
+  const activePlan = useMemo(() => {
+    if (!activePlanData?.planId) return null;
+    return PLANS.find((p) => p.id === activePlanData.planId) || null;
+  }, [activePlanData]);
 
-  // Extract trained muscles from workout items if any
-  const trainedMuscles = useMemo(() => {
-    if (!workout?.items || workout.items.length === 0) {
-      return ['chest', 'back', 'upper legs'];
+  // Determine user's active goal
+  const userGoal = activePlan ? (activePlan.key === 'weight-loss' ? 'fat' : 'muscle') : user?.profile?.goal || 'muscle';
+
+  // Target muscles from active plan, falling back to workout items or general muscle groups
+  const targetMuscles = useMemo(() => {
+    if (activePlan) {
+      const t = (activePlan.targetMuscle || '').toLowerCase();
+      const list = [];
+      if (t.includes('abs') || t.includes('core')) list.push('waist');
+      if (t.includes('chest')) list.push('chest');
+      if (t.includes('back')) list.push('back');
+      if (t.includes('bicep') || t.includes('tricep') || t.includes('arm')) list.push('upper arms');
+      if (t.includes('shoulder')) list.push('shoulders');
+      if (t.includes('leg') || t.includes('quad')) list.push('upper legs');
+      if (list.length > 0) return list;
     }
-    const muscles = new Set();
-    workout.items.forEach((item) => {
-      const ex = item.exercise;
-      if (ex?.target) muscles.add(ex.target.toLowerCase());
-      if (ex?.bodyPart) muscles.add(ex.bodyPart.toLowerCase());
-    });
-    return Array.from(muscles);
-  }, [workout]);
+    if (workout?.items?.length > 0) {
+      const muscles = new Set();
+      workout.items.forEach((item) => {
+        const ex = item.exercise;
+        if (ex?.target) muscles.add(ex.target.toLowerCase());
+        if (ex?.bodyPart) muscles.add(ex.bodyPart.toLowerCase());
+      });
+      if (muscles.size > 0) return Array.from(muscles);
+    }
+    return ['waist', 'upper arms', 'chest'];
+  }, [activePlan, workout]);
 
-  // Recommended meals tailored to user's goal & muscles
+  // Recommended meals tailored to active plan & targeted muscle groups
   const recommended = useMemo(() => {
-    return recommendedMeals(userGoal, trainedMuscles, 4);
-  }, [userGoal, trainedMuscles]);
+    return recommendedMeals(userGoal, targetMuscles, 4);
+  }, [userGoal, targetMuscles]);
 
   // Filtered meals list
   const filteredMeals = useMemo(() => {
@@ -95,14 +115,20 @@ export default function Nutrition() {
           <div>
             <div className="rec-shelf-tag">
               <span className="rec-dot" />
-              Tailored for your goal: <strong>{userGoal.toUpperCase()}</strong>
+              {activePlan ? (
+                <>Suggested for your plan: <strong>{activePlan.name}</strong></>
+              ) : (
+                <>Tailored for your goal: <strong>{userGoal.toUpperCase()}</strong></>
+              )}
             </div>
             <h2 id="rec-meals-title" className="rec-shelf-title">
-              Recommended For Today's Recovery
+              {activePlan ? `Recommended for ${activePlan.targetMuscle} Recovery` : "Recommended For Today's Recovery"}
             </h2>
           </div>
           <p className="rec-shelf-hint">
-            Based on your target muscles ({trainedMuscles.slice(0, 3).join(', ')})
+            {activePlan
+              ? `High-protein meals structured to support ${activePlan.targetMuscle.toLowerCase()} training and recovery`
+              : `Based on your target muscles (${targetMuscles.slice(0, 3).join(', ')})`}
           </p>
         </div>
 

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useData } from '../context/DataContext.jsx';
 import { useWorkout } from '../context/WorkoutContext.jsx';
 import { useLanguage } from '../context/LanguageContext.jsx';
 import ExerciseCard from '../components/ExerciseCard.jsx';
 import { Paper, Reveal } from '../components/Motion.jsx';
-import { Arrow, Heart, Plus } from '../components/Icons.jsx';
+import { Arrow, ArrowLeft, Heart, Plus } from '../components/Icons.jsx';
 import { asset, partMeta, sample } from '../lib/utils.js';
 import PageShimmer from '../components/AppSpinner.jsx';
 
@@ -14,10 +14,16 @@ const ease = [0.22, 1, 0.36, 1];
 
 export default function ExerciseDetail() {
   const { id } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { exercises, byId, ready } = useData();
   const { favorites, toggleFavorite, addToWorkout } = useWorkout();
   const { lang, t, translateSteps } = useLanguage();
   const [i18n, setI18n] = useState(null);
+
+  const isFromPlan = Boolean(location.state?.fromPlan);
+  const planName = location.state?.planName;
+  const planExerciseIds = location.state?.planExerciseIds;
 
   const ex = byId.get(id);
 
@@ -36,6 +42,24 @@ export default function ExerciseDetail() {
 
   const { prev, next, related } = useMemo(() => {
     if (!ex) return {};
+
+    // When inside a plan, cycle strictly through that plan's exercises and don't suggest external exercises
+    if (isFromPlan && Array.isArray(planExerciseIds) && planExerciseIds.length > 0) {
+      const planExercises = planExerciseIds
+        .map((pid) => byId.get(pid))
+        .filter(Boolean);
+
+      if (planExercises.length > 0) {
+        const curIdx = planExercises.findIndex((e) => e.id === ex.id);
+        const resolvedIdx = curIdx >= 0 ? curIdx : 0;
+        return {
+          prev: planExercises[(resolvedIdx - 1 + planExercises.length) % planExercises.length],
+          next: planExercises[(resolvedIdx + 1) % planExercises.length],
+          related: [], // Suppress suggestions inside plan
+        };
+      }
+    }
+
     const idx = exercises.findIndex((e) => e.id === ex.id);
     const same = exercises.filter((e) => e.id !== ex.id && e.target === ex.target);
     return {
@@ -43,7 +67,7 @@ export default function ExerciseDetail() {
       next: exercises[(idx + 1) % exercises.length],
       related: sample(same, 4, Number(ex.id)),
     };
-  }, [ex, exercises]);
+  }, [ex, exercises, isFromPlan, planExerciseIds, byId]);
 
   if (!ready) return <div className="detail"><PageShimmer variant="detail" /></div>;
   if (!ex) {
@@ -65,10 +89,23 @@ export default function ExerciseDetail() {
   return (
     <section className="detail">
       <div className="container">
-        <motion.nav className="crumbs" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-          <Link to="/">{t('detail.crumbs_home', 'Home')}</Link> / <Link to="/exercises">{t('detail.crumbs_lib', 'Library')}</Link> /{' '}
-          <Link to={`/exercises?part=${encodeURIComponent(ex.bodyPart)}`}>{part.label}</Link> / <span style={{ color: 'var(--text)' }}>{ex.name}</span>
-        </motion.nav>
+        {/* Working Back Arrow Button: Always returns to specific referring page without disappearing on hover */}
+        <div style={{ marginBottom: 18 }}>
+          <button
+            type="button"
+            className="nav-back-pill"
+            onClick={() => {
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate(isFromPlan ? '/plans' : '/exercises');
+              }
+            }}
+          >
+            <ArrowLeft width={15} height={15} />
+            <span>Back{planName ? ` to ${planName}` : ''}</span>
+          </button>
+        </div>
 
         <div className="detail-grid">
           <motion.div
@@ -90,11 +127,19 @@ export default function ExerciseDetail() {
           </motion.div>
 
           <div>
-            <Reveal delay={0.3}>
-              <span className="chip"><span className="dot" style={{ background: part.color }} />{part.label}</span>{' '}
-              <span className="chip">#{ex.id}</span>
-            </Reveal>
-            <motion.h1 className="display" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 0.9, ease }}>
+            <motion.h1
+              style={{
+                fontSize: '1.45rem',
+                fontWeight: 800,
+                margin: '0 0 14px',
+                lineHeight: 1.25,
+                color: 'var(--text)',
+                textTransform: 'capitalize',
+              }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25, duration: 0.5, ease }}
+            >
               {ex.name}
             </motion.h1>
 
@@ -116,7 +161,7 @@ export default function ExerciseDetail() {
             </div>
             <AnimatePresence mode="wait">
               <motion.ol key={lang} className="steps-list" initial="hidden" animate="show" exit={{ opacity: 0, transition: { duration: 0.15 } }} variants={{ show: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } } }}>
-                {steps.map((s, i) => (
+                {steps.slice(0, 2).map((s, i) => (
                   <motion.li key={i} variants={{ hidden: { opacity: 0, x: 30 }, show: { opacity: 1, x: 0, transition: { duration: 0.5, ease } } }}>
                     <span>{i + 1}</span>
                     <p>{s}</p>
@@ -148,7 +193,8 @@ export default function ExerciseDetail() {
           </div>
         </div>
 
-        {related?.length > 0 && (
+        {/* More for your muscle: Only shown when browsing general library, NOT inside a plan */}
+        {!isFromPlan && related?.length > 0 && (
           <>
             <div className="sub-title" style={{ marginTop: 90 }}>
               <h2>{t('detail.more_for', 'More for your')} {ex.target}</h2>
@@ -162,13 +208,13 @@ export default function ExerciseDetail() {
 
         <div className="pager">
           {prev && (
-            <Link to={`/exercises/${prev.id}`}>
+            <Link to={`/exercises/${prev.id}`} state={location.state}>
               <Paper src={prev.image} />
               <div><small>← {t('detail.previous', 'Previous')}</small><b>{prev.name}</b></div>
             </Link>
           )}
           {next && (
-            <Link to={`/exercises/${next.id}`} className="next">
+            <Link to={`/exercises/${next.id}`} state={location.state} className="next">
               <Paper src={next.image} />
               <div><small>{t('detail.next', 'Next')} →</small><b>{next.name}</b></div>
             </Link>

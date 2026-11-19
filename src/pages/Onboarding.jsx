@@ -4,9 +4,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { useToast } from '../components/Toast.jsx';
-import { Paper } from '../components/Motion.jsx';
 import { Arrow, ArrowLeft, Check, Dumbbell, Flame, Bolt, Trophy, Logo } from '../components/Icons.jsx';
-import { GOALS, LEVELS, routineFor } from '../lib/goals.js';
+import { GOALS, LEVELS } from '../lib/goals.js';
+import { getProgramForUser } from '../lib/progressionEngine.js';
+import { asset, writeLS } from '../lib/utils.js';
 import '../onboarding.css';
 
 const ease = [0.22, 1, 0.36, 1];
@@ -27,13 +28,15 @@ const GOAL_ICONS = {
 
 export default function Onboarding() {
   const { user, updateUser } = useAuth();
-  const { ready, findByName } = useData();
+  const { ready, byId } = useData();
   const toast = useToast();
   const navigate = useNavigate();
 
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1);
   const [busy, setBusy] = useState(false);
+
+  // Form state
   const [form, setForm] = useState({
     goal: user?.profile?.goal || 'muscle',
     level: user?.profile?.level || 'beginner',
@@ -41,6 +44,11 @@ export default function Onboarding() {
     weight: user?.profile?.weight || '',
     height: user?.profile?.height || '',
   });
+
+  // Units state for live conversion
+  const [weightUnit, setWeightUnit] = useState('kg'); // 'kg' | 'lbs'
+  const [heightUnit, setHeightUnit] = useState('cm'); // 'cm' | 'ft' | 'm'
+
   const [errors, setErrors] = useState({});
 
   const firstName = user?.name ? user.name.split(' ')[0] : 'Athlete';
@@ -50,9 +58,91 @@ export default function Onboarding() {
     setErrors((prev) => ({ ...prev, [k]: undefined }));
   };
 
-  const matchedRoutine = useMemo(() => {
-    return routineFor({ goal: form.goal, level: form.level });
-  }, [form.goal, form.level]);
+  // Resolved tailored program for user
+  const tailoredProgram = useMemo(() => {
+    return getProgramForUser(form.goal, form.level, form.days);
+  }, [form.goal, form.level, form.days]);
+
+  // Handle switching weight units with conversion
+  const handleWeightUnitChange = (newUnit) => {
+    if (newUnit === weightUnit) return;
+    if (form.weight) {
+      const val = Number(form.weight);
+      if (!isNaN(val) && val > 0) {
+        if (newUnit === 'lbs') {
+          // kg to lbs
+          setVal('weight', (val * 2.20462).toFixed(1));
+        } else {
+          // lbs to kg
+          setVal('weight', (val / 2.20462).toFixed(1));
+        }
+      }
+    }
+    setWeightUnit(newUnit);
+  };
+
+  // Handle switching height units with conversion
+  const handleHeightUnitChange = (newUnit) => {
+    if (newUnit === heightUnit) return;
+    if (form.height) {
+      const val = Number(form.height);
+      if (!isNaN(val) && val > 0) {
+        // Convert to cm first
+        let inCm = val;
+        if (heightUnit === 'm') inCm = val * 100;
+        else if (heightUnit === 'ft') inCm = val * 30.48;
+
+        if (newUnit === 'cm') {
+          setVal('height', Math.round(inCm));
+        } else if (newUnit === 'm') {
+          setVal('height', (inCm / 100).toFixed(2));
+        } else if (newUnit === 'ft') {
+          const totalInches = inCm / 2.54;
+          const feet = (totalInches / 12).toFixed(1);
+          setVal('height', feet);
+        }
+      }
+    }
+    setHeightUnit(newUnit);
+  };
+
+  // Live weight conversion text
+  const weightConversionHint = useMemo(() => {
+    if (!form.weight || isNaN(Number(form.weight))) return null;
+    const val = Number(form.weight);
+    if (val <= 0) return null;
+    if (weightUnit === 'kg') {
+      const inLbs = (val * 2.20462).toFixed(1);
+      return `≈ ${inLbs} lbs`;
+    } else {
+      const inKg = (val / 2.20462).toFixed(1);
+      return `≈ ${inKg} kg`;
+    }
+  }, [form.weight, weightUnit]);
+
+  // Live height conversion text (always includes feet and inches)
+  const heightConversionHint = useMemo(() => {
+    if (!form.height || isNaN(Number(form.height))) return null;
+    const val = Number(form.height);
+    if (val <= 0) return null;
+
+    let cm = val;
+    if (heightUnit === 'm') cm = val * 100;
+    else if (heightUnit === 'ft') cm = val * 30.48;
+
+    const totalInches = cm / 2.54;
+    const feet = Math.floor(totalInches / 12);
+    const inches = Math.round(totalInches % 12);
+    const meters = (cm / 100).toFixed(2);
+
+    if (heightUnit === 'cm') {
+      return `≈ ${feet} ft ${inches} in (${meters} m)`;
+    } else if (heightUnit === 'm') {
+      return `≈ ${feet} ft ${inches} in (${Math.round(cm)} cm)`;
+    } else {
+      return `≈ ${feet} ft ${inches} in (${Math.round(cm)} cm · ${meters} m)`;
+    }
+  }, [form.height, heightUnit]);
 
   const validateStep = (s) => {
     const errs = {};
@@ -63,11 +153,20 @@ export default function Onboarding() {
       errs.level = 'Please select your experience level.';
     }
     if (s === 2) {
-      if (form.weight && (Number(form.weight) < 25 || Number(form.weight) > 300)) {
-        errs.weight = 'Please enter a valid weight between 25 and 300 kg.';
+      if (form.weight) {
+        let kg = Number(form.weight);
+        if (weightUnit === 'lbs') kg = kg / 2.20462;
+        if (kg < 25 || kg > 300) {
+          errs.weight = 'Please enter a valid weight (25–300 kg or 55–660 lbs).';
+        }
       }
-      if (form.height && (Number(form.height) < 100 || Number(form.height) > 250)) {
-        errs.height = 'Please enter a valid height between 100 and 250 cm.';
+      if (form.height) {
+        let cm = Number(form.height);
+        if (heightUnit === 'm') cm = cm * 100;
+        if (heightUnit === 'ft') cm = cm * 30.48;
+        if (cm < 100 || cm > 250) {
+          errs.height = 'Please enter a valid height (100–250 cm).';
+        }
       }
     }
     setErrors(errs);
@@ -87,16 +186,33 @@ export default function Onboarding() {
 
   const completeOnboarding = () => {
     setBusy(true);
+
+    // Normalize weight/height to standard kg / cm for storage
+    let finalWeight = form.weight ? Number(form.weight) : null;
+    if (finalWeight && weightUnit === 'lbs') {
+      finalWeight = Math.round((finalWeight / 2.20462) * 10) / 10;
+    }
+
+    let finalHeight = form.height ? Number(form.height) : null;
+    if (finalHeight) {
+      if (heightUnit === 'm') finalHeight = Math.round(finalHeight * 100);
+      else if (heightUnit === 'ft') finalHeight = Math.round(finalHeight * 30.48);
+    }
+
     const profileData = {
-      goal: form.goal || 'fit',
+      goal: form.goal || 'muscle',
       level: form.level || 'beginner',
       days: Number(form.days) || 3,
-      weight: form.weight ? Number(form.weight) : null,
-      height: form.height ? Number(form.height) : null,
+      weight: finalWeight,
+      height: finalHeight,
+      weightUnit,
+      heightUnit,
       onboardingComplete: true,
     };
+
     updateUser({ profile: profileData });
-    toast(`Welcome aboard, ${firstName}! Your training plan is live.`, 'bolt');
+
+    toast(`Welcome aboard, ${firstName}! Your profile is ready. Choose a plan anytime in the Plans tab.`, 'bolt');
     navigate('/dashboard', { replace: true });
   };
 
@@ -108,10 +224,12 @@ export default function Onboarding() {
         days: 3,
         weight: null,
         height: null,
+        weightUnit: 'kg',
+        heightUnit: 'cm',
         onboardingComplete: true,
       },
     });
-    toast('Profile set with default plan. You can edit anytime in Settings.', 'info');
+    toast('Profile setup skipped. You can configure your plan in Plans.', 'info');
     navigate('/dashboard', { replace: true });
   };
 
@@ -125,14 +243,14 @@ export default function Onboarding() {
     <div className="onboarding-page">
       {/* Top Header */}
       <header className="onboarding-header">
-        <Link to="/" className="onboarding-logo">
+        <Link to="/" className="onboarding-logo" title="Fitnex Home">
           <Logo />
           <span>FITNEX</span>
         </Link>
 
-        {/* Multi-step progress bar */}
+        {/* Multi-step progress bar (Increased size & clear visibility) */}
         <div className="onboarding-progress-wrap">
-          <div className="onboarding-progress-bar">
+          <div className="onboarding-progress-bar" role="progressbar" aria-valuenow={step + 1} aria-valuemin={1} aria-valuemax={4}>
             <motion.div
               className="onboarding-progress-fill"
               initial={false}
@@ -141,7 +259,7 @@ export default function Onboarding() {
             />
           </div>
           <span className="onboarding-step-indicator">
-            Step {step + 1} of {ONBOARDING_STEPS.length}
+            Step {step + 1} of {ONBOARDING_STEPS.length} · {ONBOARDING_STEPS[step].title}
           </span>
         </div>
 
@@ -165,7 +283,7 @@ export default function Onboarding() {
             initial="enter"
             animate="center"
             exit="exit"
-            className="onboarding-step-card"
+            className={`onboarding-step-card step-${step}`}
           >
             {/* Step Heading */}
             <div className="onboarding-heading">
@@ -179,39 +297,45 @@ export default function Onboarding() {
               <p className="onboarding-subtitle">{ONBOARDING_STEPS[step].subtitle}</p>
             </div>
 
-            {/* Step 1: Goals */}
+            {/* ========================================================== */}
+            {/* Step 0: Goal Cards (1 Line / 4 Columns with Real Photos)   */}
+            {/* ========================================================== */}
             {step === 0 && (
               <div className="onboarding-goals-grid">
                 {GOALS.map((g, i) => {
                   const Icon = GOAL_ICONS[g.key] || Dumbbell;
                   const isSelected = form.goal === g.key;
-                  const demoEx = ready ? findByName(g.exercise) : null;
                   return (
                     <motion.button
                       type="button"
                       key={g.key}
                       className={`onboarding-goal-card ${isSelected ? 'selected' : ''}`}
                       onClick={() => setVal('goal', g.key)}
-                      whileHover={{ y: -3, scale: 1.01 }}
+                      whileHover={{ y: -4, scale: 1.015 }}
                       whileTap={{ scale: 0.98 }}
                       initial={{ opacity: 0, y: 15 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.06 }}
+                      transition={{ delay: i * 0.05 }}
                     >
                       <div className="goal-card-top">
                         <span className="goal-icon-badge">
-                          <Icon width={22} height={22} />
+                          <Icon width={20} height={20} />
                         </span>
                         <div className={`goal-check-pill ${isSelected ? 'checked' : ''}`}>
-                          {isSelected && <Check width={14} height={14} />}
+                          {isSelected && <Check width={13} height={13} />}
                         </div>
                       </div>
 
-                      {demoEx && (
-                        <div className="goal-media-wrap">
-                          <Paper src={demoEx.image} gif={demoEx.gif} autoplay alt={g.label} />
-                        </div>
-                      )}
+                      {/* Real athlete photograph */}
+                      <div className="goal-media-wrap">
+                        <img
+                          src={asset(g.image)}
+                          alt={g.label}
+                          className="goal-real-img"
+                          loading="eager"
+                        />
+                        <div className="goal-media-overlay" />
+                      </div>
 
                       <div className="goal-info">
                         <h3>{g.label}</h3>
@@ -223,134 +347,200 @@ export default function Onboarding() {
               </div>
             )}
 
-            {/* Step 2: Experience & Plan Frequency */}
+            {/* ========================================================== */}
+            {/* Step 1: Experience & Frequency in Clean Columns + Dropdown  */}
+            {/* ========================================================== */}
             {step === 1 && (
               <div className="onboarding-plan-section">
                 <div className="plan-block">
-                  <label className="section-label">Lifting Experience</label>
-                  <div className="experience-cards">
+                  <div className="plan-block-header">
+                    <label className="section-label">Lifting Experience & Schedule</label>
+                    <span className="section-sublabel">Select your experience level and adjust training frequency</span>
+                  </div>
+
+                  {/* Vertical Column Stack for Experience Levels */}
+                  <div className="experience-columns-list">
                     {LEVELS.map((lvl) => {
                       const isSelected = form.level === lvl.key;
                       return (
-                        <button
-                          type="button"
+                        <div
                           key={lvl.key}
-                          className={`experience-card ${isSelected ? 'selected' : ''}`}
+                          className={`experience-row-card ${isSelected ? 'selected' : ''}`}
                           onClick={() => setVal('level', lvl.key)}
                         >
-                          <div className="exp-radio">
-                            {isSelected && <span className="exp-dot" />}
+                          <div className="exp-left-col">
+                            <div className="exp-radio">
+                              {isSelected && <span className="exp-dot" />}
+                            </div>
+                            <div className="exp-details">
+                              <b className="exp-title">{lvl.label}</b>
+                              <span className="exp-desc">{lvl.desc}</span>
+                            </div>
                           </div>
-                          <div className="exp-details">
-                            <b>{lvl.label}</b>
-                            <span>{lvl.desc}</span>
+
+                          {/* Training Days Dropdown in front of level */}
+                          <div className="exp-right-col" onClick={(e) => e.stopPropagation()}>
+                            <div className="exp-days-dropdown-wrap">
+                              <select
+                                id={`days-select-${lvl.key}`}
+                                className="experience-days-select"
+                                value={isSelected ? form.days : 3}
+                                onChange={(e) => {
+                                  setVal('level', lvl.key);
+                                  setVal('days', Number(e.target.value));
+                                }}
+                              >
+                                <option value={2}>2 Days / Week</option>
+                                <option value={3}>3 Days / Week</option>
+                                <option value={4}>4 Days / Week</option>
+                                <option value={5}>5 Days / Week</option>
+                                <option value={6}>6 Days / Week</option>
+                              </select>
+                            </div>
                           </div>
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
                 </div>
-
-                <div className="plan-block">
-                  <label className="section-label">
-                    Weekly Training Days: <b>{form.days} days / week</b>
-                  </label>
-                  <div className="days-picker">
-                    {[2, 3, 4, 5, 6].map((d) => (
-                      <button
-                        type="button"
-                        key={d}
-                        className={`day-btn ${form.days === d ? 'active' : ''}`}
-                        onClick={() => setVal('days', d)}
-                      >
-                        <span className="day-number">{d}</span>
-                        <span className="day-label">days</span>
-                      </button>
-                    ))}
-                  </div>
-                  <p className="days-hint">
-                    {form.days <= 2 && 'Ideal for maintaining baseline fitness and mobility.'}
-                    {form.days === 3 && 'Recommended for full-body progression and recovery.'}
-                    {form.days === 4 && 'Classic Upper/Lower split for optimal hypertrophy.'}
-                    {form.days >= 5 && 'High-frequency athlete regimen with push/pull/legs splits.'}
-                  </p>
-                </div>
               </div>
             )}
 
-            {/* Step 3: Body Metrics */}
+            {/* ========================================================== */}
+            {/* Step 2: Body Metrics (Clean, Light Placeholders & Live)    */}
+            {/* ========================================================== */}
             {step === 2 && (
               <div className="onboarding-metrics-section">
                 <div className="metrics-grid">
+                  {/* Body Weight Input Card */}
                   <div className="metric-card">
-                    <span className="metric-label">Body Weight</span>
+                    <div className="metric-header-row">
+                      <span className="metric-label">Body Weight</span>
+                      {/* Unit Selector */}
+                      <div className="unit-toggle-pills" role="group" aria-label="Weight Unit">
+                        <button
+                          type="button"
+                          className={`unit-pill ${weightUnit === 'kg' ? 'active' : ''}`}
+                          onClick={() => handleWeightUnitChange('kg')}
+                        >
+                          KG
+                        </button>
+                        <button
+                          type="button"
+                          className={`unit-pill ${weightUnit === 'lbs' ? 'active' : ''}`}
+                          onClick={() => handleWeightUnitChange('lbs')}
+                        >
+                          LBS
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="metric-input-wrap">
                       <input
                         type="number"
                         className="metric-input"
-                        placeholder="75"
+                        placeholder={weightUnit === 'kg' ? '75' : '165'}
                         value={form.weight}
                         onChange={(e) => setVal('weight', e.target.value)}
-                        min={25}
-                        max={300}
+                        min={weightUnit === 'kg' ? 25 : 55}
+                        max={weightUnit === 'kg' ? 300 : 660}
                         step={0.5}
                       />
-                      <span className="metric-unit">kg</span>
+                      <span className="metric-unit">{weightUnit}</span>
                     </div>
+
+                    {/* Live automatic unit conversion only when user enters number */}
+                    {weightConversionHint && (
+                      <div className="metric-conversion-line">
+                        <span className="conversion-active">{weightConversionHint}</span>
+                      </div>
+                    )}
+
                     {errors.weight && <span className="field-error">{errors.weight}</span>}
-                    <span className="metric-desc">Used to calculate starting strength loads</span>
                   </div>
 
+                  {/* Height Input Card */}
                   <div className="metric-card">
-                    <span className="metric-label">Height</span>
+                    <div className="metric-header-row">
+                      <span className="metric-label">Height</span>
+                      {/* Unit Selector */}
+                      <div className="unit-toggle-pills" role="group" aria-label="Height Unit">
+                        <button
+                          type="button"
+                          className={`unit-pill ${heightUnit === 'cm' ? 'active' : ''}`}
+                          onClick={() => handleHeightUnitChange('cm')}
+                        >
+                          CM
+                        </button>
+                        <button
+                          type="button"
+                          className={`unit-pill ${heightUnit === 'ft' ? 'active' : ''}`}
+                          onClick={() => handleHeightUnitChange('ft')}
+                        >
+                          FT
+                        </button>
+                        <button
+                          type="button"
+                          className={`unit-pill ${heightUnit === 'm' ? 'active' : ''}`}
+                          onClick={() => handleHeightUnitChange('m')}
+                        >
+                          M
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="metric-input-wrap">
                       <input
                         type="number"
                         className="metric-input"
-                        placeholder="180"
+                        placeholder={heightUnit === 'cm' ? '180' : heightUnit === 'm' ? '1.80' : '5.9'}
                         value={form.height}
                         onChange={(e) => setVal('height', e.target.value)}
-                        min={100}
-                        max={250}
-                        step={1}
+                        min={heightUnit === 'cm' ? 100 : heightUnit === 'm' ? 1.0 : 3.2}
+                        max={heightUnit === 'cm' ? 250 : heightUnit === 'm' ? 2.5 : 8.2}
+                        step={heightUnit === 'cm' ? 1 : 0.01}
                       />
-                      <span className="metric-unit">cm</span>
+                      <span className="metric-unit">{heightUnit}</span>
                     </div>
-                    {errors.height && <span className="field-error">{errors.height}</span>}
-                    <span className="metric-desc">Used for body composition analytics</span>
-                  </div>
-                </div>
 
-                <div className="metrics-note">
-                  <span className="note-icon">💡</span>
-                  <span>
-                    You can update or adjust these metrics at any time in your profile settings.
-                  </span>
+                    {/* Live automatic height conversion only when user enters number */}
+                    {heightConversionHint && (
+                      <div className="metric-conversion-line">
+                        <span className="conversion-active">{heightConversionHint}</span>
+                      </div>
+                    )}
+
+                    {errors.height && <span className="field-error">{errors.height}</span>}
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Step 4: Plan Confirmation & Recap */}
+            {/* ========================================================== */}
+            {/* Step 3: Personalized Starter Routine Ready (Clean Recap)   */}
+            {/* ========================================================== */}
             {step === 3 && (
               <div className="onboarding-recap-section">
                 <div className="recap-card">
                   <div className="recap-header">
                     <div className="recap-badge-icon">
-                      <Check width={24} height={24} />
+                      <Check width={26} height={26} />
                     </div>
                     <div>
-                      <span className="recap-tag">RECOMMENDED STARTER PROGRAM</span>
-                      <h2 className="recap-title">{matchedRoutine}</h2>
+                      <span className="recap-tag">TAILORED TRAINING PROGRAM</span>
+                      <h2 className="recap-title">{tailoredProgram.name}</h2>
+                      <p className="recap-blurb">{tailoredProgram.tagline}</p>
                     </div>
                   </div>
 
+                  {/* Clean Summary Stats Strip */}
                   <div className="recap-details-grid">
                     <div className="recap-detail">
                       <span className="recap-lbl">Primary Goal</span>
                       <b>{GOALS.find((g) => g.key === form.goal)?.label || 'Muscle'}</b>
                     </div>
                     <div className="recap-detail">
-                      <span className="recap-lbl">Experience</span>
+                      <span className="recap-lbl">Difficulty Level</span>
                       <b>{LEVELS.find((l) => l.key === form.level)?.label || 'Beginner'}</b>
                     </div>
                     <div className="recap-detail">
@@ -358,23 +548,11 @@ export default function Onboarding() {
                       <b>{form.days} Days / Week</b>
                     </div>
                     <div className="recap-detail">
-                      <span className="recap-lbl">Starting Weight</span>
-                      <b>{form.weight ? `${form.weight} kg` : 'Not set'}</b>
-                    </div>
-                  </div>
-
-                  <div className="recap-feature-list">
-                    <div className="feature-item">
-                      <Check width={16} height={16} />
-                      <span>1,324 movements indexed & filtered to your goals</span>
-                    </div>
-                    <div className="feature-item">
-                      <Check width={16} height={16} />
-                      <span>Live workout tracker with rest timer configured</span>
-                    </div>
-                    <div className="feature-item">
-                      <Check width={16} height={16} />
-                      <span>Personalized daily starter routine queued</span>
+                      <span className="recap-lbl">Starting Metrics</span>
+                      <b>
+                        {form.weight ? `${form.weight} ${weightUnit}` : 'Weight set'} ·{' '}
+                        {form.height ? `${form.height} ${heightUnit}` : 'Height set'}
+                      </b>
                     </div>
                   </div>
                 </div>
@@ -386,7 +564,7 @@ export default function Onboarding() {
               {step > 0 && (
                 <button
                   type="button"
-                  className="btn btn-ghost"
+                  className="btn btn-ghost onboarding-back-btn"
                   onClick={prevStep}
                   disabled={busy}
                 >
@@ -409,7 +587,7 @@ export default function Onboarding() {
                   onClick={completeOnboarding}
                   disabled={busy}
                 >
-                  {busy ? 'Setting up...' : 'Enter Dashboard'} <Arrow width={18} height={18} />
+                  {busy ? 'Configuring Plan...' : 'Enter Dashboard & Start Plan'} <Arrow width={18} height={18} />
                 </button>
               )}
             </div>

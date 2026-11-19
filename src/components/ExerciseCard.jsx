@@ -6,7 +6,7 @@ import { Heart, Plus, ArrowUpRight } from './Icons.jsx';
 import { useWorkout } from '../context/WorkoutContext.jsx';
 import { partMeta, asset } from '../lib/utils.js';
 
-const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode = 'grid' }, ref) {
+const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode = 'grid', onSelect }, ref) {
   const navigate = useNavigate();
   const { favorites, toggleFavorite, addToWorkout } = useWorkout();
   const fav = favorites.includes(ex.id);
@@ -18,13 +18,21 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
     fn();
   };
 
+  const handleCardClick = () => {
+    if (onSelect) {
+      onSelect(ex);
+    } else {
+      navigate(`/exercises/${ex.id}`);
+    }
+  };
+
   // LIST VIEW: Sleek horizontal white card row (entire row clickable)
   if (viewMode === 'list') {
     return (
       <motion.article
         ref={ref}
         className="ex-list-item"
-        onClick={() => navigate(`/exercises/${ex.id}`)}
+        onClick={handleCardClick}
         style={{ cursor: 'pointer' }}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -93,20 +101,44 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
       onHoverStart={() => setHover(true)}
       onHoverEnd={() => setHover(false)}
     >
-      <Link to={`/exercises/${ex.id}`} data-cursor="View" style={{ display: 'contents' }}>
-        <Paper src={ex.image} gif={ex.gif} play={hover} autoplay="touch" alt={ex.name}>
-          <span className="play-badge">{hover ? '● Live' : 'Hover to play'}</span>
-          <span className="ex-id">#{ex.id}</span>
-        </Paper>
-        <div className="ex-body">
-          <h3>{ex.name}</h3>
-          <div className="ex-tags">
-            <span className="chip"><span className="dot" style={{ background: part.color }} />{part.label}</span>
-            <span className="chip">{ex.target}</span>
-            <span className="chip">{ex.equipment}</span>
+      {onSelect ? (
+        <div
+          onClick={handleCardClick}
+          data-cursor="View"
+          style={{ display: 'contents', cursor: 'pointer' }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleCardClick(); }}
+        >
+          <Paper src={ex.image} gif={ex.gif} play={hover} autoplay="touch" alt={ex.name}>
+            <span className="play-badge">{hover ? '● Live' : 'Hover to play'}</span>
+            <span className="ex-id">#{ex.id}</span>
+          </Paper>
+          <div className="ex-body">
+            <h3>{ex.name}</h3>
+            <div className="ex-tags">
+              <span className="chip"><span className="dot" style={{ background: part.color }} />{part.label}</span>
+              <span className="chip">{ex.target}</span>
+              <span className="chip">{ex.equipment}</span>
+            </div>
           </div>
         </div>
-      </Link>
+      ) : (
+        <Link to={`/exercises/${ex.id}`} data-cursor="View" style={{ display: 'contents' }}>
+          <Paper src={ex.image} gif={ex.gif} play={hover} autoplay="touch" alt={ex.name}>
+            <span className="play-badge">{hover ? '● Live' : 'Hover to play'}</span>
+            <span className="ex-id">#{ex.id}</span>
+          </Paper>
+          <div className="ex-body">
+            <h3>{ex.name}</h3>
+            <div className="ex-tags">
+              <span className="chip"><span className="dot" style={{ background: part.color }} />{part.label}</span>
+              <span className="chip">{ex.target}</span>
+              <span className="chip">{ex.equipment}</span>
+            </div>
+          </div>
+        </Link>
+      )}
       <div className="ex-actions" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"

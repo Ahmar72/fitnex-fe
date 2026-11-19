@@ -212,9 +212,10 @@ export default function WorkoutCompleteModal({ isOpen, onClose, data }) {
 
   return (
     <AnimatePresence>
-      <div className="workout-complete-overlay" role="dialog" aria-modal="true" aria-label="Workout Complete">
+      <div className="workout-complete-overlay" data-lenis-prevent="true" role="dialog" aria-modal="true" aria-label="Workout Complete">
         <motion.div
           className="workout-complete-card"
+          data-lenis-prevent="true"
           initial={{ opacity: 0, scale: 0.94, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 10 }}
@@ -232,7 +233,7 @@ export default function WorkoutCompleteModal({ isOpen, onClose, data }) {
 
           {/* Trophy Header */}
           <div className="workout-complete-trophy-wrap">
-            <Trophy width={34} height={34} />
+            <Trophy width={22} height={22} />
           </div>
 
           <h2 className="workout-complete-title">Workout complete!</h2>
@@ -272,6 +273,9 @@ export default function WorkoutCompleteModal({ isOpen, onClose, data }) {
           {/* Targeted Muscles Breakdown */}
           <div className="workout-complete-trained-section">
             <h4 className="trained-muscles-title">What you just trained</h4>
+            <div className="trained-effect-callout">
+              Targeted Impact: <b style={{ color: 'var(--accent)', textTransform: 'capitalize' }}>{trainedMuscles.join(', ') || 'Waist / Abs'}</b>
+            </div>
 
             {trainedMuscles.length > 0 && (
               <div className="trained-tags-row">

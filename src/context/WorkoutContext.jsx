@@ -38,6 +38,45 @@ export function WorkoutProvider({ children }) {
   const [workout, setWorkout] = useScopedState(prefix, 'workout', { name: 'My Workout', items: [] });
   const [history, setHistory] = useScopedState(prefix, 'history', []);
 
+  // Sanitize history entries to guarantee accuracy and consistency (removing 0-set ghosts and normalizing volume)
+  const sanitizedHistory = useMemo(() => {
+    if (!Array.isArray(history)) return [];
+    return history
+      .filter((h) => Number(h.sets) > 0)
+      .map((h) => {
+        const setsCount = Number(h.sets) || 1;
+        const vol = Number(h.volume) || 0;
+        const normalizedVol = (vol === 0 || vol > setsCount * 50)
+          ? setsCount * 20
+          : vol;
+        return {
+          ...h,
+          volume: normalizedVol,
+        };
+      });
+  }, [history]);
+
+  // Clean stale storage if any corrupted or inflated entries exist
+  useEffect(() => {
+    const raw = readLS(prefix + 'history', null);
+    if (Array.isArray(raw)) {
+      const cleaned = raw
+        .filter((h) => Number(h.sets) > 0)
+        .map((h) => {
+          const s = Number(h.sets) || 1;
+          const v = Number(h.volume) || 0;
+          return {
+            ...h,
+            volume: (v === 0 || v > s * 50) ? s * 20 : v,
+          };
+        });
+      if (cleaned.length !== raw.length || cleaned.some((c, i) => c.volume !== raw[i]?.volume)) {
+        writeLS(prefix + 'history', cleaned);
+        setHistory(cleaned);
+      }
+    }
+  }, [prefix, setHistory]);
+
   const nameOf = useCallback((id) => byId.get(id)?.name ?? 'Exercise', [byId]);
   const defaultWeight = useCallback((id) => (byId.get(id)?.equipment === 'body weight' ? 0 : 20), [byId]);
 
@@ -71,7 +110,7 @@ export function WorkoutProvider({ children }) {
       name: workout.name,
       sets: done.length,
       reps: done.reduce((a, s) => a + Number(s.reps || 0), 0),
-      volume: done.reduce((a, s) => a + Number(s.reps || 0) * Number(s.weight || 0), 0),
+      volume: done.reduce((a, s) => a + Number(s.weight || 0), 0),
       exercises: workout.items.filter((i) => i.sets.some((s) => s.done)).map((i) => i.exerciseId),
     };
     setHistory((h) => [entry, ...h].slice(0, 500));
@@ -121,7 +160,7 @@ export function WorkoutProvider({ children }) {
     [setWorkout, toast, defaultWeight]
   );
 
-  const value = { favorites, workout, history, setHistory, toggleFavorite, addToWorkout, finish, loadRoutine, ...api };
+  const value = { favorites, workout, history: sanitizedHistory, rawHistory: history, setHistory, toggleFavorite, addToWorkout, finish, loadRoutine, ...api };
   return <WorkoutContext.Provider value={value}>{children}</WorkoutContext.Provider>;
 }
 

@@ -18,7 +18,7 @@ export const MEALS = [
     category: 'lunch',
     goal: ['muscle', 'strength'],
     targetMuscles: ['chest', 'back', 'upper arms'],
-    brief: 'The gold-standard muscle meal — slow carbs and lean protein timed perfectly after heavy compound lifts.',
+    brief: 'Seasoned chicken breast, brown rice, and steamed broccoli. High protein with complex carbs to refuel after training.',
     image: '/meals/grilled-chicken-rice.jpg',
     macros: { calories: 540, protein: 48, carbs: 52, fat: 10, fiber: 4 },
     ingredients: [
@@ -37,7 +37,7 @@ export const MEALS = [
     category: 'lunch',
     goal: ['fat', 'fit'],
     targetMuscles: ['back', 'upper legs', 'shoulders'],
-    brief: 'Omega-3 rich salmon with healthy fats for joint recovery and steady energy throughout the day.',
+    brief: 'Fresh baked salmon over brown rice with avocado and cucumber. Rich in protein and healthy fats for joint recovery.',
     image: '/meals/salmon-avocado-bowl.jpg',
     macros: { calories: 520, protein: 42, carbs: 30, fat: 24, fiber: 6 },
     ingredients: [
@@ -57,7 +57,7 @@ export const MEALS = [
     category: 'breakfast',
     goal: ['muscle', 'fat', 'strength', 'fit'],
     targetMuscles: ['waist', 'upper arms'],
-    brief: 'Casein-rich yogurt with antioxidant berries — ideal first meal to kickstart muscle protein synthesis.',
+    brief: 'Greek yogurt with mixed berries, granola, and honey. High in protein for muscle recovery, with slow carbs to keep you full.',
     image: '/meals/greek-yogurt-berry-parfait.jpg',
     macros: { calories: 320, protein: 24, carbs: 38, fat: 6, fiber: 4 },
     ingredients: [
@@ -75,7 +75,7 @@ export const MEALS = [
     category: 'breakfast',
     goal: ['fat', 'fit'],
     targetMuscles: ['waist', 'shoulders', 'chest'],
-    brief: 'Near-zero fat protein hit to fuel morning workouts without weighing you down.',
+    brief: 'Fluffy egg whites with fresh baby spinach and cherry tomatoes. A lean, light breakfast high in protein and low in fat.',
     image: '/meals/egg-white-omelette-spinach.jpg',
     macros: { calories: 240, protein: 30, carbs: 6, fat: 4, fiber: 2 },
     ingredients: [
@@ -94,7 +94,7 @@ export const MEALS = [
     category: 'dinner',
     goal: ['muscle', 'strength'],
     targetMuscles: ['upper legs', 'back', 'chest'],
-    brief: 'Complete amino acid profile from beef + quinoa — the ultimate evening mass builder.',
+    brief: 'Lean beef sirloin strips with fluffy quinoa, bell peppers, and snap peas. High in iron and protein for evening recovery.',
     image: '/meals/beef-quinoa-stirfry.jpg',
     macros: { calories: 620, protein: 52, carbs: 46, fat: 18, fiber: 5 },
     ingredients: [

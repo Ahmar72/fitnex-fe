@@ -21,6 +21,7 @@ import {
   Ruler,
   ChevronRight,
   Clock,
+  Settings,
 } from '../components/Icons.jsx';
 import { PLANS, PLAN_CATEGORIES } from '../lib/plansData.js';
 import { asset, dayKey, readLS, writeLS, playChimeSound, playWhistleSound, speakVoice, getExerciseVoiceOverview, partMeta } from '../lib/utils.js';
@@ -116,18 +117,18 @@ export default function Plans() {
     return readLS('fx:active-plan-data', null);
   });
 
-  // Plan Onboarding Questions Wizard Modal state
-  const [onboardingPlan, setOnboardingPlan] = useState(null);
-  const [onboardingStep, setOnboardingStep] = useState(1);
-  const [onboardingData, setOnboardingData] = useState({
-    weight: user?.profile?.weight || '72',
-    weightUnit: 'kg',
-    height: user?.profile?.height || '178',
-    heightUnit: 'cm',
-    level: user?.profile?.level || 'intermediate',
-    daysPerWeek: 4,
-    primaryGoal: 'hypertrophy',
-  });
+  // Plan Activation Modal state (streamlined days/week selector, no body metric re-asking)
+  const [activatingPlan, setActivatingPlan] = useState(null);
+  const [activationDays, setActivationDays] = useState(3);
+  // Edit Plan modal state (Option 1: Edit days/week, Option 2: End plan)
+  const [showEditPlanModal, setShowEditPlanModal] = useState(false);
+  const [editDaysPerWeek, setEditDaysPerWeek] = useState(3);
+  // Confirmation modal before ending active plan
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  // Selected week inside multi-week plan view (1 to selectedPlan.weeks)
+  const [selectedWeek, setSelectedWeek] = useState(1);
+  // Selected day index inside the chosen week (0 to 6, corresponding to Mon..Sun)
+  const [selectedDayIdx, setSelectedDayIdx] = useState(0);
 
   // Dedicated Guided Live Workout Session state
   const [liveWorkoutSession, setLiveWorkoutSession] = useState(null);
@@ -148,13 +149,9 @@ export default function Plans() {
 
   // Current day's routine from the selected plan schedule
   const currentDayRoutine = useMemo(() => {
-    if (!selectedPlan) return null;
-    return (
-      selectedPlan.schedule.find((s) => s.day === activeCalendarDay.dayName) ||
-      selectedPlan.schedule.find((s) => !s.isRest) ||
-      selectedPlan.schedule[0]
-    );
-  }, [selectedPlan, activeCalendarDay]);
+    if (!selectedPlan?.schedule?.length) return null;
+    return selectedPlan.schedule[selectedDayIdx] || selectedPlan.schedule[0];
+  }, [selectedPlan, selectedDayIdx]);
 
   // Resolved exercise objects for current day
   const routineExercises = useMemo(() => {
@@ -196,46 +193,31 @@ export default function Plans() {
     setActiveDateKey(todayCalendarDay.dateKey);
   }, [todayCalendarDay]);
 
-  // Select plan handler: opens onboarding questions if not yet configured, otherwise opens plan
+  // Select plan handler: if already active, open detail; otherwise open clean activation modal
   const handleSelectPlan = (plan) => {
-    if (!planProfiles[plan.id]) {
-      setOnboardingPlan(plan);
-      setOnboardingStep(1);
-      setOnboardingData({
-        weight: user?.profile?.weight || '72',
-        weightUnit: 'kg',
-        height: user?.profile?.height || '178',
-        heightUnit: 'cm',
-        level: user?.profile?.level || plan.level?.toLowerCase() || 'intermediate',
-        daysPerWeek: 4,
-        primaryGoal: 'hypertrophy',
-      });
+    if (activePlanData?.planId === plan.id) {
+      const progDay = activePlanData.currentDayIndex || 0;
+      setSelectedWeek(Math.min(plan.weeks, Math.floor(progDay / 7) + 1));
+      setSelectedDayIdx(progDay % 7);
+      setSelectedPlan(plan);
+      determineActiveDay(plan);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
-    setSelectedPlan(plan);
-    determineActiveDay(plan);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const initialDays = user?.profile?.days || plan.frequency || 3;
+    setActivationDays(initialDays);
+    setActivatingPlan(plan);
   };
 
-  // Complete onboarding wizard and activate plan
-  const handleCompleteOnboarding = () => {
-    if (!onboardingPlan) return;
-    const plan = onboardingPlan;
-
-    const updatedProfiles = {
-      ...planProfiles,
-      [plan.id]: {
-        ...onboardingData,
-        completedAt: Date.now(),
-      },
-    };
-    setPlanProfiles(updatedProfiles);
-    writeLS('fx:plan-profiles', updatedProfiles);
+  // Activate program with chosen days per week
+  const handleActivatePlan = (plan, days = activationDays) => {
+    if (!plan) return;
 
     const newActivePlan = {
       planId: plan.id,
       planName: plan.name,
+      daysPerWeek: Number(days),
       startedAt: Date.now(),
       currentDayIndex: 0,
       lastWorkoutDate: null,
@@ -244,22 +226,77 @@ export default function Plans() {
     setActivePlanData(newActivePlan);
     writeLS('fx:active-plan-data', newActivePlan);
 
-    if (user && updateUser) {
+    const updatedProfiles = {
+      ...planProfiles,
+      [plan.id]: {
+        daysPerWeek: Number(days),
+        activatedAt: Date.now(),
+      },
+    };
+    setPlanProfiles(updatedProfiles);
+    writeLS('fx:plan-profiles', updatedProfiles);
+
+    if (user && updateUser && user.profile?.days !== Number(days)) {
       updateUser({
         profile: {
           ...(user.profile || {}),
-          weight: Number(onboardingData.weight) || user?.profile?.weight,
-          height: Number(onboardingData.height) || user?.profile?.height,
-          level: onboardingData.level,
+          days: Number(days),
         },
       });
     }
 
-    toast(`Program personalized for ${plan.name}! Let's start training.`, 'bolt');
-    setOnboardingPlan(null);
+    toast(`${plan.name} is now active! (${days} days / week)`, 'bolt');
+    setActivatingPlan(null);
+    setSelectedWeek(1);
+    setSelectedDayIdx(0);
     setSelectedPlan(plan);
     determineActiveDay(plan);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // End or cancel active training program
+  const handleCancelPlan = () => {
+    setActivePlanData(null);
+    writeLS('fx:active-plan-data', null);
+    setShowCancelConfirm(false);
+    toast('Training program ended.', 'info');
+  };
+
+  // Open Edit Plan modal (allowing user to change frequency or end plan)
+  const handleOpenEditPlan = (plan) => {
+    const currentDays = activePlanData?.daysPerWeek || user?.profile?.days || plan?.frequency || 3;
+    setEditDaysPerWeek(currentDays);
+    setShowEditPlanModal(true);
+  };
+
+  // Save updated training days per week from Edit Plan modal
+  const handleSaveEditDays = () => {
+    const daysNum = Number(editDaysPerWeek);
+    if (activePlanData) {
+      const updated = {
+        ...activePlanData,
+        daysPerWeek: daysNum,
+      };
+      setActivePlanData(updated);
+      writeLS('fx:active-plan-data', updated);
+    }
+    const targetPlan = selectedPlan || activePlan;
+    if (targetPlan) {
+      const updatedProfiles = {
+        ...planProfiles,
+        [targetPlan.id]: {
+          ...(planProfiles[targetPlan.id] || {}),
+          daysPerWeek: daysNum,
+        },
+      };
+      setPlanProfiles(updatedProfiles);
+      writeLS('fx:plan-profiles', updatedProfiles);
+    }
+    if (user && updateUser) {
+      updateUser({ profile: { ...(user.profile || {}), days: daysNum } });
+    }
+    setShowEditPlanModal(false);
+    toast(`Training frequency updated to ${daysNum} days/week.`, 'success');
   };
 
   // Filtered plans catalog list
@@ -296,11 +333,12 @@ export default function Plans() {
 
     const initialSets = {};
     routineExercises.forEach((ex) => {
+      const defaultWeight = 20;
       initialSets[ex.id] = [
-        { id: 1, reps: 10, weight: 20, done: false },
-        { id: 2, reps: 10, weight: 20, done: false },
-        { id: 3, reps: 10, weight: 20, done: false },
-        { id: 4, reps: 10, weight: 20, done: false },
+        { id: 1, reps: 10, weight: defaultWeight, done: false },
+        { id: 2, reps: 10, weight: defaultWeight, done: false },
+        { id: 3, reps: 10, weight: defaultWeight, done: false },
+        { id: 4, reps: 10, weight: defaultWeight, done: false },
       ];
     });
 
@@ -594,7 +632,16 @@ export default function Plans() {
       totalSetsDone > 0 ? 60 : 0,
       Math.round(totalSetsDone * 18 + finalElapsedSeconds * 0.15)
     );
-    const totalVolume = totalSetsDone * 10 * 20;
+    let totalVolume = 0;
+    exercises.forEach((ex) => {
+      const sets = setsMap[ex.id] || [];
+      sets.forEach((set) => {
+        if (set.done) {
+          const wt = Number(set.weight) > 0 ? Number(set.weight) : 20;
+          totalVolume += wt;
+        }
+      });
+    });
 
     try {
       // 1. Mark day as completed and increment count for this date
@@ -651,12 +698,11 @@ export default function Plans() {
       };
 
       if (typeof setHistory === 'function') {
-        setHistory([logEntry, ...(history || [])].slice(0, 500));
-      } else {
-        const prefix = `fx:${user?.id || 'guest'}:`;
-        const currentH = readLS(prefix + 'history', []);
-        writeLS(prefix + 'history', [logEntry, ...currentH].slice(0, 500));
+        setHistory((prev) => [logEntry, ...(prev || [])].slice(0, 500));
       }
+      const prefix = `fx:${user?.id || 'guest'}:`;
+      const currentH = readLS(prefix + 'history', []);
+      writeLS(prefix + 'history', [logEntry, ...currentH].slice(0, 500));
     } catch (err) {
       console.error('Failed to log completed workout:', err);
     }
@@ -726,13 +772,10 @@ export default function Plans() {
             {/* Hero Success Celebration Card */}
             <div className="summary-hero-card">
               <div className="summary-trophy-ring">
-                <Trophy width={38} height={38} />
+                <Trophy width={22} height={22} />
               </div>
               <span className="summary-eyebrow">Session Completed</span>
-              <h1 className="summary-title">{completedWorkoutSummary.routineTitle}</h1>
-              <p className="summary-sub">
-                Outstanding dedication! Today's session is recorded and saved to your training history.
-              </p>
+              <h2 className="summary-title">{completedWorkoutSummary.routineTitle}</h2>
             </div>
 
             {/* Primary Key Metrics Grid (Calories Burned, Active Time, Sets, Volume) */}
@@ -781,38 +824,6 @@ export default function Plans() {
                   </span>
                   <span className="summary-metric-label">Total Volume</span>
                 </div>
-              </div>
-            </div>
-
-            {/* Performance Analytics Strip */}
-            <div className="summary-perf-strip">
-              <div className="perf-item">
-                <span className="perf-label">Heart Rate Avg</span>
-                <span className="perf-val">~{completedWorkoutSummary.avgHeartRate} bpm</span>
-              </div>
-              <div className="perf-divider" />
-              <div className="perf-item">
-                <span className="perf-label">Primary Muscle</span>
-                <span className="perf-val">{completedWorkoutSummary.plan.targetMuscle}</span>
-              </div>
-              <div className="perf-divider" />
-              <div className="perf-item">
-                <span className="perf-label">Training Intensity</span>
-                <span className="perf-val">{completedWorkoutSummary.intensity}</span>
-              </div>
-              <div className="perf-divider" />
-              <div className="perf-item">
-                <span className="perf-label">Target Consistency</span>
-                <span
-                  className="perf-val"
-                  style={{ color: completedWorkoutSummary.setsCompleted > 0 ? '#10b981' : 'var(--muted)' }}
-                >
-                  {completedWorkoutSummary.totalPossibleSets > 0
-                    ? `${Math.round(
-                        (completedWorkoutSummary.setsCompleted / completedWorkoutSummary.totalPossibleSets) * 100
-                      )}% Target Met`
-                    : '100% Target Met'}
-                </span>
               </div>
             </div>
 
@@ -967,53 +978,20 @@ export default function Plans() {
                         <span className="chip"><span className="dot" style={{ background: part.color }} />{part.label}</span>
                         <span className="chip">#{currentEx.id}</span>
                       </div>
-                      <h1 className="display" style={{ textTransform: 'uppercase', margin: '8px 0 16px', fontSize: 'clamp(28px, 3.5vw, 40px)', lineHeight: 1.15 }}>
+                      <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '8px 0 12px', textTransform: 'capitalize', color: 'var(--text)', lineHeight: 1.3 }}>
                         {currentEx.name}
-                      </h1>
+                      </h2>
 
-                      <div className="spec" style={{ margin: '14px 0 22px' }}>
+                      <div className="spec" style={{ margin: '12px 0 16px' }}>
                         <div><small>Target</small><b>{currentEx.target}</b></div>
                         <div><small>Equipment</small><b>{currentEx.equipment}</b></div>
                         <div><small>Body part</small><b>{currentEx.bodyPart}</b></div>
                       </div>
 
-                      <div className="sub-title" style={{ margin: '22px 0 10px' }}>
-                        <h3 style={{ textTransform: 'uppercase', fontWeight: 800, fontSize: 17, margin: 0 }}>How to do it</h3>
-                      </div>
-                      <ol className="steps-list" style={{ marginBottom: 20 }}>
-                        {(currentEx.steps || [
-                          'Engage target muscle group and position body with stable balance.',
-                          'Execute movement under controlled tension through full range of motion.',
-                          'Squeeze at peak contraction and return with deliberate eccentric pacing.'
-                        ]).map((step, sIdx) => (
-                          <li key={sIdx}>
-                            <span>{sIdx + 1}</span>
-                            <p>{step}</p>
-                          </li>
-                        ))}
-                      </ol>
-
-                      <div className="sub-title" style={{ margin: '22px 0 10px' }}>
-                        <h3 style={{ textTransform: 'uppercase', fontWeight: 800, fontSize: 17, margin: 0 }}>Muscles worked</h3>
-                      </div>
-                      <div className="muscles-overview">
-                        <div className="muscle-card primary">
-                          <div className="muscle-card-meta">
-                            <span className="muscle-card-dot" />
-                            <span className="muscle-card-role">Primary Target</span>
-                          </div>
-                          <div className="muscle-card-name">{currentEx.target}</div>
-                        </div>
-                        {currentEx.secondary?.length > 0 && (
-                          <div className="muscle-card secondary">
-                            <div className="muscle-card-meta">
-                              <span className="muscle-card-dot" />
-                              <span className="muscle-card-role">Supporting Muscles</span>
-                            </div>
-                            <div className="muscle-card-name">{currentEx.secondary.join(' · ')}</div>
-                          </div>
-                        )}
-                      </div>
+                      {/* Clean simple line of instruction text outside any card */}
+                      <p style={{ margin: '12px 0 0', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.55 }}>
+                        {currentEx.steps?.[0] || 'Execute with steady cadence, full extension and strict contraction on every rep.'}
+                      </p>
                     </div>
                   </div>
 
@@ -1177,91 +1155,94 @@ export default function Plans() {
                         );
                       })}
                     </div>
+
+                    {/* Integrated Stepper & Next/Prev Controls directly under sets and reps */}
+                    <div className="live-sets-nav-row">
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        disabled={liveWorkoutSession.currentExIdx === 0}
+                        onClick={() => {
+                          const prevIdx = Math.max(0, liveWorkoutSession.currentExIdx - 1);
+                          const prevEx = liveWorkoutSession.exercises[prevIdx];
+                          if (prevEx) {
+                            speakVoice(getExerciseVoiceOverview(prevEx), { rate: 0.96, pitch: 1.02, interrupt: true });
+                          }
+                          setLiveWorkoutSession((prev) => ({
+                            ...prev,
+                            currentExIdx: prevIdx,
+                          }));
+                        }}
+                      >
+                        <ArrowLeft width={15} height={15} /> Previous Move
+                      </button>
+
+                      <div className="live-stepper-dots">
+                        {liveWorkoutSession.exercises.map((ex, idx) => {
+                          const s = liveWorkoutSession.setsMap[ex.id] || [];
+                          const isDone = s.length > 0 && s.every((item) => item.done);
+                          const isCurrent = idx === liveWorkoutSession.currentExIdx;
+
+                          return (
+                            <span
+                              key={ex.id || idx}
+                              className={`live-step-dot ${isCurrent ? 'active' : ''} ${
+                                isDone ? 'completed' : ''
+                              }`}
+                              onClick={() => {
+                                const targetEx = liveWorkoutSession.exercises[idx];
+                                if (targetEx) {
+                                  speakVoice(getExerciseVoiceOverview(targetEx), { rate: 0.96, pitch: 1.02, interrupt: true });
+                                }
+                                setLiveWorkoutSession((prev) => ({ ...prev, currentExIdx: idx }));
+                              }}
+                              title={ex.name}
+                            />
+                          );
+                        })}
+                      </div>
+
+                      {liveWorkoutSession.currentExIdx === liveWorkoutSession.exercises.length - 1 ? (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          style={{
+                            boxShadow: '0 0 20px rgba(255, 94, 26, 0.45)',
+                            padding: '8px 18px',
+                            fontWeight: 800,
+                          }}
+                          onClick={handleFinishWorkout}
+                        >
+                          <Trophy width={15} height={15} /> Finish Workout
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={() => {
+                            const nextIdx = Math.min(
+                              liveWorkoutSession.exercises.length - 1,
+                              liveWorkoutSession.currentExIdx + 1
+                            );
+                            const nextEx = liveWorkoutSession.exercises[nextIdx];
+                            if (nextEx) {
+                              speakVoice(getExerciseVoiceOverview(nextEx), { rate: 0.96, pitch: 1.02, interrupt: true });
+                            }
+                            setLiveWorkoutSession((prev) => ({
+                              ...prev,
+                              currentExIdx: nextIdx,
+                            }));
+                          }}
+                        >
+                          <span>Next Move</span>
+                          <ChevronRight width={15} height={15} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
             })()}
-
-            {/* Bottom Footer Stepper & Next/Finish Bar */}
-            <div className="live-workout-footer-bar">
-              <button
-                type="button"
-                className="btn btn-ghost"
-                disabled={liveWorkoutSession.currentExIdx === 0}
-                onClick={() => {
-                  const prevIdx = Math.max(0, liveWorkoutSession.currentExIdx - 1);
-                  const prevEx = liveWorkoutSession.exercises[prevIdx];
-                  if (prevEx) {
-                    speakVoice(getExerciseVoiceOverview(prevEx), { rate: 0.96, pitch: 1.02, interrupt: true });
-                  }
-                  setLiveWorkoutSession((prev) => ({
-                    ...prev,
-                    currentExIdx: prevIdx,
-                  }));
-                }}
-              >
-                <ArrowLeft width={16} height={16} /> Previous Move
-              </button>
-
-              <div className="live-stepper-dots">
-                {liveWorkoutSession.exercises.map((ex, idx) => {
-                  const s = liveWorkoutSession.setsMap[ex.id] || [];
-                  const isDone = s.length > 0 && s.every((item) => item.done);
-                  const isCurrent = idx === liveWorkoutSession.currentExIdx;
-
-                  return (
-                    <span
-                      key={ex.id || idx}
-                      className={`live-step-dot ${isCurrent ? 'active' : ''} ${
-                        isDone ? 'completed' : ''
-                      }`}
-                      onClick={() => {
-                        const targetEx = liveWorkoutSession.exercises[idx];
-                        if (targetEx) {
-                          speakVoice(getExerciseVoiceOverview(targetEx), { rate: 0.96, pitch: 1.02, interrupt: true });
-                        }
-                        setLiveWorkoutSession((prev) => ({ ...prev, currentExIdx: idx }));
-                      }}
-                      title={ex.name}
-                    />
-                  );
-                })}
-              </div>
-
-              {liveWorkoutSession.currentExIdx === liveWorkoutSession.exercises.length - 1 ? (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  style={{
-                    boxShadow: '0 0 25px rgba(255, 94, 26, 0.5)',
-                    padding: '12px 28px',
-                    fontWeight: 900,
-                  }}
-                  onClick={handleFinishWorkout}
-                >
-                  <Trophy width={18} height={18} /> Finish Workout
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => {
-                    const nextIdx = Math.min(liveWorkoutSession.exercises.length - 1, liveWorkoutSession.currentExIdx + 1);
-                    const nextEx = liveWorkoutSession.exercises[nextIdx];
-                    if (nextEx) {
-                      speakVoice(getExerciseVoiceOverview(nextEx), { rate: 0.96, pitch: 1.02, interrupt: true });
-                    }
-                    setLiveWorkoutSession((prev) => ({
-                      ...prev,
-                      currentExIdx: nextIdx,
-                    }));
-                  }}
-                >
-                  <span>Next Move</span>
-                  <ChevronRight width={16} height={16} />
-                </button>
-              )}
-            </div>
           </div>
         ) : selectedPlan ? (
           /* ============================================================
@@ -1272,18 +1253,47 @@ export default function Plans() {
             <div className="plan-detail-nav">
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
+                className="nav-back-pill"
                 onClick={() => {
                   setSelectedPlan(null);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
               >
-                <ArrowLeft width={16} height={16} /> Back to All Plans
+                <ArrowLeft width={15} height={15} /> Back to All Plans
               </button>
               <div className="plan-detail-badge-group">
-                <span className="plan-duration-badge highlight">
-                  {selectedPlan.weeks} WEEKS PROGRAM
-                </span>
+                {activePlanData?.planId === selectedPlan.id ? (
+                  <button
+                    type="button"
+                    className="plan-edit-btn"
+                    onClick={() => handleOpenEditPlan(selectedPlan)}
+                    title="Edit training frequency or end plan"
+                  >
+                    <Settings width={14} height={14} />
+                    <span>Edit Plan</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    style={{
+                      height: 32,
+                      padding: '0 14px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                    onClick={() => {
+                      setActivationDays(user?.profile?.days || selectedPlan.frequency || 3);
+                      setActivatingPlan(selectedPlan);
+                    }}
+                  >
+                    <Bolt width={13} height={13} />
+                    <span>Activate Plan</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1302,14 +1312,14 @@ export default function Plans() {
             </div>
 
             {/* ============================================================
-                INTERACTIVE TRAINING CALENDAR SCHEDULE
+                INTERACTIVE TRAINING CALENDAR SCHEDULE (Multi-Week Plan Progression)
                 ============================================================ */}
             <div className="plan-schedule-section">
               <div className="schedule-header">
                 <div>
-                  <h3 className="schedule-heading">Weekly Interactive Training Calendar</h3>
+                  <h3 className="schedule-heading">Training Schedule & Calendar</h3>
                   <p className="schedule-sub">
-                    Click any day to review previous workouts, check completed sessions, or make up skipped days.
+                    Structured by the weeks of your plan. Select any week and training day to inspect or start workouts.
                   </p>
                 </div>
 
@@ -1318,69 +1328,77 @@ export default function Plans() {
                   <div className="schedule-single-action">
                     <button
                       type="button"
-                      className={`btn ${isActiveDayCompleted ? 'btn-outline' : 'btn-primary'} plan-main-action-btn`}
+                      className="btn btn-primary plan-main-action-btn"
                       onClick={handleStartWorkout}
                     >
-                      {isActiveDayCompleted ? (
-                        <>
-                          <Check width={17} height={17} style={{ color: '#10b981' }} />
-                          <span>Completed Today (Restart Session)</span>
-                        </>
-                      ) : (
-                        <>
-                          <Play width={17} height={17} />
-                          <span>Start Workout</span>
-                        </>
-                      )}
+                      <Play width={17} height={17} />
+                      <span>Start Week {selectedWeek} · {currentDayRoutine.day} Workout</span>
                     </button>
                   </div>
                 )}
               </div>
 
-              {/* Interactive Calendar Days Strip (Monday to Sunday) */}
+              {/* Multi-Week Selector Strip according to specific plan weeks */}
+              <div className="plan-weeks-selector-bar">
+                <div className="weeks-pills-row">
+                  {Array.from({ length: selectedPlan.weeks || 6 }, (_, i) => i + 1).map((wNum) => {
+                    const isSelected = selectedWeek === wNum;
+                    const isCurrentProg =
+                      activePlanData?.planId === selectedPlan.id &&
+                      Math.floor((activePlanData.currentDayIndex || 0) / 7) + 1 === wNum;
+
+                    return (
+                      <button
+                        key={wNum}
+                        type="button"
+                        className={`week-pill-btn ${isSelected ? 'active' : ''}`}
+                        onClick={() => setSelectedWeek(wNum)}
+                      >
+                        <span>Week {wNum}</span>
+                        {isCurrentProg && <span className="current-week-dot" title="Current Week" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Interactive Calendar Days Strip (Days of Selected Week) */}
               <div className="day-pills-row calendar-strip">
-                {weekDays.map((dayItem) => {
-                  const scheduleConfig = selectedPlan.schedule.find((s) => s.day === dayItem.dayName);
-                  const isRestDay = scheduleConfig?.isRest;
-                  const workoutCount = getDayWorkoutCount(dayItem.dateKey);
-                  const isDone = workoutCount > 0;
-                  const isMissed = dayItem.isPast && !isDone && !isRestDay;
-                  const isSelected = activeDateKey === dayItem.dateKey;
+                {selectedPlan.schedule.map((scheduleConfig, dayIdx) => {
+                  const dayNumInPlan = (selectedWeek - 1) * 7 + (dayIdx + 1);
+                  const isRestDay = scheduleConfig.isRest;
+                  const isSelected = selectedDayIdx === dayIdx;
+                  const isPlanActive = activePlanData?.planId === selectedPlan.id;
+                  const isDone = isPlanActive && (activePlanData.currentDayIndex || 0) > dayNumInPlan - 1;
+                  const isToday = isPlanActive && (activePlanData.currentDayIndex || 0) === dayNumInPlan - 1;
 
                   return (
                     <button
-                      key={dayItem.dateKey}
+                      key={dayIdx}
                       type="button"
                       className={`day-pill-btn calendar-day-btn ${isSelected ? 'active' : ''} ${
                         isDone ? 'day-status-done' : ''
-                      } ${isMissed ? 'day-status-missed' : ''} ${isRestDay ? 'day-status-rest' : ''}`}
-                      onClick={() => setActiveDateKey(dayItem.dateKey)}
-                      aria-label={`${dayItem.dayName} ${dayItem.dateNumber}`}
+                      } ${isRestDay ? 'day-status-rest' : ''}`}
+                      onClick={() => setSelectedDayIdx(dayIdx)}
+                      aria-label={`${scheduleConfig.day} Day ${dayNumInPlan}`}
                     >
                       <div className="calendar-date-header">
-                        <span className="day-abbr">{dayItem.abbr}</span>
-                        <span className="day-calendar-num">{dayItem.dateNumber}</span>
+                        <span className="day-abbr">{scheduleConfig.day.slice(0, 3)}</span>
+                        <span className="day-calendar-num">{dayNumInPlan}</span>
                       </div>
 
-                      {/* Day Status Indicator: 1 or 2 Solid Glowing Orange Dots */}
                       <div className="calendar-status-wrap">
-                        {workoutCount > 0 ? (
-                          <div
-                            className="cal-dot-container"
-                            title={`${workoutCount} workout${workoutCount > 1 ? 's' : ''} completed today`}
-                          >
-                            <span className="cal-dot-orange" />
-                            {workoutCount >= 2 && <span className="cal-dot-orange" />}
-                          </div>
-                        ) : isMissed ? (
-                          <span className="cal-status-badge badge-skipped">Skipped</span>
+                        {isDone ? (
+                          <span className="cal-status-badge badge-done">
+                            <Check width={10} height={10} /> Done
+                          </span>
                         ) : isRestDay ? (
                           <span className="cal-status-badge badge-rest">Rest</span>
-                        ) : dayItem.isToday ? (
+                        ) : isToday ? (
                           <span className="cal-status-badge badge-today">Today</span>
                         ) : (
                           <span className="cal-status-badge badge-upcoming">
-                            {scheduleConfig?.exerciseIds?.length || 5} Moves
+                            {scheduleConfig.exerciseIds?.length || 5} Moves
                           </span>
                         )}
                       </div>
@@ -1392,25 +1410,21 @@ export default function Plans() {
               </div>
 
               {/* Active Day Detail Banner with History Status */}
-              <div className={`active-day-banner ${isActiveDayCompleted ? 'banner-completed' : ''}`}>
+              <div className="active-day-banner">
                 <div className="active-day-info">
                   <div className="active-day-topline">
                     <span className="active-day-name">
-                      {activeCalendarDay.dayName}, {activeCalendarDay.monthName} {activeCalendarDay.dateNumber}
+                      Week {selectedWeek} · Day {(selectedWeek - 1) * 7 + (selectedDayIdx + 1)} ({currentDayRoutine?.day})
                     </span>
-                    {isActiveDayCompleted && (
-                      <span className="completed-tag-pill">
-                        <span className="cal-dot-orange sm" /> Completed
+                    {currentDayRoutine?.isRest ? (
+                      <span className="rest-tag-pill">Rest & Active Recovery</span>
+                    ) : (
+                      <span className="completed-tag-pill" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                        <Flame width={12} height={12} /> {currentDayRoutine?.exerciseIds?.length || 5} Exercises
                       </span>
                     )}
-                    {activeCalendarDay.isPast && !isActiveDayCompleted && !currentDayRoutine?.isRest && (
-                      <span className="skipped-tag-pill">Skipped</span>
-                    )}
-                    {currentDayRoutine?.isRest && (
-                      <span className="rest-tag-pill">Rest Day</span>
-                    )}
                   </div>
-                  <h4 className="active-day-title">{currentDayRoutine?.title}</h4>
+                  <h4 className="active-day-title">{currentDayRoutine?.title || currentDayRoutine?.focus}</h4>
                   <p className="active-day-focus">{currentDayRoutine?.focus}</p>
                 </div>
 
@@ -1419,20 +1433,11 @@ export default function Plans() {
                   <div className="mobile-action-wrap">
                     <button
                       type="button"
-                      className={`btn ${isActiveDayCompleted ? 'btn-outline' : 'btn-primary'} btn-sm`}
+                      className="btn btn-primary btn-sm"
                       onClick={handleStartWorkout}
                     >
-                      {isActiveDayCompleted ? (
-                        <>
-                          <Check width={14} height={14} style={{ color: '#10b981' }} />
-                          <span>Replay</span>
-                        </>
-                      ) : (
-                        <>
-                          <Play width={14} height={14} />
-                          <span>Start Workout</span>
-                        </>
-                      )}
+                      <Play width={14} height={14} />
+                      <span>Start Workout</span>
                     </button>
                   </div>
                 )}
@@ -1456,12 +1461,28 @@ export default function Plans() {
                     <div
                       key={ex.id}
                       className="plan-exercise-card enlarged-card"
-                      onClick={() => navigate(`/exercises/${ex.id}`)}
+                      onClick={() =>
+                        navigate(`/exercises/${ex.id}`, {
+                          state: {
+                            fromPlan: selectedPlan?.id,
+                            planName: selectedPlan?.name,
+                            planExerciseIds: routineExercises.map((e) => e.id),
+                          },
+                        })
+                      }
                       role="button"
                       tabIndex={0}
                       title={`Click to open full exercise details for ${ex.name}`}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') navigate(`/exercises/${ex.id}`);
+                        if (e.key === 'Enter') {
+                          navigate(`/exercises/${ex.id}`, {
+                            state: {
+                              fromPlan: selectedPlan?.id,
+                              planName: selectedPlan?.name,
+                              planExerciseIds: routineExercises.map((e) => e.id),
+                            },
+                          });
+                        }
                       }}
                     >
                       <div className="ex-index-badge">{idx + 1}</div>
@@ -1551,7 +1572,16 @@ export default function Plans() {
                     </div>
                   </div>
                 </div>
-                <div className="active-program-actions">
+                <div className="active-program-actions" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    className="plan-edit-btn"
+                    onClick={() => handleOpenEditPlan(activePlan)}
+                    title="Edit training frequency or end plan"
+                  >
+                    <Settings width={14} height={14} />
+                    <span>Edit Plan</span>
+                  </button>
                   <button
                     type="button"
                     className="btn btn-primary"
@@ -1665,11 +1695,7 @@ export default function Plans() {
 
                       <div className="plan-card-footer">
                         <span className="plan-card-cta">
-                          {isThisActive
-                            ? 'Resume Program'
-                            : isFollowed
-                            ? 'Open Daily Schedule'
-                            : 'Start & Personalize Plan'}{' '}
+                          {isThisActive ? 'Resume Program' : 'Activate Program'}{' '}
                           <ArrowUpRight width={15} height={15} />
                         </span>
                       </div>
@@ -1682,278 +1708,373 @@ export default function Plans() {
         )}
 
         {/* ============================================================
-            PLAN ONBOARDING / PERSONALIZATION QUESTIONNAIRE MODAL
+            PLAN ACTIVATION MODAL: SELECT DAYS/WEEK & ACTIVATE
             ============================================================ */}
         <AnimatePresence>
-          {onboardingPlan && (
+          {activatingPlan && (
             <motion.div
               className="plan-onboard-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              onClick={() => setActivatingPlan(null)}
             >
               <motion.div
                 className="plan-onboard-card"
+                style={{ maxWidth: 520 }}
                 initial={{ scale: 0.95, opacity: 0, y: 15 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                onClick={(e) => e.stopPropagation()}
               >
                 {/* Header */}
                 <div className="plan-onboard-header">
                   <div>
                     <span className="plan-onboard-topline">
-                      <Target width={13} height={13} /> Personalize Your Routine
+                      <Bolt width={13} height={13} /> Activate Training Plan
                     </span>
-                    <h3 className="plan-onboard-title">{onboardingPlan.name}</h3>
+                    <h3 className="plan-onboard-title">{activatingPlan.name}</h3>
                   </div>
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
-                    onClick={() => setOnboardingPlan(null)}
+                    onClick={() => setActivatingPlan(null)}
                     aria-label="Close"
                   >
                     <X width={18} height={18} />
                   </button>
                 </div>
 
-                {/* Progress Stepper Bar */}
-                <div className="plan-onboard-stepper">
-                  <span className={`onboard-step-pill ${onboardingStep >= 1 ? 'active' : ''}`} />
-                  <span className={`onboard-step-pill ${onboardingStep >= 2 ? 'active' : ''}`} />
-                  <span className={`onboard-step-pill ${onboardingStep >= 3 ? 'active' : ''}`} />
-                </div>
+                {/* Body */}
+                <div className="plan-onboard-body" style={{ minHeight: 'auto', padding: '22px 28px' }}>
+                  {/* Plan Overview Card */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 16,
+                      padding: 14,
+                      borderRadius: 14,
+                      background: 'var(--surface-2, rgba(255, 255, 255, 0.04))',
+                      border: '1px solid var(--line)',
+                      marginBottom: 20,
+                    }}
+                  >
+                    <img
+                      src={asset(activatingPlan.image)}
+                      alt={activatingPlan.name}
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 10,
+                        objectFit: 'cover',
+                      }}
+                      onError={(e) => {
+                        e.currentTarget.src = asset('images/plans/abs.jpg');
+                      }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          color: 'var(--accent)',
+                          letterSpacing: '0.06em',
+                        }}
+                      >
+                        {activatingPlan.targetMuscle} • {activatingPlan.weeks} WEEKS
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          color: 'var(--muted)',
+                          marginTop: 4,
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {activatingPlan.description}
+                      </div>
+                    </div>
+                  </div>
 
-                {/* Body Steps */}
-                <div className="plan-onboard-body">
-                  {onboardingStep === 1 && (
-                    <motion.div
-                      key="step1"
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
+                  {/* Days / Week Selection */}
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        color: 'var(--text)',
+                        marginBottom: 6,
+                      }}
                     >
-                      <h4 className="onboard-step-heading">Step 1: Your Body Metrics</h4>
-                      <p className="onboard-step-sub">
-                        We calibrate lifting volume, rest periods, and progressive overload to your frame.
-                      </p>
-
-                      <div className="onboard-fields-grid">
-                        <div className="field">
-                          <span className="field-label">Current Weight</span>
-                          <input
-                            type="number"
-                            className="input"
-                            placeholder="70"
-                            value={onboardingData.weight}
-                            onChange={(e) =>
-                              setOnboardingData({ ...onboardingData, weight: e.target.value })
-                            }
-                          />
-                          <div className="onboard-unit-toggle">
-                            <button
-                              type="button"
-                              className={`onboard-unit-btn ${
-                                onboardingData.weightUnit === 'kg' ? 'active' : ''
-                              }`}
-                              onClick={() =>
-                                setOnboardingData({ ...onboardingData, weightUnit: 'kg' })
-                              }
-                            >
-                              KG
-                            </button>
-                            <button
-                              type="button"
-                              className={`onboard-unit-btn ${
-                                onboardingData.weightUnit === 'lbs' ? 'active' : ''
-                              }`}
-                              onClick={() =>
-                                setOnboardingData({ ...onboardingData, weightUnit: 'lbs' })
-                              }
-                            >
-                              LBS
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="field">
-                          <span className="field-label">Height</span>
-                          <input
-                            type="number"
-                            className="input"
-                            placeholder="175"
-                            value={onboardingData.height}
-                            onChange={(e) =>
-                              setOnboardingData({ ...onboardingData, height: e.target.value })
-                            }
-                          />
-                          <div className="onboard-unit-toggle">
-                            <button
-                              type="button"
-                              className={`onboard-unit-btn ${
-                                onboardingData.heightUnit === 'cm' ? 'active' : ''
-                              }`}
-                              onClick={() =>
-                                setOnboardingData({ ...onboardingData, heightUnit: 'cm' })
-                              }
-                            >
-                              CM
-                            </button>
-                            <button
-                              type="button"
-                              className={`onboard-unit-btn ${
-                                onboardingData.heightUnit === 'ft' ? 'active' : ''
-                              }`}
-                              onClick={() =>
-                                setOnboardingData({ ...onboardingData, heightUnit: 'ft' })
-                              }
-                            >
-                              FT
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {onboardingStep === 2 && (
-                    <motion.div
-                      key="step2"
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
+                      Training Days Per Week
+                    </div>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: 'var(--muted)',
+                        margin: '0 0 14px 0',
+                      }}
                     >
-                      <h4 className="onboard-step-heading">Step 2: Choose Your Training Level</h4>
-                      <p className="onboard-step-sub">
-                        Select your experience tier to tailor set intensity and technical difficulty.
-                      </p>
+                      Select how many days you want to train each week:
+                    </p>
 
-                      <div className="level-cards-col">
-                        {[
-                          {
-                            key: 'beginner',
-                            title: 'Beginner',
-                            desc: '0–1 years lifting · Focus on exercise mechanics & baseline hypertrophy',
-                          },
-                          {
-                            key: 'intermediate',
-                            title: 'Intermediate',
-                            desc: '1–3 years lifting · Focus on progressive overload & muscle density',
-                          },
-                          {
-                            key: 'advanced',
-                            title: 'Advanced',
-                            desc: '3+ years lifting · High-intensity density, volume & peak conditioning',
-                          },
-                        ].map((lvl) => (
-                          <div
-                            key={lvl.key}
-                            className={`level-card-option ${
-                              onboardingData.level === lvl.key ? 'selected' : ''
-                            }`}
-                            onClick={() =>
-                              setOnboardingData({ ...onboardingData, level: lvl.key })
-                            }
-                          >
-                            <div>
-                              <h5 className="level-card-title">{lvl.title}</h5>
-                              <p className="level-card-desc">{lvl.desc}</p>
-                            </div>
-                            <div className="level-check-indicator">
-                              <Check width={13} height={13} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {onboardingStep === 3 && (
-                    <motion.div
-                      key="step3"
-                      initial={{ opacity: 0, x: 10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(5, 1fr)',
+                        gap: 8,
+                      }}
                     >
-                      <h4 className="onboard-step-heading">Step 3: Weekly Commitment & Focus</h4>
-                      <p className="onboard-step-sub">
-                        How many days can you commit each week to complete this protocol?
-                      </p>
-
-                      <div className="days-chips-row">
-                        {[3, 4, 5, 6].map((days) => (
-                          <div
-                            key={days}
-                            className={`day-chip-btn ${
-                              onboardingData.daysPerWeek === days ? 'selected' : ''
-                            }`}
-                            onClick={() =>
-                              setOnboardingData({ ...onboardingData, daysPerWeek: days })
-                            }
-                          >
-                            {days} Days / wk
-                          </div>
-                        ))}
-                      </div>
-
-                      <div style={{ marginTop: 20 }}>
-                        <span className="field-label">Primary Focus</span>
-                        <div className="days-chips-row" style={{ marginTop: 6 }}>
-                          {[
-                            { key: 'hypertrophy', label: 'Hypertrophy & Growth' },
-                            { key: 'fat_loss', label: 'Fat Loss & Shred' },
-                            { key: 'strength', label: 'Raw Strength' },
-                          ].map((g) => (
-                            <div
-                              key={g.key}
-                              className={`day-chip-btn ${
-                                onboardingData.primaryGoal === g.key ? 'selected' : ''
-                              }`}
-                              style={{ fontSize: 12, padding: '10px 8px' }}
-                              onClick={() =>
-                                setOnboardingData({ ...onboardingData, primaryGoal: g.key })
-                              }
-                            >
-                              {g.label}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
+                      {[2, 3, 4, 5, 6].map((days) => (
+                        <button
+                          key={days}
+                          type="button"
+                          className="day-chip-btn"
+                          style={{
+                            padding: '12px 6px',
+                            borderRadius: 12,
+                            border: `1.5px solid ${
+                              activationDays === days ? 'var(--accent)' : 'var(--line)'
+                            }`,
+                            background:
+                              activationDays === days
+                                ? 'var(--accent)'
+                                : 'var(--surface-2, rgba(255, 255, 255, 0.03))',
+                            color: activationDays === days ? '#ffffff' : 'var(--text)',
+                            fontWeight: 800,
+                            fontSize: 13,
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.18s ease',
+                          }}
+                          onClick={() => setActivationDays(days)}
+                        >
+                          <div>{days}</div>
+                          <div style={{ fontSize: 10, opacity: 0.85, fontWeight: 600 }}>DAYS</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Footer Controls */}
-                <div className="plan-onboard-footer">
-                  {onboardingStep > 1 ? (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setOnboardingStep((s) => s - 1)}
-                    >
-                      <ArrowLeft width={15} height={15} /> Back
-                    </button>
-                  ) : (
-                    <div />
-                  )}
+                <div
+                  className="plan-onboard-footer"
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '16px 28px',
+                    borderTop: '1px solid var(--line)',
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    style={{ color: 'var(--muted)' }}
+                    onClick={() => {
+                      const p = activatingPlan;
+                      setActivatingPlan(null);
+                      setSelectedPlan(p);
+                      determineActiveDay(p);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                  >
+                    Preview Schedule
+                  </button>
 
-                  {onboardingStep < 3 ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{
+                      padding: '10px 22px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      boxShadow: '0 4px 18px rgba(255, 94, 26, 0.4)',
+                    }}
+                    onClick={() => handleActivatePlan(activatingPlan, activationDays)}
+                  >
+                    <Play width={15} height={15} /> Activate Plan
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ============================================================
+            EDIT PLAN MODAL (SIMPLIFIED: 2 BUTTONS, NO DESCRIPTIONS)
+            ============================================================ */}
+        <AnimatePresence>
+          {showEditPlanModal && (
+            <motion.div
+              className="plan-onboard-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowEditPlanModal(false)}
+            >
+              <motion.div
+                className="plan-onboard-card"
+                style={{ maxWidth: 380, padding: '24px 22px', textAlign: 'left' }}
+                initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+                  <div>
+                    <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 2px', color: 'var(--text)' }}>
+                      Edit Training Plan
+                    </h3>
+                    <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>
+                      {selectedPlan?.name || activePlan?.name}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    style={{ width: 32, height: 32 }}
+                    onClick={() => setShowEditPlanModal(false)}
+                    aria-label="Close"
+                  >
+                    <X width={15} height={15} />
+                  </button>
+                </div>
+
+                {/* Days/Week Selector */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 18 }}>
+                  {[2, 3, 4, 5, 6].map((days) => (
                     <button
+                      key={days}
                       type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={() => setOnboardingStep((s) => s + 1)}
+                      style={{
+                        padding: '11px 0',
+                        borderRadius: 12,
+                        fontSize: 13,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        transition: 'all 0.18s ease',
+                        border: Number(editDaysPerWeek) === days ? '1.5px solid var(--accent)' : '1px solid var(--line)',
+                        background: Number(editDaysPerWeek) === days ? 'var(--accent-soft)' : 'var(--surface-2)',
+                        color: Number(editDaysPerWeek) === days ? 'var(--accent)' : 'var(--text)',
+                      }}
+                      onClick={() => setEditDaysPerWeek(days)}
                     >
-                      Continue <ChevronRight width={15} height={15} />
+                      {days}d
                     </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={handleCompleteOnboarding}
-                      style={{ boxShadow: '0 0 20px rgba(255, 94, 26, 0.4)' }}
-                    >
-                      <Bolt width={15} height={15} /> Start {onboardingPlan.name}
-                    </button>
-                  )}
+                  ))}
+                </div>
+
+                {/* Two Processing Action Buttons Only */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ width: '100%', height: 42, fontSize: 13.5, fontWeight: 800, borderRadius: 12 }}
+                    onClick={handleSaveEditDays}
+                  >
+                    Save Changes
+                  </button>
+
+                  <button
+                    type="button"
+                    style={{
+                      width: '100%',
+                      height: 38,
+                      borderRadius: 12,
+                      color: '#ef4444',
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      border: '1px solid rgba(239, 68, 68, 0.28)',
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                    onClick={() => {
+                      setShowEditPlanModal(false);
+                      setShowCancelConfirm(true);
+                    }}
+                  >
+                    <X width={14} height={14} /> End Plan
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ============================================================
+            CONFIRMATION MODAL: END ACTIVE PLAN
+            ============================================================ */}
+        <AnimatePresence>
+          {showCancelConfirm && (
+            <motion.div
+              className="plan-onboard-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCancelConfirm(false)}
+            >
+              <motion.div
+                className="plan-onboard-card"
+                style={{ maxWidth: 420, padding: '28px 24px', alignItems: 'center', textAlign: 'center' }}
+                initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: '50%',
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    color: '#ef4444',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 16,
+                  }}
+                >
+                  <X width={24} height={24} />
+                </div>
+
+                <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 8px', color: 'var(--text)' }}>
+                  End Training Program?
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, margin: '0 0 22px' }}>
+                  Are you sure you want to end this active program? You can choose or restart any plan anytime.
+                </p>
+
+                <div style={{ display: 'flex', gap: 10, width: '100%', justifyContent: 'center' }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ flex: 1, border: '1px solid var(--line)' }}
+                    onClick={() => setShowCancelConfirm(false)}
+                  >
+                    Keep Program
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ flex: 1, background: '#ef4444', borderColor: '#ef4444' }}
+                    onClick={() => {
+                      setShowCancelConfirm(false);
+                      handleCancelPlan();
+                    }}
+                  >
+                    Yes, End Plan
+                  </button>
                 </div>
               </motion.div>
             </motion.div>
