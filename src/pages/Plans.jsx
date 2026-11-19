@@ -1526,11 +1526,6 @@ export default function Plans() {
               </button>
             </div>
 
-            {/* Header Section */}
-            <div className="plans-header" style={{ marginBottom: 20 }}>
-              <h1 className="dash-title" style={{ whiteSpace: 'nowrap', margin: 0, textTransform: 'uppercase' }}>TRAINING PLANS</h1>
-            </div>
-
             {/* Active Training Program Resume Banner (Continuity where left off) */}
             {activePlan && (
               <div className="active-program-banner">

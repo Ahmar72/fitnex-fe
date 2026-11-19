@@ -569,25 +569,29 @@ export default function Builder() {
   const handleFinishWorkout = () => {
     const sets = items.flatMap((i) => i.sets);
     const done = sets.filter((s) => s.done);
+    if (!done.length) {
+      finish();
+      return false;
+    }
     const vol = done.reduce((a, s) => a + Number(s.reps || 0) * Number(s.weight || 0), 0);
-    const trainedMuscles = [...new Set(items.map((it) => byId.get(it.exerciseId)?.bodyPart).filter(Boolean))];
-    const trainedTargets = [...new Set(items.map((it) => byId.get(it.exerciseId)?.target).filter(Boolean))];
-    const durationMinutes = Math.max(1, Math.round((done.length || 1) * 2.5));
+    const trainedMuscles = [...new Set(items.filter((it) => it.sets.some((s) => s.done)).map((it) => byId.get(it.exerciseId)?.bodyPart).filter(Boolean))];
+    const durationMinutes = Math.max(1, Math.round(done.length * 2.5));
     const caloriesBurned = Math.round(done.length * 18 + durationMinutes * 6);
 
     const success = finish();
-    setLive(false);
-    setLiveTargetSetId(null);
-    setCompleteModalData({
-      durationMinutes,
-      volume: vol,
-      setsCount: sets.length,
-      workSetsCount: done.length,
-      caloriesBurned,
-      trainedMuscles,
-      trainedTargets,
-      workoutName: workout.name,
-    });
+    if (success) {
+      setLive(false);
+      setLiveTargetSetId(null);
+      setCompleteModalData({
+        durationMinutes,
+        volume: vol,
+        setsCount: done.length,
+        workSetsCount: done.length,
+        caloriesBurned,
+        trainedMuscles,
+        workoutName: workout.name,
+      });
+    }
     return success;
   };
 
@@ -631,15 +635,7 @@ export default function Builder() {
 
   return (
     <>
-      <section className="page-head" style={{ paddingBottom: 20 }}>
-        <div className="container">
-          <h1 className="display h1" style={{ whiteSpace: 'nowrap', margin: 0, textTransform: 'uppercase' }}>
-            {t('builder.title_1', 'Build it.')} <span className="accent">{t('builder.title_2', 'Lift it.')}</span>
-          </h1>
-        </div>
-      </section>
-
-      <section className="container" style={{ paddingBottom: 120 }}>
+      <section className="container" style={{ paddingTop: 24, paddingBottom: 120 }}>
         <div className="builder">
           <div>
             <div className="wk-title">

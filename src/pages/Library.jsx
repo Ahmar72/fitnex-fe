@@ -171,15 +171,7 @@ export default function Library() {
 
   return (
     <>
-      <section className="page-head" style={{ paddingBottom: 20 }}>
-        <div className="container">
-          <h1 className="display h1" style={{ whiteSpace: 'nowrap', margin: 0, textTransform: 'uppercase' }}>
-            <span className="accent">1,324</span> {t('lib.title_1', 'Ways')} {t('lib.title_2', 'to Move')}
-          </h1>
-        </div>
-      </section>
-
-      <section className="container" style={{ paddingBottom: 100 }}>
+      <section className="container" style={{ paddingTop: 24, paddingBottom: 100 }}>
         <div className="toolbar">
           <div className="toolbar-row">
             <label className="search">

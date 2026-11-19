@@ -5,7 +5,6 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { useWorkout, streakOf } from '../context/WorkoutContext.jsx';
 import { useLanguage } from '../context/LanguageContext.jsx';
-import ExerciseCard from '../components/ExerciseCard.jsx';
 import { Counter, GlowCard, Paper, Reveal, SplitText } from '../components/Motion.jsx';
 import { Arrow, Bolt, Dumbbell, Flame, Heart, Play, Trophy } from '../components/Icons.jsx';
 import { ROUTINES } from '../sections/Programs.jsx';
@@ -70,12 +69,6 @@ export default function Dashboard() {
     return out;
   }, [history]);
 
-  const discover = useMemo(() => {
-    const parts = FOCUS[profile.goal] || FOCUS.fit;
-    return sample(exercises.filter((e) => parts.includes(e.bodyPart)), 4, user.id.charCodeAt(0) + new Date().getDate());
-  }, [exercises, profile.goal, user.id]);
-
-  const favList = favorites.map((id) => byId.get(id)).filter(Boolean).slice(0, 4);
   const maxSets = Math.max(10, ...stats.week.map((d) => d.sets));
   const target = profile.days || 3;
   const C = 2 * Math.PI * 52;
@@ -160,7 +153,7 @@ export default function Dashboard() {
                     initial={{ strokeDashoffset: C }} whileInView={{ strokeDashoffset: C * (1 - ratio) }} viewport={{ once: true }}
                     transition={{ duration: 1.4, ease }}
                   />
-                  <text x="60" y="68" textAnchor="middle" fill="var(--text)" fontSize="26" fontWeight="900" fontFamily="Big Shoulders Display">{Math.round(ratio * 100)}%</text>
+                  <text x="60" y="67" textAnchor="middle" fill="var(--text)" fontSize="22" fontWeight="800" fontFamily="var(--body)">{Math.round(ratio * 100)}%</text>
                 </svg>
                 <p>{ratio >= 1 ? 'Weekly target smashed. Recovery matters too!' : `${target - stats.daysThisWeek} more session${target - stats.daysThisWeek === 1 ? '' : 's'} to hit your target this week.`}</p>
               </div>
@@ -231,25 +224,6 @@ export default function Dashboard() {
             </GlowCard>
           </Reveal>
         </div>
-
-        <div className="sub-title" style={{ marginTop: 70 }}>
-          <h2>{t('dash.your_favs', 'Your favourites')}</h2>
-          <Link to="/exercises?fav=1" className="link-btn">{t('dash.see_all', 'See all')} ({favorites.length}) →</Link>
-        </div>
-        {favList.length ? (
-          <div className="related">{favList.map((e, i) => <ExerciseCard key={e.id} ex={e} index={i} />)}</div>
-        ) : (
-          <div className="card dash-empty">
-            <p>Tap the <Heart width={14} height={14} style={{ verticalAlign: '-2px' }} /> on any exercise to save it here.</p>
-            <Link to="/exercises" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start', marginTop: 14 }}>{t('dash.explore_lib', 'Explore library')} <Arrow /></Link>
-          </div>
-        )}
-
-        <div className="sub-title" style={{ marginTop: 70 }}>
-          <h2>{t('dash.rec_for', 'Recommended for')} “{goal.label}”</h2>
-          <Link to="/exercises" className="link-btn">{t('dash.explore_lib', 'Explore library')} →</Link>
-        </div>
-        <div className="related">{discover.map((e, i) => <ExerciseCard key={e.id} ex={e} index={i} />)}</div>
       </div>
     </section>
   );

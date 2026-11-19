@@ -150,10 +150,6 @@ function BodyMuscleMap({ trainedMuscles = [], trainedTargets = [] }) {
     return ids;
   }, [trainedMuscles, trainedTargets]);
 
-  const activeColor = '#22c55e';
-  const inactiveColor = '#34363d';
-  const strokeColor = '#17181d';
-
   return (
     <div className="workout-muscle-map-wrap">
       {/* Front View */}
@@ -164,11 +160,7 @@ function BodyMuscleMap({ trainedMuscles = [], trainedTargets = [] }) {
             <path
               key={m.id}
               d={m.path}
-              fill={activeIds.has(m.id) ? activeColor : inactiveColor}
-              stroke={strokeColor}
-              strokeWidth="0.22"
-              strokeLinejoin="round"
-              strokeLinecap="round"
+              className={`muscle-path ${activeIds.has(m.id) ? 'active' : ''}`}
             />
           ))}
         </svg>
@@ -182,11 +174,7 @@ function BodyMuscleMap({ trainedMuscles = [], trainedTargets = [] }) {
             <path
               key={m.id}
               d={m.path}
-              fill={activeIds.has(m.id) ? activeColor : inactiveColor}
-              stroke={strokeColor}
-              strokeWidth="0.22"
-              strokeLinejoin="round"
-              strokeLinecap="round"
+              className={`muscle-path ${activeIds.has(m.id) ? 'active' : ''}`}
             />
           ))}
         </svg>
@@ -239,12 +227,12 @@ export default function WorkoutCompleteModal({ isOpen, onClose, data }) {
             onClick={onClose}
             aria-label="Close workout summary"
           >
-            <X width={15} height={15} />
+            <X width={16} height={16} />
           </button>
 
           {/* Trophy Header */}
           <div className="workout-complete-trophy-wrap">
-            <Trophy width={40} height={40} color="#22c55e" />
+            <Trophy width={34} height={34} />
           </div>
 
           <h2 className="workout-complete-title">Workout complete!</h2>
