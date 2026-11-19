@@ -60,9 +60,9 @@ export function Stats() {
     { n: 0, s: '', l: t('stats.s4', 'Accounts, ads or trackers. Zero.'), zero: true },
   ];
   return (
-    <section className="section" style={{ paddingTop: 100, paddingBottom: 60 }}>
+    <section className="section" style={{ paddingTop: 40, paddingBottom: 28 }}>
       <div className="container">
-        <Reveal style={{ marginBottom: 40 }}>
+        <Reveal style={{ marginBottom: 24 }}>
           <span className="eyebrow">{t('stats.eyebrow', 'By the numbers')}</span>
         </Reveal>
         <div className="stats">
@@ -131,24 +131,26 @@ export function FAQ() {
   ];
 
   return (
-    <section className="section" id="faq">
+    <section className="section faq-section" id="faq">
       <div className="container faq-wrap">
-        <div>
+        <div className="faq-side">
           <Reveal><span className="eyebrow">{t('faq.eyebrow', 'FAQ')}</span></Reveal>
           <SplitText className="display h2" lines={[t('faq.title_1', 'Questions?'), <span key="a" className="accent">{t('faq.title_2', 'Answers.')}</span>]} />
-          <Reveal delay={0.2}><p className="lead" style={{ marginTop: 20 }}>{t('faq.lead', 'Everything you need to know before your first session.')}</p></Reveal>
+          <Reveal delay={0.2}><p className="lead faq-lead">{t('faq.lead', 'Everything you need to know before your first session.')}</p></Reveal>
         </div>
-        <div>
+        <div className="faq-cards">
           {QA.map(([q, a], i) => (
-            <Reveal key={q} delay={i * 0.05} className={`faq-item ${open === i ? 'open' : ''}`}>
+            <Reveal key={q} delay={i * 0.05} className={`faq-card ${open === i ? 'open' : ''}`}>
               <button className="faq-q" onClick={() => setOpen(open === i ? -1 : i)} aria-expanded={open === i}>
-                {q}
-                <span className="pm"><Plus width={18} height={18} /></span>
+                <span className="faq-q-text">{q}</span>
+                <span className="faq-icon"><Plus width={18} height={18} /></span>
               </button>
               <AnimatePresence initial={false}>
                 {open === i && (
-                  <motion.div className="faq-a" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.5, ease }}>
-                    <p>{a}</p>
+                  <motion.div className="faq-a" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.35, ease }}>
+                    <div className="faq-a-content">
+                      <p>{a}</p>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -167,13 +169,15 @@ export function CTA() {
   const { t } = useLanguage();
   return (
     <section className="cta">
-      <div className="cta-orbit">
-        {ring.map((e, i) => {
-          const a = (360 / ring.length) * i;
-          return (
-            <Paper key={e.id} src={e.image} gif={e.gif} autoplay style={{ transform: `rotate(${a}deg) translate(470px) rotate(${-a}deg)` }} />
-          );
-        })}
+      <div className="cta-orbit-stage">
+        <div className="cta-orbit">
+          {ring.map((e, i) => {
+            const a = (360 / ring.length) * i;
+            return (
+              <Paper key={e.id} src={e.image} gif={e.gif} autoplay style={{ transform: `rotate(${a}deg) translate(470px) rotate(${-a}deg)` }} />
+            );
+          })}
+        </div>
       </div>
       <div className="cta-mask" />
       <div className="container cta-inner">
@@ -184,7 +188,7 @@ export function CTA() {
         </Reveal>
         <Reveal delay={0.3}>
           <Magnetic>
-            <Link to={user ? '/builder' : '/signup'} className="btn btn-primary" style={{ height: 64, padding: '0 36px', fontSize: 17 }}>
+            <Link to={user ? '/builder' : '/signup'} className="btn btn-primary" style={{ height: 42, padding: '0 24px', fontSize: 13.5 }}>
               {user ? t('cta.btn_build', 'Build my workout') : t('cta.btn_create', 'Create my free account')} <Arrow />
             </Link>
           </Magnetic>

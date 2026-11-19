@@ -28,13 +28,12 @@ export default function Hero() {
     }
   });
 
-  const { cols, pill, floatA, floatB } = useMemo(() => {
+  const { cols, floatA, floatB } = useMemo(() => {
     if (!exercises.length) return { cols: [[], [], []] };
     const pool = sample(exercises, 30, 42);
     const pick = (n) => exercises.find((e) => e.name.toLowerCase() === n);
     return {
       cols: [pool.slice(0, 10), pool.slice(10, 20), pool.slice(20, 30)],
-      pill: pick('barbell full squat') || pool[0],
       floatA: pick('pull-up') || pool[1],
       floatB: pool[5],
     };
@@ -55,14 +54,7 @@ export default function Hero() {
             delay={delay + 0.1}
             lines={[
               t('hero.title_1', 'Train'),
-              <span className="row-flex" key="r">
-                {t('hero.title_2', 'with')}
-                {pill && (
-                  <span className="hero-pill paper">
-                    <img src={asset(pill.gif)} alt="" />
-                  </span>
-                )}
-              </span>,
+              t('hero.title_2', 'with'),
               <span className="accent" key="a">{t('hero.title_3', 'intent.')}</span>,
             ]}
           />
