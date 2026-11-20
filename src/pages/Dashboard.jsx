@@ -9,6 +9,8 @@ import { Counter, GlowCard, Paper, Reveal, SplitText } from '../components/Motio
 import { Arrow, Bolt, Dumbbell, Flame, Heart, Play, Trophy } from '../components/Icons.jsx';
 import { ROUTINES } from '../sections/Programs.jsx';
 import { goalOf, routineFor } from '../lib/goals.js';
+import { PLANS } from '../lib/plansData.js';
+import { getActivePlanWithProgression } from '../lib/progressionEngine.js';
 import { dayKey, fmt, sample, title, readLS, writeLS } from '../lib/utils.js';
 
 const ease = [0.22, 1, 0.36, 1];
@@ -34,12 +36,17 @@ export default function Dashboard() {
   const goal = goalOf(profile.goal);
   const first = user?.name ? user.name.split(' ')[0] : 'Athlete';
 
+  const activePlanData = useMemo(() => readLS('fx:active-plan-data', null), []);
+
   const plan = useMemo(() => {
-    if (!user || !ready) return ROUTINES[1];
-    const r = ROUTINES.find((x) => x.name === routineFor(profile)) || ROUTINES[1];
-    return { ...r, items: r.list.map(([n, sets, reps]) => ({ ex: findByName(n), sets, reps })).filter((x) => x.ex) };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, profile.goal, profile.level, profile.days]);
+    if (!ready) return null;
+    return getActivePlanWithProgression({
+      activePlanData,
+      profile,
+      PLANS,
+      byId,
+    });
+  }, [ready, activePlanData, profile, byId]);
 
   const stats = useMemo(() => {
     const volume = history.reduce((a, h) => a + (Number(h.volume) || 0), 0);
@@ -75,6 +82,7 @@ export default function Dashboard() {
   const ratio = Math.min(1, stats.daysThisWeek / target);
 
   const startPlan = () => {
+    if (!plan || !plan.items?.length) return;
     loadRoutine(plan.name, plan.items.map(({ ex, sets, reps }) => ({ id: ex.id, sets, reps })));
     navigate('/builder');
   };
@@ -119,16 +127,34 @@ export default function Dashboard() {
           <Reveal className="span-8" style={{ display: 'flex' }}>
             <GlowCard className="plan-card" style={{ flex: 1 }} tilt={3}>
               <div className="plan-top">
-                <div>
-                  <span className="tag">{t('dash.todays_plan', 'Today’s plan')} · {t('dash.picked_for', 'picked for')} “{goal.label}”</span>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '4px 0 6px', textTransform: 'capitalize' }}>{plan.name}</h3>
-                  <p style={{ fontSize: '0.88rem', color: 'var(--muted)', margin: 0, lineHeight: 1.45 }}>{plan.blurb}</p>
+                <div style={{ flex: 1, minWidth: 240 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                    <span className="tag" style={{ margin: 0 }}>
+                      {t('dash.todays_plan', 'Today’s plan')} · Week {plan?.currentWeek || 1}
+                    </span>
+                    {plan?.weekProgression?.tag && (
+                      <span className="chip" style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 700 }}>
+                        {plan.weekProgression.tag}
+                      </span>
+                    )}
+                    <span className="chip" style={{ fontSize: '11px', fontWeight: 700 }}>
+                      ⏱️ {plan?.setDuration || 40}s / set
+                    </span>
+                  </div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '4px 0 6px', textTransform: 'capitalize' }}>
+                    {plan?.name || 'Today’s Workout'}
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--muted)', margin: 0, lineHeight: 1.45 }}>
+                    {plan?.blurb || 'Customized daily progression for your active program.'}
+                  </p>
                 </div>
-                <button className="btn btn-primary" onClick={startPlan}>{t('dash.load_start', 'Load & start')} <Arrow /></button>
+                <button className="btn btn-primary" onClick={startPlan} style={{ flexShrink: 0 }}>
+                  {t('dash.load_start', 'Load & start')} <Arrow />
+                </button>
               </div>
               <div className="plan-media">
-                {plan.items.map(({ ex, sets, reps }, i) => (
-                  <motion.div key={ex.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.06, ease }}>
+                {plan?.items?.map(({ ex, sets, reps }, i) => (
+                  <motion.div key={ex.id} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05, ease }}>
                     <Link to={`/exercises/${ex.id}`} className="plan-item">
                       <Paper src={ex.image} gif={ex.gif} autoplay />
                       <b>{ex.name}</b>

@@ -1028,3 +1028,133 @@ export function getTodayWorkoutForUser(profile = {}, activePlanData = null, find
     blurb: `${todayDay.difficulty} · ${todayDay.focus}`,
   };
 }
+
+/**
+ * Calibrates progressive overload intensity based on program week (1 through 6).
+ * Week 1: 3 sets × 10 reps (Foundation Load)
+ * Week 2: 3 sets × 11 reps (+1 rep per set, Volume Accumulation)
+ * Week 3: 4 sets × 10 reps (+1 set, Overload Stage 1)
+ * Week 4: 4 sets × 11 reps (+1 set, +1 rep, Overload Stage 2)
+ * Week 5: 4 sets × 12 reps (+1 set, +2 reps, Peak Hypertrophy)
+ * Week 6: 5 sets × 12 reps (+2 sets, +2 reps, Climax Density)
+ */
+export function getProgressionForWeek(weekNum = 1) {
+  const w = Math.max(1, Math.min(6, Number(weekNum) || 1));
+  switch (w) {
+    case 1:
+      return { week: 1, sets: 3, reps: 10, bonusWeight: 0, tag: 'Foundation Load', factor: 1.0 };
+    case 2:
+      return { week: 2, sets: 3, reps: 11, bonusWeight: 0, tag: 'Volume Accumulation', factor: 1.1 };
+    case 3:
+      return { week: 3, sets: 4, reps: 10, bonusWeight: 2.5, tag: 'Overload Stage 1', factor: 1.25 };
+    case 4:
+      return { week: 4, sets: 4, reps: 11, bonusWeight: 2.5, tag: 'Overload Stage 2', factor: 1.35 };
+    case 5:
+      return { week: 5, sets: 4, reps: 12, bonusWeight: 5, tag: 'Peak Hypertrophy', factor: 1.5 };
+    case 6:
+      return { week: 6, sets: 5, reps: 12, bonusWeight: 5, tag: 'Climax Density', factor: 1.65 };
+    default:
+      return { week: 1, sets: 3, reps: 10, bonusWeight: 0, tag: 'Foundation Load', factor: 1.0 };
+  }
+}
+
+/**
+ * Calculates progressive set duration countdown:
+ * Increases by 5-10s (5 seconds per day) across every consecutive workout day of the weekly cycle.
+ * Day 1: 40s
+ * Day 2: 45s
+ * Day 3: 50s
+ * Day 4: 55s
+ * Day 5: 60s
+ * Day 6: 65s
+ * Day 7: 70s
+ */
+export function getSetDurationForDay(dayIndex = 0) {
+  const daySafe = Math.max(0, Number(dayIndex) || 0) % 7;
+  return 40 + daySafe * 5;
+}
+
+/**
+ * Resolves the user's active plan, current week's progressive overload,
+ * today's rotated exercises, and progressive set timers.
+ */
+export function getActivePlanWithProgression({
+  activePlanData = null,
+  profile = {},
+  PLANS = [],
+  byId = new Map(),
+  targetWeek = null,
+  targetDayIndex = null,
+} = {}) {
+  // 1. Resolve active plan from activePlanData or profile or goal fallback
+  let planId = activePlanData?.planId || profile?.activePlanId;
+  let plan = PLANS.find((p) => p.id === planId);
+
+  if (!plan) {
+    const goal = profile?.goal || 'muscle';
+    if (goal === 'fat') planId = 'weight-loss';
+    else if (goal === 'fit') planId = 'abs-building';
+    else if (goal === 'strength') planId = 'boulder-shoulders';
+    else planId = 'muscle-building';
+    plan = PLANS.find((p) => p.id === planId) || PLANS[0];
+  }
+
+  // 2. Week progression: Calculate week number (1 to plan.weeks)
+  const startedAt = activePlanData?.startedAt || Date.now();
+  const weeksElapsed = Math.floor((Date.now() - startedAt) / (86400000 * 7));
+  const currentWeek = targetWeek || Math.min(plan?.weeks || 6, Math.max(1, weeksElapsed + 1));
+  const weekProgression = getProgressionForWeek(currentWeek);
+
+  // 3. Day of week & daily rotation
+  const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const now = new Date();
+  const todayWeekday = weekdayNames[now.getDay()];
+  const todayDayIndex = targetDayIndex !== null && targetDayIndex !== undefined
+    ? Number(targetDayIndex)
+    : (now.getDay() + 6) % 7; // Mon: 0 .. Sun: 6
+
+  // 4. Daily set duration: +5-10s everyday
+  const setDuration = getSetDurationForDay(todayDayIndex);
+
+  // 5. Today's scheduled routine from the plan
+  let todayRoutine = plan.schedule?.find((d) => d.day === todayWeekday);
+  let isRestDay = Boolean(todayRoutine?.isRest || !todayRoutine?.exerciseIds?.length);
+
+  // If today is a rest day, provide the next active workout routine so the user can always train
+  if (isRestDay) {
+    todayRoutine = plan.schedule?.find((d) => !d.isRest && d.exerciseIds?.length) || plan.schedule[0];
+  }
+
+  // 6. Populate exercise objects with calibrated sets, reps, and overload weights
+  const items = (todayRoutine?.exerciseIds || [])
+    .map((id) => {
+      const ex = byId.get(id);
+      if (!ex) return null;
+      const baseWeight = ex.equipment === 'body weight' ? 0 : 20;
+      const weight = baseWeight > 0 ? baseWeight + weekProgression.bonusWeight : 0;
+      return {
+        id,
+        ex,
+        sets: weekProgression.sets,
+        reps: weekProgression.reps,
+        weight,
+        setDuration,
+      };
+    })
+    .filter(Boolean);
+
+  return {
+    plan,
+    planId: plan.id,
+    currentWeek,
+    weekProgression,
+    todayWeekday,
+    todayDayIndex,
+    todayRoutine,
+    isRestDay,
+    setDuration,
+    items,
+    name: `${plan.name} · ${todayRoutine?.title || todayRoutine?.day || 'Training'}`,
+    blurb: `${todayRoutine?.focus || plan.tagline} · Week ${currentWeek} (${weekProgression.tag}) · ${setDuration}s work / set`,
+  };
+}

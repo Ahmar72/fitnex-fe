@@ -24,6 +24,7 @@ import {
   Settings,
 } from '../components/Icons.jsx';
 import { PLANS, PLAN_CATEGORIES } from '../lib/plansData.js';
+import { getProgressionForWeek, getSetDurationForDay } from '../lib/progressionEngine.js';
 import { asset, dayKey, readLS, writeLS, playChimeSound, playWhistleSound, speakVoice, getExerciseVoiceOverview, partMeta } from '../lib/utils.js';
 import WorkoutCompleteModal from '../components/WorkoutCompleteModal.jsx';
 
@@ -330,16 +331,18 @@ export default function Plans() {
     }
 
     const restDuration = Number(user?.profile?.rest || readLS('fx:rest-timer', 60)) || 60;
+    const weekProg = getProgressionForWeek(selectedWeek);
 
     const initialSets = {};
     routineExercises.forEach((ex) => {
-      const defaultWeight = 20;
-      initialSets[ex.id] = [
-        { id: 1, reps: 10, weight: defaultWeight, done: false },
-        { id: 2, reps: 10, weight: defaultWeight, done: false },
-        { id: 3, reps: 10, weight: defaultWeight, done: false },
-        { id: 4, reps: 10, weight: defaultWeight, done: false },
-      ];
+      const baseWeight = ex.equipment === 'body weight' ? 0 : 20;
+      const weight = baseWeight > 0 ? baseWeight + weekProg.bonusWeight : 0;
+      initialSets[ex.id] = Array.from({ length: weekProg.sets }, (_, sIdx) => ({
+        id: sIdx + 1,
+        reps: weekProg.reps,
+        weight,
+        done: false,
+      }));
     });
 
     setLiveWorkoutSession({
@@ -521,8 +524,8 @@ export default function Plans() {
     // Blow marathon sports whistle
     playWhistleSound();
 
-    // Set duration countdown (40s work time)
-    const SET_DURATION = 40;
+    // Set duration countdown: 40s base + 5s per day progression
+    const SET_DURATION = getSetDurationForDay(selectedDayIdx);
     setLiveWorkoutSession((prev) => ({
       ...prev,
       activeTimer: {

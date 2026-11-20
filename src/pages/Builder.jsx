@@ -7,6 +7,7 @@ import { useLanguage } from '../context/LanguageContext.jsx';
 import { Paper, Reveal, SplitText } from '../components/Motion.jsx';
 import { Arrow, Check, Down, Play, Plus, Search, Trash, Up, X } from '../components/Icons.jsx';
 import { ROUTINES } from '../sections/Programs.jsx';
+import { getSetDurationForDay } from '../lib/progressionEngine.js';
 import { BODY_PARTS, asset, dayKey, fmt, playChimeSound, playWhistleSound, speakVoice, getExerciseVoiceOverview } from '../lib/utils.js';
 import PageShimmer from '../components/AppSpinner.jsx';
 import WorkoutCompleteModal from '../components/WorkoutCompleteModal.jsx';
@@ -196,8 +197,9 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
     // Blow marathon sports whistle
     playWhistleSound();
 
-    // 40 seconds set duration
-    const SET_DURATION = 40;
+    // Dynamic progressive set duration: 40s base + 5s per day progress
+    const dayProgress = (new Date().getDay() + 6) % 7;
+    const SET_DURATION = getSetDurationForDay(dayProgress);
     setActiveTimer({
       mode: 'set',
       itemUid: currentItem.uid,

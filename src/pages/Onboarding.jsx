@@ -7,14 +7,22 @@ import { useToast } from '../components/Toast.jsx';
 import { Arrow, ArrowLeft, Check, Dumbbell, Flame, Bolt, Trophy, Logo } from '../components/Icons.jsx';
 import { GOALS, LEVELS } from '../lib/goals.js';
 import { getProgramForUser } from '../lib/progressionEngine.js';
-import { asset, writeLS } from '../lib/utils.js';
+import { PLANS } from '../lib/plansData.js';
+import { asset, readLS, writeLS } from '../lib/utils.js';
 import '../onboarding.css';
 
 const ease = [0.22, 1, 0.36, 1];
 
+const DEFAULT_PLAN_BY_GOAL = {
+  muscle: 'muscle-building',
+  fat: 'weight-loss',
+  strength: 'boulder-shoulders',
+  fit: 'abs-building',
+};
+
 const ONBOARDING_STEPS = [
   { id: 'goal', title: 'Main Goal', subtitle: 'What are you training for?' },
-  { id: 'plan', title: 'Your Routine', subtitle: 'Experience level and weekly schedule' },
+  { id: 'plan', title: 'Your Routine', subtitle: 'Experience level, schedule & target program' },
   { id: 'metrics', title: 'Body Stats', subtitle: 'Calibrate starting volume and stats' },
   { id: 'ready', title: 'Your Program', subtitle: 'Your personalized starter routine is ready' },
 ];
@@ -39,6 +47,7 @@ export default function Onboarding() {
   // Form state
   const [form, setForm] = useState({
     goal: user?.profile?.goal || 'muscle',
+    planId: user?.profile?.activePlanId || DEFAULT_PLAN_BY_GOAL[user?.profile?.goal || 'muscle'] || 'muscle-building',
     level: user?.profile?.level || 'beginner',
     days: user?.profile?.days || 3,
     weight: user?.profile?.weight || '',
@@ -57,6 +66,17 @@ export default function Onboarding() {
     setForm((prev) => ({ ...prev, [k]: v }));
     setErrors((prev) => ({ ...prev, [k]: undefined }));
   };
+
+  const handleSelectGoal = (goalKey) => {
+    setVal('goal', goalKey);
+    setVal('planId', DEFAULT_PLAN_BY_GOAL[goalKey] || 'muscle-building');
+  };
+
+  // Resolved active program for user matching selection
+  const selectedPlan = useMemo(() => {
+    const id = form.planId || DEFAULT_PLAN_BY_GOAL[form.goal] || 'muscle-building';
+    return PLANS.find((p) => p.id === id) || PLANS[0];
+  }, [form.planId, form.goal]);
 
   // Resolved tailored program for user
   const tailoredProgram = useMemo(() => {
@@ -199,10 +219,31 @@ export default function Onboarding() {
       else if (heightUnit === 'ft') finalHeight = Math.round(finalHeight * 30.48);
     }
 
+    // Set the chosen program as the active program across the whole web
+    const activePlanObj = {
+      planId: selectedPlan.id,
+      planName: selectedPlan.name,
+      daysPerWeek: Number(form.days) || 3,
+      startedAt: Date.now(),
+      currentDayIndex: 0,
+      lastWorkoutDate: null,
+      completedDates: [],
+    };
+    writeLS('fx:active-plan-data', activePlanObj);
+
+    const profiles = readLS('fx:plan-profiles', {});
+    profiles[selectedPlan.id] = {
+      daysPerWeek: Number(form.days) || 3,
+      activatedAt: Date.now(),
+    };
+    writeLS('fx:plan-profiles', profiles);
+
     const profileData = {
       goal: form.goal || 'muscle',
       level: form.level || 'beginner',
       days: Number(form.days) || 3,
+      activePlanId: selectedPlan.id,
+      planName: selectedPlan.name,
       weight: finalWeight,
       height: finalHeight,
       weightUnit,
@@ -212,16 +253,37 @@ export default function Onboarding() {
 
     updateUser({ profile: profileData });
 
-    toast(`Welcome aboard, ${firstName}! Your profile is ready. Choose a plan anytime in the Plans tab.`, 'bolt');
+    toast(`Welcome aboard, ${firstName}! "${selectedPlan.name}" is now active on your dashboard.`, 'bolt');
     navigate('/dashboard', { replace: true });
   };
 
   const skipToDashboard = () => {
+    const defaultPlan = selectedPlan || PLANS[0];
+    const activePlanObj = {
+      planId: defaultPlan.id,
+      planName: defaultPlan.name,
+      daysPerWeek: 3,
+      startedAt: Date.now(),
+      currentDayIndex: 0,
+      lastWorkoutDate: null,
+      completedDates: [],
+    };
+    writeLS('fx:active-plan-data', activePlanObj);
+
+    const profiles = readLS('fx:plan-profiles', {});
+    profiles[defaultPlan.id] = {
+      daysPerWeek: 3,
+      activatedAt: Date.now(),
+    };
+    writeLS('fx:plan-profiles', profiles);
+
     updateUser({
       profile: {
-        goal: 'fit',
+        goal: 'muscle',
         level: 'beginner',
         days: 3,
+        activePlanId: defaultPlan.id,
+        planName: defaultPlan.name,
         weight: null,
         height: null,
         weightUnit: 'kg',
@@ -229,7 +291,7 @@ export default function Onboarding() {
         onboardingComplete: true,
       },
     });
-    toast('Profile setup skipped. You can configure your plan in Plans.', 'info');
+    toast(`Profile ready. "${defaultPlan.name}" is active on your dashboard.`, 'info');
     navigate('/dashboard', { replace: true });
   };
 
@@ -310,7 +372,7 @@ export default function Onboarding() {
                       type="button"
                       key={g.key}
                       className={`onboarding-goal-card ${isSelected ? 'selected' : ''}`}
-                      onClick={() => setVal('goal', g.key)}
+                      onClick={() => handleSelectGoal(g.key)}
                       whileHover={{ y: -4, scale: 1.015 }}
                       whileTap={{ scale: 0.98 }}
                       initial={{ opacity: 0, y: 15 }}
@@ -401,6 +463,41 @@ export default function Onboarding() {
                         </div>
                       );
                     })}
+                  </div>
+
+                  {/* Target Training Program Selection */}
+                  <div className="plan-block-header" style={{ marginTop: 22 }}>
+                    <label className="section-label">Target Training Program</label>
+                    <span className="section-sublabel">Matched to your goal — you can keep this or select any program</span>
+                  </div>
+
+                  <div className="experience-columns-list">
+                    <div className="experience-row-card selected" style={{ cursor: 'default' }}>
+                      <div className="exp-left-col">
+                        <div className="exp-details">
+                          <b className="exp-title">{selectedPlan.name}</b>
+                          <span className="exp-desc">{selectedPlan.tagline} · {selectedPlan.targetMuscle}</span>
+                        </div>
+                      </div>
+
+                      <div className="exp-right-col" onClick={(e) => e.stopPropagation()}>
+                        <div className="exp-days-dropdown-wrap">
+                          <select
+                            id="program-select"
+                            className="experience-days-select"
+                            value={selectedPlan.id}
+                            onChange={(e) => setVal('planId', e.target.value)}
+                            style={{ minWidth: 170 }}
+                          >
+                            {PLANS.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -527,9 +624,9 @@ export default function Onboarding() {
                       <Check width={26} height={26} />
                     </div>
                     <div>
-                      <span className="recap-tag">TAILORED TRAINING PROGRAM</span>
-                      <h2 className="recap-title">{tailoredProgram.name}</h2>
-                      <p className="recap-blurb">{tailoredProgram.tagline}</p>
+                      <span className="recap-tag">ACTIVE TRAINING PROGRAM</span>
+                      <h2 className="recap-title">{selectedPlan.name}</h2>
+                      <p className="recap-blurb">{selectedPlan.tagline}</p>
                     </div>
                   </div>
 
@@ -540,19 +637,16 @@ export default function Onboarding() {
                       <b>{GOALS.find((g) => g.key === form.goal)?.label || 'Muscle'}</b>
                     </div>
                     <div className="recap-detail">
-                      <span className="recap-lbl">Difficulty Level</span>
-                      <b>{LEVELS.find((l) => l.key === form.level)?.label || 'Beginner'}</b>
+                      <span className="recap-lbl">Target Focus</span>
+                      <b>{selectedPlan.targetMuscle}</b>
                     </div>
                     <div className="recap-detail">
-                      <span className="recap-lbl">Frequency</span>
-                      <b>{form.days} Days / Week</b>
+                      <span className="recap-lbl">Schedule</span>
+                      <b>{form.days} Days / Week · {selectedPlan.weeks} Weeks</b>
                     </div>
                     <div className="recap-detail">
-                      <span className="recap-lbl">Starting Metrics</span>
-                      <b>
-                        {form.weight ? `${form.weight} ${weightUnit}` : 'Weight set'} ·{' '}
-                        {form.height ? `${form.height} ${heightUnit}` : 'Height set'}
-                      </b>
+                      <span className="recap-lbl">Week 1 Progression</span>
+                      <b>3 Sets × 10 Reps · 40s / Set</b>
                     </div>
                   </div>
                 </div>
