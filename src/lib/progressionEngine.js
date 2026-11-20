@@ -7,22 +7,52 @@ export const LEVEL_METRICS = {
     label: 'Beginner',
     tagline: 'New or returning to training',
     repRange: '10–12 reps',
-    restTime: '75–90s',
+    restTime: '40s',
     intensityTag: 'Introductory / Foundational',
   },
   intermediate: {
     label: 'Intermediate',
     tagline: '6+ months of consistent training',
     repRange: '8–10 reps',
-    restTime: '60–75s',
+    restTime: '50s',
     intensityTag: 'Moderate / Progressive Overload',
   },
   advanced: {
     label: 'Advanced',
     tagline: 'Years under the bar',
     repRange: '5–8 reps',
-    restTime: '90–120s',
+    restTime: '75s (1m 15s)',
     intensityTag: 'High-Demand / Maximal Neuromuscular',
+  },
+};
+
+export const DIFFICULTY_CALIBRATION = {
+  beginner: {
+    timerSeconds: 40,
+    baseWeight: 5,
+    sets: 3,
+    reps: 10,
+    label: 'Beginner',
+    timerLabel: '40s / Set',
+    weightLabel: '5 kg',
+  },
+  intermediate: {
+    timerSeconds: 50,
+    baseWeight: 12.5,
+    sets: 3,
+    reps: 10,
+    label: 'Intermediate',
+    timerLabel: '50s / Set',
+    weightLabel: '12.5 kg',
+  },
+  advanced: {
+    timerSeconds: 75,
+    baseWeight: 20,
+    sets: 4,
+    reps: 10,
+    label: 'Advanced',
+    timerLabel: '1m 15s / Set',
+    weightLabel: '20 kg',
   },
 };
 
@@ -1026,6 +1056,63 @@ export function getTodayWorkoutForUser(profile = {}, activePlanData = null, find
     items,
     name: `${program.name} · ${todayDay.title}`,
     blurb: `${todayDay.difficulty} · ${todayDay.focus}`,
+  };
+}
+
+/**
+ * Resolves today's goal workout strictly driven by user's onboarding/profile goal,
+ * difficulty level, and weekly schedule (completely decoupled from /plans).
+ */
+export function getGoalWorkoutForToday({
+  profile = {},
+  goalProgress = null,
+  byId = new Map(),
+} = {}) {
+  const goalKey = profile.goal || 'muscle';
+  const levelKey = profile.level || 'beginner';
+  const daysCount = profile.days || 3;
+
+  const diffConfig = DIFFICULTY_CALIBRATION[levelKey] || DIFFICULTY_CALIBRATION.beginner;
+  const program = getProgramForUser(goalKey, levelKey, daysCount);
+
+  // Day index based on progression or weekday
+  const currentDayIndex = (goalProgress?.currentDayIndex || 0) % program.schedule.length;
+  let todayDay = program.schedule[currentDayIndex];
+  if (todayDay?.isRest) {
+    todayDay = program.schedule.find((d) => !d.isRest) || todayDay;
+  }
+
+  // Calculate day-over-day timer progression: base timer + 5s per workout index
+  const setDuration = diffConfig.timerSeconds + (currentDayIndex % 7) * 5;
+
+  const items = (todayDay.exerciseIds || []).map((id) => {
+    const ex = byId.get(id) || null;
+    const isBodyweight = ex?.equipment === 'body weight';
+    const weight = isBodyweight ? 0 : diffConfig.baseWeight;
+    return {
+      id,
+      ex: ex || { id, name: 'Exercise', equipment: 'body weight' },
+      sets: diffConfig.sets,
+      reps: diffConfig.reps,
+      weight,
+      isBodyweight,
+      setDuration,
+    };
+  });
+
+  return {
+    program,
+    todayDay,
+    goal: goalKey,
+    level: levelKey,
+    diffConfig,
+    setDuration,
+    name: `${program.name} · ${todayDay.title}`,
+    routineTitle: todayDay.title,
+    focus: todayDay.focus,
+    difficulty: todayDay.difficulty,
+    items,
+    exerciseIds: items.map((i) => i.id),
   };
 }
 

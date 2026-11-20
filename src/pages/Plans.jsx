@@ -665,6 +665,17 @@ export default function Plans() {
   const handleFinishWorkout = () => {
     if (!liveWorkoutSession) return;
     const { plan, dateKey, dayName, exercises, setsMap, elapsedSeconds } = liveWorkoutSession;
+
+    // Enforce that user completes at least one set of each exercise
+    const unfinishedExercise = exercises.find((ex) => {
+      const s = setsMap[ex.id] || [];
+      return !s.some((item) => item.done);
+    });
+    if (unfinishedExercise) {
+      toast(`Please complete at least one set of each exercise before finishing (missing: ${unfinishedExercise.name})`, 'info');
+      return;
+    }
+
     const finalElapsedSeconds = elapsedSeconds;
 
     // Immediately stop live workout session so the timer freezes at this exact moment!
@@ -694,8 +705,10 @@ export default function Plans() {
       const sets = setsMap[ex.id] || [];
       sets.forEach((set) => {
         if (set.done) {
-          const wt = Number(set.weight) > 0 ? Number(set.weight) : 20;
-          totalVolume += wt;
+          const wt = Number(set.weight);
+          if (!isNaN(wt) && wt > 0) {
+            totalVolume += wt;
+          }
         }
       });
     });

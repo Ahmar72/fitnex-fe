@@ -249,7 +249,12 @@ export default function WorkoutCompleteModal({ isOpen, onClose, data }) {
   const prs = data?.prsCount ?? '—';
   const trainedMuscles = data?.trainedMuscles || [];
   const trainedTargets = data?.trainedTargets || [];
-  const displayTargets = trainedTargets.length > 0 ? trainedTargets : trainedMuscles;
+  const displayTargets = useMemo(() => {
+    const raw = trainedTargets.length > 0 ? trainedTargets : trainedMuscles;
+    return raw
+      .map((t) => (typeof t === 'string' ? t.trim() : ''))
+      .filter((t) => t.length > 0 && t.toLowerCase() !== 'all');
+  }, [trainedTargets, trainedMuscles]);
 
   return (
     <AnimatePresence>

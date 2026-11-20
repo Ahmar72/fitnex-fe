@@ -22,8 +22,10 @@ export default function ExerciseDetail() {
   const [i18n, setI18n] = useState(null);
 
   const isFromPlan = Boolean(location.state?.fromPlan);
-  const planName = location.state?.planName;
-  const planExerciseIds = location.state?.planExerciseIds;
+  const isFromRoutine = Boolean(location.state?.fromRoutine);
+  const planName = location.state?.planName || location.state?.routineTitle;
+  const scopedExerciseIds = location.state?.routineExerciseIds || location.state?.planExerciseIds;
+  const isScoped = Boolean((isFromPlan || isFromRoutine) && Array.isArray(scopedExerciseIds) && scopedExerciseIds.length > 0);
 
   const ex = byId.get(id);
 
@@ -43,19 +45,19 @@ export default function ExerciseDetail() {
   const { prev, next, related } = useMemo(() => {
     if (!ex) return {};
 
-    // When inside a plan, cycle strictly through that plan's exercises and don't suggest external exercises
-    if (isFromPlan && Array.isArray(planExerciseIds) && planExerciseIds.length > 0) {
-      const planExercises = planExerciseIds
+    // When inside a routine or plan, cycle strictly through that schedule's exercises and don't suggest external exercises
+    if (isScoped) {
+      const scopedExercises = scopedExerciseIds
         .map((pid) => byId.get(pid))
         .filter(Boolean);
 
-      if (planExercises.length > 0) {
-        const curIdx = planExercises.findIndex((e) => e.id === ex.id);
+      if (scopedExercises.length > 0) {
+        const curIdx = scopedExercises.findIndex((e) => e.id === ex.id);
         const resolvedIdx = curIdx >= 0 ? curIdx : 0;
         return {
-          prev: planExercises[(resolvedIdx - 1 + planExercises.length) % planExercises.length],
-          next: planExercises[(resolvedIdx + 1) % planExercises.length],
-          related: [], // Suppress suggestions inside plan
+          prev: scopedExercises[(resolvedIdx - 1 + scopedExercises.length) % scopedExercises.length],
+          next: scopedExercises[(resolvedIdx + 1) % scopedExercises.length],
+          related: [], // Suppress suggestions inside routine/plan
         };
       }
     }
@@ -67,7 +69,7 @@ export default function ExerciseDetail() {
       next: exercises[(idx + 1) % exercises.length],
       related: sample(same, 4, Number(ex.id)),
     };
-  }, [ex, exercises, isFromPlan, planExerciseIds, byId]);
+  }, [ex, exercises, isScoped, scopedExerciseIds, byId]);
 
   if (!ready) return <div className="detail"><PageShimmer variant="detail" /></div>;
   if (!ex) {
@@ -98,7 +100,7 @@ export default function ExerciseDetail() {
               if (window.history.length > 1) {
                 navigate(-1);
               } else {
-                navigate(isFromPlan ? '/plans' : '/exercises');
+                navigate(isFromPlan ? '/plans' : isFromRoutine ? '/dashboard' : '/exercises');
               }
             }}
           >
@@ -193,8 +195,8 @@ export default function ExerciseDetail() {
           </div>
         </div>
 
-        {/* More for your muscle: Only shown when browsing general library, NOT inside a plan */}
-        {!isFromPlan && related?.length > 0 && (
+        {/* More for your muscle: Only shown when browsing general library, NOT inside a plan or routine */}
+        {!isScoped && related?.length > 0 && (
           <>
             <div className="sub-title" style={{ marginTop: 90 }}>
               <h2>{t('detail.more_for', 'More for your')} {ex.target}</h2>

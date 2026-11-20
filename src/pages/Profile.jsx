@@ -166,18 +166,8 @@ export default function Profile() {
         level: prof.level || 'beginner',
         days: updatedDays,
         weight: finalWeight,
-        registeredPlanId: updatedPlanId,
       },
     });
-
-    // Sync frequency into plan profile
-    const profiles = readLS('fx:plan-profiles', {});
-    profiles[updatedPlanId] = {
-      ...(profiles[updatedPlanId] || {}),
-      daysPerWeek: updatedDays,
-      activatedAt: Date.now(),
-    };
-    writeLS('fx:plan-profiles', profiles);
 
     toast('Fitness profile updated — dashboard synced', 'bolt');
   };

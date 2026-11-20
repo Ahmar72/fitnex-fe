@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight } from './Icons.jsx';
 
-export default function MealCard({ meal, isRecommended = false }) {
+export default function MealCard({ meal, isRecommended = false, recBadge = null }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
 
@@ -32,7 +32,7 @@ export default function MealCard({ meal, isRecommended = false }) {
           <div className="meal-card-badges">
             <span className="meal-cat-badge">{meal.category}</span>
             {isRecommended && (
-              <span className="meal-rec-badge">Recommended</span>
+              <span className="meal-rec-badge">{recBadge || 'Recommended'}</span>
             )}
           </div>
 

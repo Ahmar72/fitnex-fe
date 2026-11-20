@@ -209,9 +209,11 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
     // Blow marathon sports whistle
     playWhistleSound();
 
-    // Dynamic progressive set duration: 40s base + 5s per day progress
+    // Dynamic progressive set duration calibrated to user's difficulty level (beginner: 40s, intermediate: 50s, advanced: 75s)
+    const userLevel = user?.profile?.level || 'beginner';
+    const baseDuration = userLevel === 'advanced' ? 75 : userLevel === 'intermediate' ? 50 : 40;
     const dayProgress = (new Date().getDay() + 6) % 7;
-    const SET_DURATION = getSetDurationForDay(dayProgress);
+    const SET_DURATION = baseDuration + dayProgress * 5;
     setActiveTimer({
       mode: 'set',
       itemUid: currentItem.uid,
@@ -594,6 +596,15 @@ export default function Builder() {
   };
 
   const handleFinishWorkout = () => {
+    if (!items.length) {
+      toast('Add at least one exercise before finishing', 'info');
+      return false;
+    }
+    const unfinishedItems = items.filter((it) => !it.sets.some((s) => s.done));
+    if (unfinishedItems.length > 0) {
+      toast('Please complete at least one set of each exercise before finishing', 'info');
+      return false;
+    }
     const sets = items.flatMap((i) => i.sets);
     const done = sets.filter((s) => s.done);
     if (!done.length) {

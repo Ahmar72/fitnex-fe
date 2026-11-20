@@ -8,9 +8,8 @@ import { useLanguage } from '../context/LanguageContext.jsx';
 import { Counter, GlowCard, Paper, Reveal, SplitText } from '../components/Motion.jsx';
 import { Arrow, Bolt, Dumbbell, Flame, Heart, Play, Trophy } from '../components/Icons.jsx';
 import { ROUTINES } from '../sections/Programs.jsx';
-import { goalOf, routineFor, DEFAULT_PLAN_BY_GOAL } from '../lib/goals.js';
-import { PLANS } from '../lib/plansData.js';
-import { getActivePlanWithProgression } from '../lib/progressionEngine.js';
+import { goalOf, routineFor } from '../lib/goals.js';
+import { getGoalWorkoutForToday, DIFFICULTY_CALIBRATION } from '../lib/progressionEngine.js';
 import { dayKey, fmt, sample, title, readLS, writeLS } from '../lib/utils.js';
 
 const ease = [0.22, 1, 0.36, 1];
@@ -38,28 +37,21 @@ export default function Dashboard() {
 
   // The Dashboard routine is strictly driven by the user's primary goal chosen at onboarding or updated in Profile
   const userGoal = profile.goal || 'muscle';
-  const goalPlanId = DEFAULT_PLAN_BY_GOAL[userGoal] || profile.registeredPlanId || 'muscle-building';
+  const goalObj = goalOf(userGoal);
 
   // Record and read dedicated progress for the user's goal routine (independent from /plans)
   const goalProgress = useMemo(() => {
-    const reg = readLS(`fx:goal-plan-progress:${goalPlanId}`, null) || readLS(`fx:reg-plan-progress:${goalPlanId}`, null);
-    if (reg && reg.planId === goalPlanId) return reg;
-    return {
-      planId: goalPlanId,
-      currentDayIndex: 0,
-      completedDates: [],
-    };
-  }, [goalPlanId]);
+    return readLS(`fx:goal-progress:${userGoal}`, { currentDayIndex: 0, completedDates: [] });
+  }, [userGoal]);
 
-  const plan = useMemo(() => {
+  const goalWorkout = useMemo(() => {
     if (!ready) return null;
-    return getActivePlanWithProgression({
-      activePlanData: goalProgress,
-      profile: { ...profile, activePlanId: goalPlanId, days: profile.days || 3 },
-      PLANS,
+    return getGoalWorkoutForToday({
+      profile,
+      goalProgress,
       byId,
     });
-  }, [ready, goalProgress, profile, goalPlanId, byId]);
+  }, [ready, profile, goalProgress, byId]);
 
   const stats = useMemo(() => {
     const volume = history.reduce((a, h) => a + (Number(h.volume) || 0), 0);
@@ -95,11 +87,20 @@ export default function Dashboard() {
   const ratio = Math.min(1, stats.daysThisWeek / target);
 
   const startPlan = () => {
-    if (!plan || !plan.items?.length) return;
-    loadRoutine(plan.name, plan.items.map(({ ex, sets, reps }) => ({ id: ex.id, sets, reps })), {
-      planId: goalPlanId,
-      isRegistrationPlan: true,
-    });
+    if (!goalWorkout || !goalWorkout.items?.length) return;
+    loadRoutine(
+      goalWorkout.name,
+      goalWorkout.items.map(({ id, sets, reps, weight }) => ({
+        id,
+        sets,
+        reps,
+        weight,
+      })),
+      {
+        goal: userGoal,
+        isGoalRoutine: true,
+      }
+    );
     navigate('/builder');
   };
 
@@ -145,14 +146,14 @@ export default function Dashboard() {
                 <div style={{ flex: 1, minWidth: 240 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
                     <span className="tag" style={{ margin: 0 }}>
-                      {t('dash.todays_plan', 'Today’s plan')} · Week {plan?.currentWeek || 1}
+                      TODAY’S GOAL WORKOUT · {goalObj.label.toUpperCase()} · {goalWorkout?.diffConfig?.label?.toUpperCase() || 'BEGINNER'}
                     </span>
                   </div>
                   <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '4px 0 6px', textTransform: 'capitalize' }}>
-                    {plan?.name || 'Today’s Workout'}
+                    {goalWorkout?.name || 'Today’s Goal Workout'}
                   </h3>
                   <p style={{ fontSize: '0.85rem', color: 'var(--muted)', margin: 0, lineHeight: 1.45 }}>
-                    {plan?.todayRoutine?.focus || plan?.blurb || plan?.plan?.tagline || 'Customized daily progression for your active program.'}
+                    {goalWorkout?.focus || goalWorkout?.difficulty || 'Customized daily progression for your active goal.'}
                   </p>
                 </div>
                 <button className="btn btn-primary" onClick={startPlan} style={{ flexShrink: 0 }}>
@@ -160,12 +161,21 @@ export default function Dashboard() {
                 </button>
               </div>
               <div className="plan-media">
-                {plan?.items?.map(({ ex, sets, reps }, i) => (
+                {goalWorkout?.items?.map(({ ex, sets, reps, weight, isBodyweight }, i) => (
                   <motion.div key={ex.id} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05, ease }}>
-                    <Link to={`/exercises/${ex.id}`} className="plan-item">
+                    <Link
+                      to={`/exercises/${ex.id}`}
+                      state={{
+                        fromRoutine: true,
+                        routineTitle: goalWorkout.name,
+                        routineExerciseIds: goalWorkout.items.map((it) => it.ex.id),
+                        planExerciseIds: goalWorkout.items.map((it) => it.ex.id),
+                      }}
+                      className="plan-item"
+                    >
                       <Paper src={ex.image} gif={ex.gif} autoplay />
                       <b>{ex.name}</b>
-                      <span>{sets} × {reps}</span>
+                      <span>{sets} × {reps} {isBodyweight ? '· Bodyweight' : `· ${weight}kg`}</span>
                     </Link>
                   </motion.div>
                 ))}

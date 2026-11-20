@@ -1342,12 +1342,19 @@
   font-size: 11px;
   text-transform: uppercase;
   font-weight: 800;
-  color: var(--dim);
+  color: var(--text, #18181b);
   letter-spacing: 0.12em;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
+  background: var(--surface-2, rgba(0, 0, 0, 0.05));
+  border: 1.5px solid var(--line, rgba(0, 0, 0, 0.15));
   padding: 3px 14px;
   border-radius: 999px;
+  user-select: none;
+}
+
+[data-theme="dark"] .figure-label {
+  color: #f4f4f5;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .figure-svg {

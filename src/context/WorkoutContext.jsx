@@ -38,7 +38,7 @@ export function WorkoutProvider({ children }) {
   const [workout, setWorkout] = useScopedState(prefix, 'workout', { name: 'My Workout', items: [] });
   const [history, setHistory] = useScopedState(prefix, 'history', []);
 
-  // Sanitize history entries to guarantee accuracy and consistency (removing 0-set ghosts and normalizing volume)
+  // Sanitize history entries to guarantee accuracy and consistency (removing 0-set ghosts and normalizing inflated volume)
   const sanitizedHistory = useMemo(() => {
     if (!Array.isArray(history)) return [];
     return history
@@ -46,7 +46,7 @@ export function WorkoutProvider({ children }) {
       .map((h) => {
         const setsCount = Number(h.sets) || 1;
         const vol = Number(h.volume) || 0;
-        const normalizedVol = (vol === 0 || vol > setsCount * 50)
+        const normalizedVol = vol > setsCount * 50
           ? setsCount * 20
           : vol;
         return {
@@ -67,7 +67,7 @@ export function WorkoutProvider({ children }) {
           const v = Number(h.volume) || 0;
           return {
             ...h,
-            volume: (v === 0 || v > s * 50) ? s * 20 : v,
+            volume: v > s * 50 ? s * 20 : v,
           };
         });
       if (cleaned.length !== raw.length || cleaned.some((c, i) => c.volume !== raw[i]?.volume)) {
@@ -98,11 +98,16 @@ export function WorkoutProvider({ children }) {
   );
 
   const finish = useCallback(() => {
-    const done = workout.items.flatMap((i) => i.sets.filter((s) => s.done));
-    if (!done.length) {
-      toast('Tick off at least one set before finishing', 'info');
+    if (!workout.items.length) {
+      toast('Add at least one exercise before finishing', 'info');
       return false;
     }
+    const unfinished = workout.items.filter((i) => !i.sets.some((s) => s.done));
+    if (unfinished.length > 0) {
+      toast('Please complete at least one set of each exercise before finishing', 'info');
+      return false;
+    }
+    const done = workout.items.flatMap((i) => i.sets.filter((s) => s.done));
     const entry = {
       id: uid(),
       date: dayKey(),
@@ -154,7 +159,12 @@ export function WorkoutProvider({ children }) {
 
   const loadRoutine = useCallback(
     (name, list) => {
-      setWorkout({ name, items: list.map(({ id, sets, reps }) => newItem(id, sets, reps, defaultWeight(id))) });
+      setWorkout({
+        name,
+        items: list.map(({ id, sets, reps, weight }) =>
+          newItem(id, sets, reps, typeof weight === 'number' ? weight : defaultWeight(id))
+        ),
+      });
       toast(`Loaded “${name}” into the builder`, 'bolt');
     },
     [setWorkout, toast, defaultWeight]

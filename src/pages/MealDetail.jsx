@@ -20,32 +20,42 @@ export default function MealDetail() {
     return PLANS.find((p) => p.id === activePlanData.planId) || null;
   }, [activePlanData]);
 
-  // Plan-specific brief explaining why and for which muscle group this meal helps
+  // Plan-specific or goal-specific brief explaining why and for which muscle group this meal helps
   const planBrief = useMemo(() => {
-    if (!activePlan || !meal) return null;
-    const target = (activePlan.targetMuscle || '').toLowerCase();
-    const isCore = target.includes('abs') || target.includes('core');
-    const isArms = target.includes('arm') || target.includes('bicep') || target.includes('tricep');
-    const isChest = target.includes('chest');
-    const isBack = target.includes('back');
-    const isLegs = target.includes('leg') || target.includes('quad');
+    if (!meal) return null;
+    const target = (activePlan?.targetMuscle || (meal.targetMuscles || []).join(' ')).toLowerCase();
+    const userGoal = activePlan ? (activePlan.key === 'weight-loss' ? 'fat' : 'muscle') : (readLS('fx:user', null)?.profile?.goal || 'muscle');
 
-    if (isCore) {
-      return `Provides ${meal.macros.protein}g protein to rebuild core muscle fibers after your abdominal training, with ${meal.macros.calories} kcal to stay lean and avoid bloating around the waist.`;
+    if (activePlan) {
+      if (target.includes('abs') || target.includes('core')) {
+        return `Tailored for ${activePlan.name}: Provides ${meal.macros.protein}g protein to rebuild core muscle fibers after your abdominal training, with ${meal.macros.calories} kcal to stay lean and avoid bloating around the waist.`;
+      }
+      if (target.includes('arm') || target.includes('bicep') || target.includes('tricep')) {
+        return `Tailored for ${activePlan.name}: Supplies ${meal.macros.protein}g protein to support biceps and triceps recovery and repair micro-tears from arm workouts.`;
+      }
+      if (target.includes('chest')) {
+        return `Tailored for ${activePlan.name}: Delivers ${meal.macros.protein}g protein and complex carbs to refuel chest and pectoral muscle groups following heavy pressing movements.`;
+      }
+      if (target.includes('back')) {
+        return `Tailored for ${activePlan.name}: Replenishes glycogen stores with ${meal.macros.protein}g protein to accelerate lat and upper back repair after pulling exercises.`;
+      }
+      if (target.includes('leg') || target.includes('quad')) {
+        return `Tailored for ${activePlan.name}: Gives ${meal.macros.protein}g protein and clean carbs to repair quad and hamstring tissues after strenuous leg workouts.`;
+      }
+      return `Tailored for ${activePlan.name}: Provides ${meal.macros.protein}g protein to support recovery for ${activePlan.targetMuscle} training.`;
     }
-    if (isArms) {
-      return `Supplies ${meal.macros.protein}g protein to support biceps and triceps recovery and repair micro-tears from arm workouts.`;
+
+    // Goal-specific brief
+    if (userGoal === 'fat') {
+      return `Targeted for your Fat Loss goal: ${meal.macros.protein}g high-satiety protein with only ${meal.macros.calories} kcal helps maintain lean mass while staying comfortably in your caloric deficit.`;
     }
-    if (isChest) {
-      return `Delivers ${meal.macros.protein}g protein and complex carbs to refuel chest and pectoral muscle groups following heavy pressing movements.`;
+    if (userGoal === 'strength') {
+      return `Targeted for your Strength goal: ${meal.macros.protein}g protein and clean glycogen fuel replenishes energy stores for heavy compound overloading.`;
     }
-    if (isBack) {
-      return `Replenishes glycogen stores with ${meal.macros.protein}g protein to accelerate lat and upper back repair after pulling exercises.`;
+    if (userGoal === 'fit') {
+      return `Targeted for your Stay Fit goal: ${meal.macros.protein}g protein paired with balanced micronutrients supports full-body recovery and daily vitality.`;
     }
-    if (isLegs) {
-      return `Gives ${meal.macros.protein}g protein and clean carbs to repair quad and hamstring tissues after strenuous leg workouts.`;
-    }
-    return `Provides ${meal.macros.protein}g protein to support recovery for ${meal.targetMuscles.join(' and ')} training.`;
+    return `Targeted for your Muscle Building goal: ${meal.macros.protein}g protein delivers complete essential amino acids to stimulate muscle protein synthesis across ${(meal.targetMuscles || []).join(' and ')}.`;
   }, [activePlan, meal]);
 
   if (!meal) {

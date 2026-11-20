@@ -5,9 +5,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { Arrow, ArrowLeft, Check, Dumbbell, Flame, Bolt, Trophy, Logo, Up, Down } from '../components/Icons.jsx';
-import { GOALS, LEVELS, DEFAULT_PLAN_BY_GOAL } from '../lib/goals.js';
-import { getProgramForUser } from '../lib/progressionEngine.js';
-import { PLANS } from '../lib/plansData.js';
+import { GOALS, LEVELS } from '../lib/goals.js';
+import { getProgramForUser, DIFFICULTY_CALIBRATION } from '../lib/progressionEngine.js';
 import { asset, readLS, writeLS } from '../lib/utils.js';
 import '../onboarding.css';
 
@@ -62,19 +61,16 @@ export default function Onboarding() {
 
   const handleSelectGoal = (goalKey) => {
     setVal('goal', goalKey);
-    setVal('planId', DEFAULT_PLAN_BY_GOAL[goalKey] || 'muscle-building');
   };
 
-  // Resolved active program strictly matching selected goal
-  const selectedPlan = useMemo(() => {
-    const id = DEFAULT_PLAN_BY_GOAL[form.goal] || 'muscle-building';
-    return PLANS.find((p) => p.id === id) || PLANS[0];
-  }, [form.goal]);
-
-  // Resolved tailored program for user
+  // Resolved tailored goal program for user
   const tailoredProgram = useMemo(() => {
     return getProgramForUser(form.goal, form.level, form.days);
   }, [form.goal, form.level, form.days]);
+
+  const diffConfig = useMemo(() => {
+    return DIFFICULTY_CALIBRATION[form.level] || DIFFICULTY_CALIBRATION.beginner;
+  }, [form.level]);
 
   // Handle switching weight units with conversion
   const handleWeightUnitChange = (newUnit) => {
@@ -243,35 +239,23 @@ export default function Onboarding() {
       else if (heightUnit === 'ft') finalHeight = Math.round(finalHeight * 30.48);
     }
 
-    // Set the chosen program as the active program and registered program across the whole web
-    const activePlanObj = {
-      planId: selectedPlan.id,
-      planName: selectedPlan.name,
+    // Initialize goal progression for user's goal
+    const goalKey = form.goal || 'muscle';
+    const goalProgressObj = {
+      goal: goalKey,
+      level: form.level || 'beginner',
       daysPerWeek: Number(form.days) || 3,
       startedAt: Date.now(),
       currentDayIndex: 0,
       lastWorkoutDate: null,
       completedDates: [],
     };
-    writeLS('fx:active-plan-data', activePlanObj);
-    writeLS('fx:registered-plan-progress', activePlanObj);
-    writeLS(`fx:reg-plan-progress:${selectedPlan.id}`, activePlanObj);
-    writeLS(`fx:goal-plan-progress:${selectedPlan.id}`, activePlanObj);
-
-    const profiles = readLS('fx:plan-profiles', {});
-    profiles[selectedPlan.id] = {
-      daysPerWeek: Number(form.days) || 3,
-      activatedAt: Date.now(),
-    };
-    writeLS('fx:plan-profiles', profiles);
+    writeLS(`fx:goal-progress:${goalKey}`, goalProgressObj);
 
     const profileData = {
-      goal: form.goal || 'muscle',
+      goal: goalKey,
       level: form.level || 'beginner',
       days: Number(form.days) || 3,
-      registeredPlanId: selectedPlan.id,
-      activePlanId: selectedPlan.id,
-      planName: selectedPlan.name,
       weight: finalWeight,
       height: finalHeight,
       weightUnit,
@@ -281,40 +265,28 @@ export default function Onboarding() {
 
     updateUser({ profile: profileData });
 
-    toast(`Welcome aboard, ${firstName}! "${selectedPlan.name}" is now active on your dashboard.`, 'bolt');
+    toast(`Welcome aboard, ${firstName}! Your personalized ${tailoredProgram.name} is ready on your dashboard.`, 'bolt');
     navigate('/dashboard', { replace: true });
   };
 
   const skipToDashboard = () => {
-    const defaultPlan = selectedPlan || PLANS[0];
-    const activePlanObj = {
-      planId: defaultPlan.id,
-      planName: defaultPlan.name,
+    const goalKey = 'muscle';
+    const goalProgressObj = {
+      goal: goalKey,
+      level: 'beginner',
       daysPerWeek: 3,
       startedAt: Date.now(),
       currentDayIndex: 0,
       lastWorkoutDate: null,
       completedDates: [],
     };
-    writeLS('fx:active-plan-data', activePlanObj);
-    writeLS('fx:registered-plan-progress', activePlanObj);
-    writeLS(`fx:reg-plan-progress:${defaultPlan.id}`, activePlanObj);
-
-    const profiles = readLS('fx:plan-profiles', {});
-    profiles[defaultPlan.id] = {
-      daysPerWeek: 3,
-      activatedAt: Date.now(),
-    };
-    writeLS('fx:plan-profiles', profiles);
+    writeLS(`fx:goal-progress:${goalKey}`, goalProgressObj);
 
     updateUser({
       profile: {
-        goal: 'muscle',
+        goal: goalKey,
         level: 'beginner',
         days: 3,
-        registeredPlanId: defaultPlan.id,
-        activePlanId: defaultPlan.id,
-        planName: defaultPlan.name,
         weight: null,
         height: null,
         weightUnit: 'kg',
@@ -322,7 +294,7 @@ export default function Onboarding() {
         onboardingComplete: true,
       },
     });
-    toast(`Profile ready. "${defaultPlan.name}" is active on your dashboard.`, 'info');
+    toast(`Profile ready. Your personalized workout is ready on your dashboard.`, 'info');
     navigate('/dashboard', { replace: true });
   };
 
@@ -656,9 +628,9 @@ export default function Onboarding() {
                       <Check width={26} height={26} />
                     </div>
                     <div>
-                      <span className="recap-tag">ACTIVE TRAINING PROGRAM</span>
-                      <h2 className="recap-title">{selectedPlan.name}</h2>
-                      <p className="recap-blurb">{selectedPlan.tagline}</p>
+                      <span className="recap-tag">ACTIVE GOAL ROUTINE</span>
+                      <h2 className="recap-title">{tailoredProgram.name}</h2>
+                      <p className="recap-blurb">{tailoredProgram.tagline}</p>
                     </div>
                   </div>
 
@@ -670,15 +642,15 @@ export default function Onboarding() {
                     </div>
                     <div className="recap-detail">
                       <span className="recap-lbl">Target Focus</span>
-                      <b>{selectedPlan.targetMuscle}</b>
+                      <b>{tailoredProgram.day1Workout?.focus || 'Core Compound Movements'}</b>
                     </div>
                     <div className="recap-detail">
                       <span className="recap-lbl">Schedule</span>
-                      <b>{form.days} Days / Week · {selectedPlan.weeks} Weeks</b>
+                      <b>{form.days} Days / Week · {diffConfig.label}</b>
                     </div>
                     <div className="recap-detail">
                       <span className="recap-lbl">Week 1 Progression</span>
-                      <b>3 Sets × 10 Reps · 40s / Set</b>
+                      <b>{diffConfig.sets} Sets × {diffConfig.reps} Reps · {diffConfig.timerLabel}</b>
                     </div>
                   </div>
                 </div>

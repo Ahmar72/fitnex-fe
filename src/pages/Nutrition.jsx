@@ -95,11 +95,11 @@ export default function Nutrition() {
 
         <div className="nutrition-stats-strip">
           <div className="nutri-stat-item">
-            <span className="nutri-stat-val">28</span>
+            <span className="nutri-stat-val">{MEALS.length}</span>
             <span className="nutri-stat-lbl">Curated Meals</span>
           </div>
           <div className="nutri-stat-item">
-            <span className="nutri-stat-val">30–55g</span>
+            <span className="nutri-stat-val">20–55g</span>
             <span className="nutri-stat-lbl">Protein / Meal</span>
           </div>
           <div className="nutri-stat-item">
@@ -116,25 +116,52 @@ export default function Nutrition() {
             <div className="rec-shelf-tag">
               <span className="rec-dot" />
               {activePlan ? (
-                <>Suggested for your plan: <strong>{activePlan.name}</strong></>
+                <>Plan Focus · <strong>{activePlan.name}</strong></>
               ) : (
-                <>Tailored for your goal: <strong>{userGoal.toUpperCase()}</strong></>
+                <>Goal Match · <strong>{userGoal === 'muscle' ? 'Muscle Building' : userGoal === 'fat' ? 'Fat Loss & Deficit' : userGoal === 'strength' ? 'Strength & Power' : 'Functional Fitness'}</strong></>
               )}
             </div>
             <h2 id="rec-meals-title" className="rec-shelf-title">
-              {activePlan ? `Recommended for ${activePlan.targetMuscle} Recovery` : "Recommended For Today's Recovery"}
+              {activePlan
+                ? `Recommended for ${activePlan.targetMuscle} Recovery`
+                : userGoal === 'fat'
+                ? 'High-Satiety Deficit Meals for Fat Loss'
+                : userGoal === 'strength'
+                ? 'Power Fuel & Strength Overload Recovery'
+                : userGoal === 'fit'
+                ? 'Clean Nutrient-Dense Meals for Everyday Vitality'
+                : 'High-Protein Muscle Synthesis Meals'}
             </h2>
           </div>
           <p className="rec-shelf-hint">
             {activePlan
               ? `High-protein meals structured to support ${activePlan.targetMuscle.toLowerCase()} training and recovery`
-              : `Based on your target muscles (${targetMuscles.slice(0, 3).join(', ')})`}
+              : userGoal === 'fat'
+              ? 'Low caloric density and high prebiotic fiber to keep you full and preserve lean muscle in a caloric deficit.'
+              : userGoal === 'strength'
+              ? 'Calorie-dense, mineral-rich whole foods to replenish muscle glycogen and support heavy compound lifting.'
+              : userGoal === 'fit'
+              ? 'Balanced micronutrients and clean carbs for sustained daily energy and full-body conditioning.'
+              : 'Complete amino acid profiles with fast and slow proteins to maximize muscle repair.'}
           </p>
         </div>
 
         <div className="rec-shelf-grid">
           {recommended.map((meal) => (
-            <MealCard key={`rec-${meal.id}`} meal={meal} isRecommended={true} />
+            <MealCard
+              key={`rec-${meal.id}`}
+              meal={meal}
+              isRecommended={true}
+              recBadge={
+                userGoal === 'fat'
+                  ? 'Fat Loss Deficit'
+                  : userGoal === 'strength'
+                  ? 'Strength Fuel'
+                  : userGoal === 'fit'
+                  ? 'Lean Vitality'
+                  : 'Hypertrophy Protein'
+              }
+            />
           ))}
         </div>
       </section>
