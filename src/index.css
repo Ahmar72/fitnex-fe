@@ -189,28 +189,46 @@ body::after {
   font-weight: 750;
   font-size: 13px;
   letter-spacing: 0.01em;
-  overflow: hidden;
-  isolation: isolate;
   white-space: nowrap;
-  transition: color 0.4s var(--ease), border-color 0.4s var(--ease), transform 0.2s;
+  user-select: none;
+  cursor: pointer !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
 }
 .btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  transform: translateY(101%);
-  transition: transform 0.5s var(--ease);
+  display: none !important;
 }
-.btn:hover::before { transform: translateY(0); }
-.btn:active { transform: scale(0.97); }
-.btn-primary { background: var(--accent); color: var(--accent-ink); }
-.btn-primary::before { background: var(--text); }
-.btn-ghost { border: 1px solid var(--line-2); color: var(--text); }
-.btn-ghost::before { background: var(--text); }
-.btn-ghost:hover { color: var(--bg); }
-.btn-sm { height: 32px; padding: 0 12px; font-size: 11.5px; }
+.btn:active {
+  transform: scale(0.97);
+}
+.btn-primary {
+  background: var(--accent, #ff5e1a) !important;
+  color: #ffffff !important;
+  border: 1px solid transparent;
+  box-shadow: 0 2px 8px rgba(255, 94, 26, 0.25);
+}
+.btn-primary:hover {
+  background: #ff6f32 !important;
+  color: #ffffff !important;
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(255, 94, 26, 0.4);
+  transform: translateY(-1px);
+}
+.btn-ghost {
+  background: var(--surface) !important;
+  border: 1px solid var(--line-2) !important;
+  color: var(--text) !important;
+}
+.btn-ghost:hover {
+  background: var(--surface-2) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  transform: translateY(-1px);
+}
+.btn-sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 11.5px;
+}
 
 /* Dedicated stable pill buttons without sliding pseudos (high contrast in both dark & light modes) */
 .nav-back-pill,
@@ -273,12 +291,14 @@ body::after {
   height: 34px;
   border-radius: 50%;
   border: 1px solid var(--line-2);
-  background: rgba(11, 11, 12, 0.5);
+  background: var(--surface);
+  color: var(--text);
   backdrop-filter: blur(8px);
-  transition: background 0.3s, color 0.3s, border-color 0.3s, transform 0.2s;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.15s;
   flex: none;
+  cursor: pointer !important;
 }
-.icon-btn:hover { background: var(--text); color: var(--bg); border-color: var(--text); }
+.icon-btn:hover { background: var(--surface-2) !important; color: var(--accent) !important; border-color: var(--accent) !important; }
 .icon-btn:active { transform: scale(0.92); }
 .icon-btn.on { background: var(--hot); border-color: var(--hot); color: #fff; }
 .icon-btn svg { width: 15px; height: 15px; }
@@ -336,34 +356,71 @@ html.theme-transitioning *:after {
   display: none !important;
 }
 
-/* Universal Hand Pointer on Hover for All Interactive Elements */
+/* Universal Hand Pointer on Hover for All Interactive Elements and ALL their contents */
 button,
-button:hover,
+button *,
 .btn,
-.btn:hover,
+.btn *,
 [role="button"],
-[role="button"]:hover,
-a:hover,
-select:hover,
-.clickable:hover,
-.fchip:hover,
-.tab:hover,
-.plan-card:hover,
-.plan-item:hover,
-.check:hover,
-.builder-set-start-btn:hover,
-.icon-btn:hover,
-.x-btn:hover,
-.add-set:hover,
-.link-btn:hover,
-.unit-pill:hover,
-.goal-btn:hover,
-.goal-card:hover,
-.ex-card:hover,
-.summary-ex-row:hover,
-input[type="button"]:hover,
-input[type="submit"]:hover {
+[role="button"] *,
+a,
+a *,
+select,
+select *,
+.clickable,
+.clickable *,
+.fchip,
+.fchip *,
+.tab,
+.tab *,
+.plan-card,
+.plan-card *,
+.plan-item,
+.plan-item *,
+.check,
+.check *,
+.builder-set-start-btn,
+.builder-set-start-btn *,
+.icon-btn,
+.icon-btn *,
+.x-btn,
+.x-btn *,
+.add-set,
+.add-set *,
+.link-btn,
+.link-btn *,
+.unit-pill,
+.unit-pill *,
+.goal-btn,
+.goal-btn *,
+.goal-card,
+.goal-card *,
+.ex-card,
+.ex-card *,
+.summary-ex-row,
+.summary-ex-row *,
+input[type="button"],
+input[type="button"] *,
+input[type="submit"],
+input[type="submit"] * {
   cursor: pointer !important;
+}
+
+/* Prevent text cursor when moving over button contents */
+button,
+.btn,
+[role="button"],
+.fchip,
+.tab,
+.goal-btn,
+.unit-pill {
+  user-select: none;
+}
+
+button > *,
+.btn > *,
+[role="button"] > * {
+  pointer-events: none;
 }
 
 /* Custom Standard Arrow Cursor Colors */
@@ -382,32 +439,51 @@ html[data-cursor-color="orange"] * {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M4.5 3.5L10.5 19.5L13.5 13.5L19.5 10.5L4.5 3.5Z' fill='%23ff5500' stroke='%23ffffff' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, auto !important;
 }
 
-/* Ensure interactive elements ALWAYS switch to native hand pointer on hover, even under data-cursor-color */
+/* Ensure interactive elements and ALL their text/children ALWAYS show the native hand pointer */
 html[data-cursor-color] button,
-html[data-cursor-color] button:hover,
+html[data-cursor-color] button *,
 html[data-cursor-color] .btn,
-html[data-cursor-color] .btn:hover,
+html[data-cursor-color] .btn *,
 html[data-cursor-color] [role="button"],
-html[data-cursor-color] [role="button"]:hover,
-html[data-cursor-color] a:hover,
-html[data-cursor-color] select:hover,
-html[data-cursor-color] .clickable:hover,
-html[data-cursor-color] .fchip:hover,
-html[data-cursor-color] .tab:hover,
-html[data-cursor-color] .plan-card:hover,
-html[data-cursor-color] .plan-item:hover,
-html[data-cursor-color] .check:hover,
-html[data-cursor-color] .builder-set-start-btn:hover,
-html[data-cursor-color] .icon-btn:hover,
-html[data-cursor-color] .x-btn:hover,
-html[data-cursor-color] .add-set:hover,
-html[data-cursor-color] .link-btn:hover,
-html[data-cursor-color] .unit-pill:hover,
-html[data-cursor-color] .goal-btn:hover,
-html[data-cursor-color] .goal-card:hover,
-html[data-cursor-color] .ex-card:hover,
-html[data-cursor-color] input[type="button"]:hover,
-html[data-cursor-color] input[type="submit"]:hover {
+html[data-cursor-color] [role="button"] *,
+html[data-cursor-color] a,
+html[data-cursor-color] a *,
+html[data-cursor-color] select,
+html[data-cursor-color] select *,
+html[data-cursor-color] .clickable,
+html[data-cursor-color] .clickable *,
+html[data-cursor-color] .fchip,
+html[data-cursor-color] .fchip *,
+html[data-cursor-color] .tab,
+html[data-cursor-color] .tab *,
+html[data-cursor-color] .plan-card,
+html[data-cursor-color] .plan-card *,
+html[data-cursor-color] .plan-item,
+html[data-cursor-color] .plan-item *,
+html[data-cursor-color] .check,
+html[data-cursor-color] .check *,
+html[data-cursor-color] .builder-set-start-btn,
+html[data-cursor-color] .builder-set-start-btn *,
+html[data-cursor-color] .icon-btn,
+html[data-cursor-color] .icon-btn *,
+html[data-cursor-color] .x-btn,
+html[data-cursor-color] .x-btn *,
+html[data-cursor-color] .add-set,
+html[data-cursor-color] .add-set *,
+html[data-cursor-color] .link-btn,
+html[data-cursor-color] .link-btn *,
+html[data-cursor-color] .unit-pill,
+html[data-cursor-color] .unit-pill *,
+html[data-cursor-color] .goal-btn,
+html[data-cursor-color] .goal-btn *,
+html[data-cursor-color] .goal-card,
+html[data-cursor-color] .goal-card *,
+html[data-cursor-color] .ex-card,
+html[data-cursor-color] .ex-card *,
+html[data-cursor-color] input[type="button"],
+html[data-cursor-color] input[type="button"] *,
+html[data-cursor-color] input[type="submit"],
+html[data-cursor-color] input[type="submit"] * {
   cursor: pointer !important;
 }
 
