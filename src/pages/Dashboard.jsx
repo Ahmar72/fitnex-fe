@@ -36,31 +36,30 @@ export default function Dashboard() {
   const goal = goalOf(profile.goal);
   const first = user?.name ? user.name.split(' ')[0] : 'Athlete';
 
-  // Anchor strictly to the plan chosen by the user at the time of registration/onboarding
-  const registeredPlanId = profile.registeredPlanId || DEFAULT_PLAN_BY_GOAL[profile.goal || 'muscle'] || 'muscle-building';
+  // The Dashboard routine is strictly driven by the user's primary goal chosen at onboarding or updated in Profile
+  const userGoal = profile.goal || 'muscle';
+  const goalPlanId = DEFAULT_PLAN_BY_GOAL[userGoal] || profile.registeredPlanId || 'muscle-building';
 
-  // Record and read dedicated progress for the user's registration plan
-  const registeredProgress = useMemo(() => {
-    const reg = readLS(`fx:reg-plan-progress:${registeredPlanId}`, null) || readLS('fx:registered-plan-progress', null);
-    if (reg && reg.planId === registeredPlanId) return reg;
-    const active = readLS('fx:active-plan-data', null);
-    if (active && active.planId === registeredPlanId) return active;
+  // Record and read dedicated progress for the user's goal routine (independent from /plans)
+  const goalProgress = useMemo(() => {
+    const reg = readLS(`fx:goal-plan-progress:${goalPlanId}`, null) || readLS(`fx:reg-plan-progress:${goalPlanId}`, null);
+    if (reg && reg.planId === goalPlanId) return reg;
     return {
-      planId: registeredPlanId,
+      planId: goalPlanId,
       currentDayIndex: 0,
       completedDates: [],
     };
-  }, [registeredPlanId]);
+  }, [goalPlanId]);
 
   const plan = useMemo(() => {
     if (!ready) return null;
     return getActivePlanWithProgression({
-      activePlanData: registeredProgress,
-      profile: { ...profile, activePlanId: registeredPlanId },
+      activePlanData: goalProgress,
+      profile: { ...profile, activePlanId: goalPlanId, days: profile.days || 3 },
       PLANS,
       byId,
     });
-  }, [ready, registeredProgress, profile, registeredPlanId, byId]);
+  }, [ready, goalProgress, profile, goalPlanId, byId]);
 
   const stats = useMemo(() => {
     const volume = history.reduce((a, h) => a + (Number(h.volume) || 0), 0);
@@ -98,7 +97,7 @@ export default function Dashboard() {
   const startPlan = () => {
     if (!plan || !plan.items?.length) return;
     loadRoutine(plan.name, plan.items.map(({ ex, sets, reps }) => ({ id: ex.id, sets, reps })), {
-      planId: registeredPlanId,
+      planId: goalPlanId,
       isRegistrationPlan: true,
     });
     navigate('/builder');
@@ -129,9 +128,11 @@ export default function Dashboard() {
           ].map((s, i) => (
             <Reveal key={s.l} delay={0.1 * i} style={{ display: 'flex' }}>
               <GlowCard className="dash-stat" style={{ flex: 1 }}>
+                <div className="dash-stat-info">
+                  <b className="dash-stat-val"><Counter to={s.n} duration={1.4} /></b>
+                  <span className="dash-stat-label">{s.l}</span>
+                </div>
                 <span className="dash-icon"><s.icon /></span>
-                <b><Counter to={s.n} duration={1.4} /></b>
-                <span>{s.l}</span>
               </GlowCard>
             </Reveal>
           ))}
@@ -146,20 +147,12 @@ export default function Dashboard() {
                     <span className="tag" style={{ margin: 0 }}>
                       {t('dash.todays_plan', 'Today’s plan')} · Week {plan?.currentWeek || 1}
                     </span>
-                    {plan?.weekProgression?.tag && (
-                      <span className="chip" style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 700 }}>
-                        {plan.weekProgression.tag}
-                      </span>
-                    )}
-                    <span className="chip" style={{ fontSize: '11px', fontWeight: 700 }}>
-                      ⏱️ {plan?.setDuration || 40}s / set
-                    </span>
                   </div>
                   <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '4px 0 6px', textTransform: 'capitalize' }}>
                     {plan?.name || 'Today’s Workout'}
                   </h3>
                   <p style={{ fontSize: '0.85rem', color: 'var(--muted)', margin: 0, lineHeight: 1.45 }}>
-                    {plan?.blurb || 'Customized daily progression for your active program.'}
+                    {plan?.todayRoutine?.focus || plan?.blurb || plan?.plan?.tagline || 'Customized daily progression for your active program.'}
                   </p>
                 </div>
                 <button className="btn btn-primary" onClick={startPlan} style={{ flexShrink: 0 }}>
@@ -193,7 +186,7 @@ export default function Dashboard() {
                     initial={{ strokeDashoffset: C }} whileInView={{ strokeDashoffset: C * (1 - ratio) }} viewport={{ once: true }}
                     transition={{ duration: 1.4, ease }}
                   />
-                  <text x="60" y="67" textAnchor="middle" fill="var(--text)" fontSize="22" fontWeight="800" fontFamily="var(--body)">{Math.round(ratio * 100)}%</text>
+                  <text x="60" y="68" textAnchor="middle" fill="var(--text)" fontSize="24" fontWeight="800" fontFamily="var(--body)">{Math.round(ratio * 100)}%</text>
                 </svg>
                 <p>{ratio >= 1 ? 'Weekly target smashed. Recovery matters too!' : `${target - stats.daysThisWeek} more session${target - stats.daysThisWeek === 1 ? '' : 's'} to hit your target this week.`}</p>
               </div>

@@ -256,6 +256,7 @@ export default function Onboarding() {
     writeLS('fx:active-plan-data', activePlanObj);
     writeLS('fx:registered-plan-progress', activePlanObj);
     writeLS(`fx:reg-plan-progress:${selectedPlan.id}`, activePlanObj);
+    writeLS(`fx:goal-plan-progress:${selectedPlan.id}`, activePlanObj);
 
     const profiles = readLS('fx:plan-profiles', {});
     profiles[selectedPlan.id] = {

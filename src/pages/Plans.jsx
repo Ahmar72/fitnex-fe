@@ -296,15 +296,6 @@ export default function Plans() {
     setPlanProfiles(updatedProfiles);
     writeLS('fx:plan-profiles', updatedProfiles);
 
-    if (user && updateUser && user.profile?.days !== Number(days)) {
-      updateUser({
-        profile: {
-          ...(user.profile || {}),
-          days: Number(days),
-        },
-      });
-    }
-
     const resolved = resolvePlanWithFrequency(plan, days);
     toast(`${plan.name} is now active! (${days} days / week)`, 'bolt');
     setActivatingPlan(null);

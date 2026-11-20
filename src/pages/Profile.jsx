@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth, EMAIL_RE, passwordChecks } from '../context/AuthContext.jsx';
@@ -25,12 +25,22 @@ import {
   Arrow,
   Upload,
   Camera,
+  Flame,
+  Bolt,
+  Trophy,
 } from '../components/Icons.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { useLanguage } from '../context/LanguageContext.jsx';
 import { StrengthMeter } from './Auth.jsx';
-import { GOALS, LEVELS } from '../lib/goals.js';
-import { isVoiceEnabled, setVoiceEnabled } from '../lib/utils.js';
+import { GOALS, LEVELS, DEFAULT_PLAN_BY_GOAL } from '../lib/goals.js';
+import { isVoiceEnabled, setVoiceEnabled, readLS, writeLS } from '../lib/utils.js';
+
+const GOAL_ICONS = {
+  muscle: Dumbbell,
+  fat: Flame,
+  strength: Bolt,
+  fit: Trophy,
+};
 
 const initials = (name = '') =>
   name
@@ -58,6 +68,19 @@ export default function Profile() {
     units: 'kg',
     ...(user?.profile || {}),
   });
+
+  useEffect(() => {
+    if (user?.profile) {
+      setProf((prev) => ({
+        ...prev,
+        ...user.profile,
+        goal: user.profile.goal || prev.goal || 'muscle',
+        days: user.profile.days || prev.days || 3,
+        level: user.profile.level || prev.level || 'beginner',
+        weight: user.profile.weight ?? prev.weight ?? '',
+      }));
+    }
+  }, [user?.profile]);
   const [pw, setPw] = useState({ current: '', next: '' });
   const [pwErr, setPwErr] = useState('');
   const [acctErr, setAcctErr] = useState('');
@@ -130,13 +153,33 @@ export default function Profile() {
   };
 
   const saveProfile = () => {
+    const updatedGoal = prof.goal || 'muscle';
+    const updatedPlanId = DEFAULT_PLAN_BY_GOAL[updatedGoal] || 'muscle-building';
+    const updatedDays = Number(prof.days) || 3;
+    const finalWeight = prof.weight ? Number(prof.weight) : null;
+
     updateUser({
       profile: {
+        ...(user?.profile || {}),
         ...prof,
-        weight: prof.weight ? Number(prof.weight) : null,
+        goal: updatedGoal,
+        level: prof.level || 'beginner',
+        days: updatedDays,
+        weight: finalWeight,
+        registeredPlanId: updatedPlanId,
       },
     });
-    toast('Fitness profile updated', 'bolt');
+
+    // Sync frequency into plan profile
+    const profiles = readLS('fx:plan-profiles', {});
+    profiles[updatedPlanId] = {
+      ...(profiles[updatedPlanId] || {}),
+      daysPerWeek: updatedDays,
+      activatedAt: Date.now(),
+    };
+    writeLS('fx:plan-profiles', profiles);
+
+    toast('Fitness profile updated — dashboard synced', 'bolt');
   };
 
   const savePassword = async (e) => {
@@ -499,24 +542,21 @@ export default function Profile() {
                           <div className="settings-drawer-inner">
                             <h4 style={{ margin: '0 0 12px', fontSize: 16 }}>{t('profile.goal_schedule', 'Goal & schedule')}</h4>
                             <div className="goal-pills">
-                              {GOALS.map((g) => (
-                                <button
-                                  key={g.key}
-                                  type="button"
-                                  className={`fchip ${prof.goal === g.key ? 'active' : ''}`}
-                                  onClick={() => setProf({ ...prof, goal: g.key })}
-                                >
-                                  {prof.goal === g.key && (
-                                    <motion.span
-                                      className="bg"
-                                      initial={{ scale: 0.6, opacity: 0 }}
-                                      animate={{ scale: 1, opacity: 1 }}
-                                      transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-                                    />
-                                  )}
-                                  <span>{g.label}</span>
-                                </button>
-                              ))}
+                              {GOALS.map((g) => {
+                                const IconComp = GOAL_ICONS[g.key];
+                                const isSelected = prof.goal === g.key;
+                                return (
+                                  <button
+                                    key={g.key}
+                                    type="button"
+                                    className={`goal-btn ${isSelected ? 'active' : ''}`}
+                                    onClick={() => setProf((prev) => ({ ...prev, goal: g.key }))}
+                                  >
+                                    {IconComp && <IconComp width={15} height={15} />}
+                                    <span>{g.label}</span>
+                                  </button>
+                                );
+                              })}
                             </div>
                             <div className="field-grid" style={{ marginTop: 16 }}>
                               <label className="field">

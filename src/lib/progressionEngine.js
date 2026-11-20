@@ -1155,6 +1155,6 @@ export function getActivePlanWithProgression({
     setDuration,
     items,
     name: `${plan.name} · ${todayRoutine?.title || todayRoutine?.day || 'Training'}`,
-    blurb: `${todayRoutine?.focus || plan.tagline} · Week ${currentWeek} (${weekProgression.tag}) · ${setDuration}s work / set`,
+    blurb: todayRoutine?.focus || plan.tagline || 'Daily training session',
   };
 }

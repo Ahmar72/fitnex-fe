@@ -637,6 +637,7 @@ export default function Builder() {
           completedDates: [...new Set([...(regPlanProgress.completedDates || []), todayStr])],
         };
         writeLS(`fx:reg-plan-progress:${regPlanProgress.planId}`, updatedReg);
+        writeLS(`fx:goal-plan-progress:${regPlanProgress.planId}`, updatedReg);
         writeLS('fx:registered-plan-progress', updatedReg);
       }
     } catch (err) {
