@@ -88,8 +88,9 @@ export default function Dashboard() {
 
   const startPlan = () => {
     if (!goalWorkout || !goalWorkout.items?.length) return;
+    const routineTitle = `${goalObj.label} Routine`;
     loadRoutine(
-      goalWorkout.name,
+      routineTitle,
       goalWorkout.items.map(({ id, sets, reps, weight }) => ({
         id,
         sets,
@@ -144,16 +145,17 @@ export default function Dashboard() {
             <GlowCard className="plan-card" style={{ flex: 1 }} tilt={3}>
               <div className="plan-top">
                 <div style={{ flex: 1, minWidth: 240 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                    <span className="tag" style={{ margin: 0 }}>
-                      TODAY’S GOAL WORKOUT · {goalObj.label.toUpperCase()} · {goalWorkout?.diffConfig?.label?.toUpperCase() || 'BEGINNER'}
-                    </span>
-                  </div>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '4px 0 6px', textTransform: 'capitalize' }}>
-                    {goalWorkout?.name || 'Today’s Goal Workout'}
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0 0 4px', textTransform: 'capitalize', letterSpacing: '-0.01em' }}>
+                    {goalObj.label} Routine
                   </h3>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--muted)', margin: 0, lineHeight: 1.45 }}>
-                    {goalWorkout?.focus || goalWorkout?.difficulty || 'Customized daily progression for your active goal.'}
+                  <p style={{ fontSize: '0.85rem', color: 'var(--muted)', margin: 0, lineHeight: 1.4 }}>
+                    {userGoal === 'fat'
+                      ? 'Daily exercises calibrated for fat burn and core definition.'
+                      : userGoal === 'muscle'
+                      ? 'Hypertrophy-focused sets to build lean muscle mass.'
+                      : userGoal === 'strength'
+                      ? 'Compound movements for progressive overload and power.'
+                      : 'Balanced functional exercises for daily health and conditioning.'}
                   </p>
                 </div>
                 <button className="btn btn-primary" onClick={startPlan} style={{ flexShrink: 0 }}>
@@ -167,7 +169,7 @@ export default function Dashboard() {
                       to={`/exercises/${ex.id}`}
                       state={{
                         fromRoutine: true,
-                        routineTitle: goalWorkout.name,
+                        routineTitle: `${goalObj.label} Routine`,
                         routineExerciseIds: goalWorkout.items.map((it) => it.ex.id),
                         planExerciseIds: goalWorkout.items.map((it) => it.ex.id),
                       }}

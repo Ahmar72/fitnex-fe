@@ -31,9 +31,6 @@ export default function MealCard({ meal, isRecommended = false, recBadge = null 
 
           <div className="meal-card-badges">
             <span className="meal-cat-badge">{meal.category}</span>
-            {isRecommended && (
-              <span className="meal-rec-badge">{recBadge || 'Recommended'}</span>
-            )}
           </div>
 
           <div className="meal-card-time-badge">
@@ -52,8 +49,6 @@ export default function MealCard({ meal, isRecommended = false, recBadge = null 
               <ArrowUpRight width={16} height={16} />
             </span>
           </div>
-
-          <p className="meal-card-brief">{meal.brief}</p>
 
           {meal.targetMuscles && meal.targetMuscles.length > 0 && (
             <div className="meal-card-muscles">

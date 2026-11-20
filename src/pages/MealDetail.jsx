@@ -129,27 +129,10 @@ export default function MealDetail() {
           <h1 className="meal-detail-title">{meal.name}</h1>
           <p className="meal-detail-brief">{meal.brief}</p>
 
-          {/* Active Plan Context & Targeted Body Part Brief */}
-          {activePlan && planBrief && (
-            <div className="meal-plan-support-card">
-              <div className="plan-support-head">
-                <span className="plan-support-dot" />
-                <span>Fits your active plan: <strong>{activePlan.name}</strong></span>
-              </div>
-              <p className="plan-support-text">{planBrief}</p>
-            </div>
-          )}
-
-          {/* Clean Effective For / Target Muscles */}
-          <div className="meal-effective-row">
+          {/* Effective for: in a column without tags, simple text */}
+          <div className="meal-effective-col">
             <span className="effective-label">Effective for:</span>
-            <div className="effective-chips">
-              {meal.targetMuscles.map((muscle) => (
-                <span key={muscle} className="effective-muscle-pill">
-                  {muscle}
-                </span>
-              ))}
-            </div>
+            <span className="effective-text">{meal.targetMuscles.join(', ')}</span>
           </div>
 
           {/* Servings Multiplier */}
