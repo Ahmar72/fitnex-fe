@@ -77,6 +77,44 @@ const formatDigitalTime = (secs = 0) => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
+function buildScheduleForFrequency(baseSchedule = [], targetDays = 4) {
+  const daysNum = Math.min(6, Math.max(2, Number(targetDays) || 4));
+  const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  const activeDayIndicesByFreq = {
+    2: [0, 3],             // Mon, Thu
+    3: [0, 2, 4],          // Mon, Wed, Fri
+    4: [0, 1, 3, 4],       // Mon, Tue, Thu, Fri
+    5: [0, 1, 2, 4, 5],    // Mon, Tue, Wed, Fri, Sat
+    6: [0, 1, 2, 3, 4, 5], // Mon, Tue, Wed, Thu, Fri, Sat
+  };
+
+  const activeIndices = new Set(activeDayIndicesByFreq[daysNum] || [0, 1, 3, 4]);
+  const workoutTemplates = (baseSchedule || []).filter((s) => !s.isRest && s.exerciseIds?.length > 0);
+  if (!workoutTemplates.length) return baseSchedule;
+
+  let workoutIdx = 0;
+  return dayNames.map((name, i) => {
+    if (activeIndices.has(i)) {
+      const template = workoutTemplates[workoutIdx % workoutTemplates.length];
+      workoutIdx++;
+      return {
+        ...template,
+        day: name,
+        isRest: false,
+      };
+    } else {
+      return {
+        day: name,
+        title: 'Rest & Recovery Day',
+        focus: 'Active recovery, hydration and muscle repair',
+        isRest: true,
+        exerciseIds: [],
+      };
+    }
+  });
+}
+
 export default function Plans() {
   const { byId, ready } = useData();
   const { loadRoutine, setHistory, history } = useWorkout();
@@ -91,6 +129,19 @@ export default function Plans() {
 
   // Selected Plan state (null = catalog view, plan object = detail view)
   const [selectedPlan, setSelectedPlan] = useState(null);
+
+  const resolvePlanWithFrequency = useCallback((basePlan, days) => {
+    if (!basePlan) return null;
+    const freq = Number(days) || basePlan.daysPerWeek || 3;
+    const originalPlan = PLANS.find((p) => p.id === basePlan.id) || basePlan;
+    const adapted = buildScheduleForFrequency(originalPlan.schedule, freq);
+    return {
+      ...originalPlan,
+      daysPerWeek: freq,
+      frequency: `${freq} Days / Week`,
+      schedule: adapted,
+    };
+  }, []);
 
   // Calendar days of current week
   const weekDays = useMemo(() => getWeekCalendarDays(), []);
@@ -140,8 +191,10 @@ export default function Plans() {
   // Active program object resolved from activePlanData
   const activePlan = useMemo(() => {
     if (!activePlanData?.planId) return null;
-    return PLANS.find((p) => p.id === activePlanData.planId) || null;
-  }, [activePlanData]);
+    const p = PLANS.find((p) => p.id === activePlanData.planId);
+    if (!p) return null;
+    return resolvePlanWithFrequency(p, activePlanData.daysPerWeek || 3);
+  }, [activePlanData, resolvePlanWithFrequency]);
 
   // Active calendar day object
   const activeCalendarDay = useMemo(() => {
@@ -196,19 +249,25 @@ export default function Plans() {
 
   // Select plan handler: if already active, open detail; otherwise open clean activation modal
   const handleSelectPlan = (plan) => {
+    const userDays = activePlanData?.planId === plan.id
+      ? (activePlanData.daysPerWeek || 3)
+      : (planProfiles[plan.id]?.daysPerWeek || user?.profile?.days || plan.daysPerWeek || 3);
+
+    const resolved = resolvePlanWithFrequency(plan, userDays);
+
     if (activePlanData?.planId === plan.id) {
       const progDay = activePlanData.currentDayIndex || 0;
       setSelectedWeek(Math.min(plan.weeks, Math.floor(progDay / 7) + 1));
       setSelectedDayIdx(progDay % 7);
-      setSelectedPlan(plan);
-      determineActiveDay(plan);
+      setSelectedPlan(resolved);
+      determineActiveDay(resolved);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
-    const initialDays = user?.profile?.days || plan.frequency || 3;
+    const initialDays = userDays;
     setActivationDays(initialDays);
-    setActivatingPlan(plan);
+    setActivatingPlan(resolved);
   };
 
   // Activate program with chosen days per week
@@ -246,12 +305,13 @@ export default function Plans() {
       });
     }
 
+    const resolved = resolvePlanWithFrequency(plan, days);
     toast(`${plan.name} is now active! (${days} days / week)`, 'bolt');
     setActivatingPlan(null);
     setSelectedWeek(1);
     setSelectedDayIdx(0);
-    setSelectedPlan(plan);
-    determineActiveDay(plan);
+    setSelectedPlan(resolved);
+    determineActiveDay(resolved);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -265,7 +325,7 @@ export default function Plans() {
 
   // Open Edit Plan modal (allowing user to change frequency or end plan)
   const handleOpenEditPlan = (plan) => {
-    const currentDays = activePlanData?.daysPerWeek || user?.profile?.days || plan?.frequency || 3;
+    const currentDays = activePlanData?.daysPerWeek || plan?.daysPerWeek || user?.profile?.days || 3;
     setEditDaysPerWeek(currentDays);
     setShowEditPlanModal(true);
   };
@@ -292,6 +352,9 @@ export default function Plans() {
       };
       setPlanProfiles(updatedProfiles);
       writeLS('fx:plan-profiles', updatedProfiles);
+
+      const refreshed = resolvePlanWithFrequency(targetPlan, daysNum);
+      setSelectedPlan(refreshed);
     }
     if (user && updateUser) {
       updateUser({ profile: { ...(user.profile || {}), days: daysNum } });
@@ -685,6 +748,22 @@ export default function Plans() {
       setActivePlanData(updatedPlanData);
       writeLS('fx:active-plan-data', updatedPlanData);
 
+      // Also sync registration plan progress if matching
+      const registeredPlanId = user?.profile?.registeredPlanId || (user?.profile?.goal === 'fat' ? 'weight-loss' : user?.profile?.goal === 'fit' ? 'abs-building' : user?.profile?.goal === 'strength' ? 'boulder-shoulders' : 'muscle-building');
+      if (plan.id === registeredPlanId) {
+        const prevReg = readLS('fx:registered-plan-progress', null) || {};
+        const regIdx = (prevReg.currentDayIndex || 0) + 1;
+        const regObj = {
+          ...prevReg,
+          planId: plan.id,
+          currentDayIndex: regIdx,
+          lastWorkoutDate: dateKey,
+          completedDates: [...new Set([...(prevReg.completedDates || []), dateKey])],
+        };
+        writeLS('fx:registered-plan-progress', regObj);
+        writeLS(`fx:reg-plan-progress:${plan.id}`, regObj);
+      }
+
       // 3. Log to history
       const logEntry = {
         id: `plan-${Date.now()}`,
@@ -734,6 +813,11 @@ export default function Plans() {
           : 'Light Session',
     });
 
+    const completedExercises = exerciseBreakdown.filter((e) => e.completedSets > 0);
+    const effectiveExercises = completedExercises.length > 0 ? completedExercises : exercises;
+    const trainedMuscles = [...new Set(effectiveExercises.map((e) => e.bodyPart).filter(Boolean))];
+    const trainedTargets = [...new Set(effectiveExercises.map((e) => e.target).filter(Boolean))];
+
     setPlanCompleteModalData({
       durationSecs: finalElapsedSeconds,
       durationMinutes: Math.max(1, Math.round(finalElapsedSeconds / 60)),
@@ -741,8 +825,8 @@ export default function Plans() {
       setsCount: totalSetsDone,
       workSetsCount: totalSetsDone,
       caloriesBurned: burnedCalories,
-      trainedMuscles: [...new Set(exercises.map((e) => e.bodyPart).filter(Boolean))],
-      trainedTargets: [...new Set(exercises.map((e) => e.target).filter(Boolean))],
+      trainedMuscles,
+      trainedTargets,
       routineName: `${plan.name} (${dayName})`,
     });
 
@@ -1911,7 +1995,7 @@ export default function Plans() {
         </AnimatePresence>
 
         {/* ============================================================
-            EDIT PLAN MODAL (SIMPLIFIED: 2 BUTTONS, NO DESCRIPTIONS)
+            EDIT PLAN MODAL (ENLARGED, ATTRACTIVE, TWO PROCESSING BUTTONS)
             ============================================================ */}
         <AnimatePresence>
           {showEditPlanModal && (
@@ -1924,62 +2008,104 @@ export default function Plans() {
             >
               <motion.div
                 className="plan-onboard-card"
-                style={{ maxWidth: 380, padding: '24px 22px', textAlign: 'left' }}
+                style={{
+                  maxWidth: 480,
+                  width: '100%',
+                  padding: '32px 28px',
+                  textAlign: 'left',
+                  borderRadius: 20,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--line)',
+                  boxShadow: '0 24px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--line)',
+                }}
                 initial={{ scale: 0.95, opacity: 0, y: 15 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.95, opacity: 0, y: 15 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
                   <div>
-                    <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 2px', color: 'var(--text)' }}>
+                    <h3 style={{ fontSize: 21, fontWeight: 800, margin: '0 0 4px', color: 'var(--text)', letterSpacing: '-0.02em' }}>
                       Edit Training Plan
                     </h3>
-                    <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700 }}>
+                    <span style={{ fontSize: 13.5, color: 'var(--accent)', fontWeight: 700 }}>
                       {selectedPlan?.name || activePlan?.name}
                     </span>
                   </div>
                   <button
                     type="button"
                     className="icon-btn"
-                    style={{ width: 32, height: 32 }}
+                    style={{ width: 34, height: 34, borderRadius: 10 }}
                     onClick={() => setShowEditPlanModal(false)}
                     aria-label="Close"
                   >
-                    <X width={15} height={15} />
+                    <X width={16} height={16} />
                   </button>
                 </div>
 
-                {/* Days/Week Selector */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: 18 }}>
-                  {[2, 3, 4, 5, 6].map((days) => (
-                    <button
-                      key={days}
-                      type="button"
-                      style={{
-                        padding: '11px 0',
-                        borderRadius: 12,
-                        fontSize: 13,
-                        fontWeight: 800,
-                        cursor: 'pointer',
-                        transition: 'all 0.18s ease',
-                        border: Number(editDaysPerWeek) === days ? '1.5px solid var(--accent)' : '1px solid var(--line)',
-                        background: Number(editDaysPerWeek) === days ? 'var(--accent-soft)' : 'var(--surface-2)',
-                        color: Number(editDaysPerWeek) === days ? 'var(--accent)' : 'var(--text)',
-                      }}
-                      onClick={() => setEditDaysPerWeek(days)}
-                    >
-                      {days}d
-                    </button>
-                  ))}
+                {/* Frequency selection header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Weekly Schedule</span>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 800,
+                      color: 'var(--accent)',
+                      background: 'var(--accent-soft)',
+                      padding: '3px 10px',
+                      borderRadius: 20,
+                      border: '1px solid var(--line)',
+                    }}
+                  >
+                    {editDaysPerWeek} Days / Week
+                  </span>
                 </div>
+
+                {/* Days/Week Selector */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 14 }}>
+                  {[2, 3, 4, 5, 6].map((days) => {
+                    const isSelected = Number(editDaysPerWeek) === days;
+                    return (
+                      <button
+                        key={days}
+                        type="button"
+                        style={{
+                          height: 48,
+                          borderRadius: 14,
+                          fontSize: 15,
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          transition: 'all 0.18s ease',
+                          border: isSelected ? '1.5px solid var(--accent)' : '1px solid var(--line)',
+                          background: isSelected ? 'var(--accent)' : 'var(--surface-2)',
+                          color: isSelected ? '#ffffff' : 'var(--text)',
+                          boxShadow: isSelected ? '0 4px 14px rgba(255, 94, 26, 0.35)' : 'none',
+                        }}
+                        onClick={() => setEditDaysPerWeek(days)}
+                      >
+                        {days}d
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: '0 0 24px', lineHeight: 1.5 }}>
+                  Calibrates your weekly calendar days, training sessions, and scheduled rest periods immediately.
+                </p>
 
                 {/* Two Processing Action Buttons Only */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <button
                     type="button"
                     className="btn btn-primary"
-                    style={{ width: '100%', height: 42, fontSize: 13.5, fontWeight: 800, borderRadius: 12 }}
+                    style={{
+                      width: '100%',
+                      height: 46,
+                      fontSize: 14.5,
+                      fontWeight: 800,
+                      borderRadius: 14,
+                      boxShadow: '0 4px 18px rgba(255, 94, 26, 0.35)',
+                    }}
                     onClick={handleSaveEditDays}
                   >
                     Save Changes
@@ -1989,25 +2115,26 @@ export default function Plans() {
                     type="button"
                     style={{
                       width: '100%',
-                      height: 38,
-                      borderRadius: 12,
+                      height: 42,
+                      borderRadius: 14,
                       color: '#ef4444',
                       background: 'rgba(239, 68, 68, 0.08)',
                       border: '1px solid rgba(239, 68, 68, 0.28)',
                       fontWeight: 700,
-                      fontSize: 13,
+                      fontSize: 13.5,
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 6,
+                      transition: 'all 0.18s ease',
                     }}
                     onClick={() => {
                       setShowEditPlanModal(false);
                       setShowCancelConfirm(true);
                     }}
                   >
-                    <X width={14} height={14} /> End Plan
+                    <X width={15} height={15} /> End Plan
                   </button>
                 </div>
               </motion.div>

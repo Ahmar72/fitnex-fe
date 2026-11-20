@@ -8,7 +8,7 @@ import { Paper, Reveal, SplitText } from '../components/Motion.jsx';
 import { Arrow, Check, Down, Play, Plus, Search, Trash, Up, X } from '../components/Icons.jsx';
 import { ROUTINES } from '../sections/Programs.jsx';
 import { getSetDurationForDay } from '../lib/progressionEngine.js';
-import { BODY_PARTS, asset, dayKey, fmt, playChimeSound, playWhistleSound, speakVoice, getExerciseVoiceOverview } from '../lib/utils.js';
+import { BODY_PARTS, asset, dayKey, fmt, playChimeSound, playWhistleSound, speakVoice, getExerciseVoiceOverview, readLS, writeLS } from '../lib/utils.js';
 import PageShimmer from '../components/AppSpinner.jsx';
 import WorkoutCompleteModal from '../components/WorkoutCompleteModal.jsx';
 import { createPortal } from 'react-dom';
@@ -575,9 +575,43 @@ export default function Builder() {
       return false;
     }
     const vol = done.reduce((a, s) => a + Number(s.weight || 0), 0);
-    const trainedMuscles = [...new Set(items.filter((it) => it.sets.some((s) => s.done)).map((it) => byId.get(it.exerciseId)?.bodyPart).filter(Boolean))];
+    const completedItems = items.filter((it) => it.sets.some((s) => s.done));
+    const effectiveItems = completedItems.length > 0 ? completedItems : items;
+    const trainedMuscles = [...new Set(effectiveItems.map((it) => byId.get(it.exerciseId)?.bodyPart).filter(Boolean))];
+    const trainedTargets = [...new Set(effectiveItems.map((it) => byId.get(it.exerciseId)?.target).filter(Boolean))];
     const durationMinutes = Math.max(1, Math.round(done.length * 2.5));
     const caloriesBurned = Math.round(done.length * 18 + durationMinutes * 6);
+
+    // Record progress for active / registration plan if applicable
+    try {
+      const activePlanData = readLS('fx:active-plan-data', null);
+      const regPlanProgress = readLS('fx:registered-plan-progress', null);
+      const todayStr = dayKey(new Date());
+
+      if (activePlanData?.planId) {
+        const nextDayIdx = (activePlanData.currentDayIndex || 0) + 1;
+        const updated = {
+          ...activePlanData,
+          currentDayIndex: nextDayIdx,
+          lastWorkoutDate: todayStr,
+          completedDates: [...new Set([...(activePlanData.completedDates || []), todayStr])],
+        };
+        writeLS('fx:active-plan-data', updated);
+      }
+      if (regPlanProgress?.planId) {
+        const nextRegIdx = (regPlanProgress.currentDayIndex || 0) + 1;
+        const updatedReg = {
+          ...regPlanProgress,
+          currentDayIndex: nextRegIdx,
+          lastWorkoutDate: todayStr,
+          completedDates: [...new Set([...(regPlanProgress.completedDates || []), todayStr])],
+        };
+        writeLS(`fx:reg-plan-progress:${regPlanProgress.planId}`, updatedReg);
+        writeLS('fx:registered-plan-progress', updatedReg);
+      }
+    } catch (err) {
+      console.warn('Could not record plan progress:', err);
+    }
 
     const success = finish();
     if (success) {
@@ -590,6 +624,7 @@ export default function Builder() {
         workSetsCount: done.length,
         caloriesBurned,
         trainedMuscles,
+        trainedTargets,
         workoutName: workout.name,
       });
     }

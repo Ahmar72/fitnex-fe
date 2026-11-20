@@ -26,6 +26,13 @@ function greeting() {
   return h < 5 ? 'Late night grind' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 }
 
+const DEFAULT_PLAN_BY_GOAL = {
+  muscle: 'muscle-building',
+  fat: 'weight-loss',
+  strength: 'boulder-shoulders',
+  fit: 'abs-building',
+};
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { exercises, byId, findByName, ready } = useData();
@@ -36,17 +43,31 @@ export default function Dashboard() {
   const goal = goalOf(profile.goal);
   const first = user?.name ? user.name.split(' ')[0] : 'Athlete';
 
-  const activePlanData = useMemo(() => readLS('fx:active-plan-data', null), []);
+  // Anchor strictly to the plan chosen by the user at the time of registration/onboarding
+  const registeredPlanId = profile.registeredPlanId || DEFAULT_PLAN_BY_GOAL[profile.goal || 'muscle'] || 'muscle-building';
+
+  // Record and read dedicated progress for the user's registration plan
+  const registeredProgress = useMemo(() => {
+    const reg = readLS(`fx:reg-plan-progress:${registeredPlanId}`, null) || readLS('fx:registered-plan-progress', null);
+    if (reg && reg.planId === registeredPlanId) return reg;
+    const active = readLS('fx:active-plan-data', null);
+    if (active && active.planId === registeredPlanId) return active;
+    return {
+      planId: registeredPlanId,
+      currentDayIndex: 0,
+      completedDates: [],
+    };
+  }, [registeredPlanId]);
 
   const plan = useMemo(() => {
     if (!ready) return null;
     return getActivePlanWithProgression({
-      activePlanData,
-      profile,
+      activePlanData: registeredProgress,
+      profile: { ...profile, activePlanId: registeredPlanId },
       PLANS,
       byId,
     });
-  }, [ready, activePlanData, profile, byId]);
+  }, [ready, registeredProgress, profile, registeredPlanId, byId]);
 
   const stats = useMemo(() => {
     const volume = history.reduce((a, h) => a + (Number(h.volume) || 0), 0);
@@ -83,7 +104,10 @@ export default function Dashboard() {
 
   const startPlan = () => {
     if (!plan || !plan.items?.length) return;
-    loadRoutine(plan.name, plan.items.map(({ ex, sets, reps }) => ({ id: ex.id, sets, reps })));
+    loadRoutine(plan.name, plan.items.map(({ ex, sets, reps }) => ({ id: ex.id, sets, reps })), {
+      planId: registeredPlanId,
+      isRegistrationPlan: true,
+    });
     navigate('/builder');
   };
 
@@ -94,14 +118,11 @@ export default function Dashboard() {
       <div className="container">
         <div className="dash-head">
           <div>
-            <h1 className="dash-title" style={{ margin: '0 0 6px', fontSize: '1.25rem', fontWeight: 700 }}>
+            <h1 className="dash-title" style={{ margin: '0 0 6px', fontSize: '1.65rem', fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.2 }}>
               {t('dash.hey', 'Hey')} {first}, <span className="accent">{t('dash.lets_train', 'let’s train.')}</span>
             </h1>
           </div>
           <div className="dash-cta">
-            {workout.items.length > 0 && (
-              <Link to="/builder" className="btn btn-ghost"><Dumbbell /> {t('dash.resume', 'Resume')} “{workout.name}”</Link>
-            )}
             <button className="btn btn-primary" onClick={startPlan}><Play /> {t('dash.start_now', 'Start today’s plan')}</button>
           </div>
         </div>

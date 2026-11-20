@@ -219,7 +219,7 @@ export default function Onboarding() {
       else if (heightUnit === 'ft') finalHeight = Math.round(finalHeight * 30.48);
     }
 
-    // Set the chosen program as the active program across the whole web
+    // Set the chosen program as the active program and registered program across the whole web
     const activePlanObj = {
       planId: selectedPlan.id,
       planName: selectedPlan.name,
@@ -230,6 +230,8 @@ export default function Onboarding() {
       completedDates: [],
     };
     writeLS('fx:active-plan-data', activePlanObj);
+    writeLS('fx:registered-plan-progress', activePlanObj);
+    writeLS(`fx:reg-plan-progress:${selectedPlan.id}`, activePlanObj);
 
     const profiles = readLS('fx:plan-profiles', {});
     profiles[selectedPlan.id] = {
@@ -242,6 +244,7 @@ export default function Onboarding() {
       goal: form.goal || 'muscle',
       level: form.level || 'beginner',
       days: Number(form.days) || 3,
+      registeredPlanId: selectedPlan.id,
       activePlanId: selectedPlan.id,
       planName: selectedPlan.name,
       weight: finalWeight,
@@ -269,6 +272,8 @@ export default function Onboarding() {
       completedDates: [],
     };
     writeLS('fx:active-plan-data', activePlanObj);
+    writeLS('fx:registered-plan-progress', activePlanObj);
+    writeLS(`fx:reg-plan-progress:${defaultPlan.id}`, activePlanObj);
 
     const profiles = readLS('fx:plan-profiles', {});
     profiles[defaultPlan.id] = {
@@ -282,6 +287,7 @@ export default function Onboarding() {
         goal: 'muscle',
         level: 'beginner',
         days: 3,
+        registeredPlanId: defaultPlan.id,
         activePlanId: defaultPlan.id,
         planName: defaultPlan.name,
         weight: null,
