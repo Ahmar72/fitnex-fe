@@ -1135,14 +1135,12 @@
 .workout-complete-card {
   background: var(--surface);
   border: 1px solid var(--line-2);
-  border-radius: var(--radius, 18px);
-  padding: 20px 28px 18px;
+  border-radius: 20px;
+  padding: 16px 24px 14px;
   width: 100%;
-  max-width: 660px;
-  max-height: 92vh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
+  max-width: 720px;
+  max-height: 96vh;
+  overflow: hidden;
   box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.65), 0 0 35px var(--accent-glow);
   position: relative;
   display: flex;
@@ -1179,13 +1177,13 @@
 }
 
 .workout-complete-trophy-wrap {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: var(--accent-soft);
   border: 1.5px solid var(--accent-glow);
   color: var(--accent);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1194,10 +1192,10 @@
 
 .workout-complete-title {
   font-family: var(--body);
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 800;
   color: var(--text);
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   letter-spacing: normal;
   text-transform: uppercase;
 }
@@ -1205,9 +1203,9 @@
 .workout-complete-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 @media (max-width: 520px) {
@@ -1219,13 +1217,13 @@
 .complete-stat-tile {
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 8px 6px;
+  border-radius: 10px;
+  padding: 6px 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 3px;
+  gap: 2px;
   transition: transform 0.2s var(--ease), border-color 0.2s var(--ease);
 }
 
@@ -1235,7 +1233,7 @@
 }
 
 .stat-tile-label {
-  font-size: 10px;
+  font-size: 9.5px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
@@ -1243,7 +1241,7 @@
 }
 
 .stat-tile-value {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--text);
   font-family: var(--body);
@@ -1252,7 +1250,7 @@
 
 .workout-complete-nice-btn {
   width: 100%;
-  height: 40px;
+  height: 38px;
   background: var(--accent);
   color: var(--accent-ink, #ffffff);
   font-size: 14px;
@@ -1262,7 +1260,7 @@
   cursor: pointer;
   transition: all 0.25s var(--ease);
   box-shadow: 0 3px 14px var(--accent-glow);
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   letter-spacing: normal;
 }
 
@@ -1277,13 +1275,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding-top: 10px;
+  gap: 4px;
+  padding-top: 6px;
   border-top: 1px solid var(--line);
 }
 
 .trained-muscles-title {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1293,11 +1291,7 @@
 }
 
 .trained-tags-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
+  display: none;
 }
 
 .trained-muscle-tag {
@@ -1313,11 +1307,11 @@
 }
 
 .trained-effect-callout {
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--text);
   font-weight: 600;
-  margin-top: 4px;
-  margin-bottom: 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
   text-align: center;
 }
 
@@ -1326,27 +1320,27 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 48px;
-  padding: 8px 0 2px;
+  gap: 36px;
+  padding: 2px 0 0;
 }
 
 .muscle-map-figure {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  width: 165px;
+  gap: 6px;
+  width: 140px;
 }
 
 .figure-label {
-  font-size: 11px;
+  font-size: 10.5px;
   text-transform: uppercase;
   font-weight: 800;
   color: var(--text, #18181b);
   letter-spacing: 0.12em;
   background: var(--surface-2, rgba(0, 0, 0, 0.05));
   border: 1.5px solid var(--line, rgba(0, 0, 0, 0.15));
-  padding: 3px 14px;
+  padding: 2px 12px;
   border-radius: 999px;
   user-select: none;
 }
@@ -1359,7 +1353,7 @@
 
 .figure-svg {
   width: 100%;
-  height: 255px;
+  height: 210px;
   overflow: visible;
   filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.18));
 }

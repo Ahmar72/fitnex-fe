@@ -324,16 +324,6 @@ export default function WorkoutCompleteModal({ isOpen, onClose, data }) {
               Targeted Impact: <b style={{ color: 'var(--accent)', textTransform: 'capitalize' }}>{displayTargets.join(', ') || 'Targeted Muscle Groups'}</b>
             </div>
 
-            {displayTargets.length > 0 && (
-              <div className="trained-tags-row">
-                {displayTargets.map((m, idx) => (
-                  <span key={idx} className="trained-muscle-tag" style={{ textTransform: 'capitalize' }}>
-                    {m}
-                  </span>
-                ))}
-              </div>
-            )}
-
             {/* Anatomical Human Body Vector Map */}
             <BodyMuscleMap trainedMuscles={trainedMuscles} trainedTargets={trainedTargets} />
           </div>

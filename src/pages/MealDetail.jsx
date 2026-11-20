@@ -119,20 +119,22 @@ export default function MealDetail() {
             className={`meal-detail-img ${imgLoaded ? 'loaded' : ''}`}
             onLoad={() => setImgLoaded(true)}
           />
-          <div className="meal-detail-overlay-chip">
-            <span className="calorie-badge">{scaledCalories} kcal</span>
-            <span className="protein-badge">{scaledProtein}g Protein</span>
-          </div>
         </div>
 
         <div className="meal-detail-intro">
           <h1 className="meal-detail-title">{meal.name}</h1>
           <p className="meal-detail-brief">{meal.brief}</p>
 
-          {/* Effective for: in a column without tags, simple text */}
+          {/* Effective for: in column format */}
           <div className="meal-effective-col">
             <span className="effective-label">Effective for:</span>
-            <span className="effective-text">{meal.targetMuscles.join(', ')}</span>
+            <div className="effective-muscles-stack">
+              {meal.targetMuscles.map((muscle) => (
+                <span key={muscle} className="effective-muscle-line">
+                  {muscle}
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* Servings Multiplier */}
