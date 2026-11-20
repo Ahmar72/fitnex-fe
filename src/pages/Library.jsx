@@ -215,30 +215,18 @@ export default function Library() {
               <option value="">{t('lib.all', 'All')} {t('lib.equipment', 'equipment')}</option>
               {facets.equipment.map(([k, n]) => <option key={k} value={k}>{k} ({n})</option>)}
             </select>
+            <select className="input" value={part} onChange={(e) => set('part', e.target.value)} aria-label="Body Part">
+              <option value="">{t('lib.all', 'All')} Body Parts ({exercises.length})</option>
+              {BODY_PARTS.filter((b) => counts[b.key]).map((b) => (
+                <option key={b.key} value={b.key}>
+                  {t(`part.${b.key}`, b.label)} ({counts[b.key]})
+                </option>
+              ))}
+            </select>
             <select className="input" value={target} onChange={(e) => set('target', e.target.value)} aria-label={t('lib.target', 'Target muscle')}>
               <option value="">{t('lib.all', 'All')} {t('lib.target', 'muscles')}</option>
               {facets.target.map(([k, n]) => <option key={k} value={k}>{k} ({n})</option>)}
             </select>
-            <select className="input" value={sort} onChange={(e) => set('sort', e.target.value === 'az' ? '' : e.target.value)} aria-label="Sort" style={{ flexBasis: 150 }}>
-              <option value="az">{t('lib.sort_az', 'A → Z')}</option>
-              <option value="za">{t('lib.sort_za', 'Z → A')}</option>
-              <option value="id">{t('lib.sort_id', 'Catalogue #')}</option>
-            </select>
-            <button className={`toggle ${fav ? 'on' : ''}`} onClick={() => set('fav', fav ? '' : '1')} aria-pressed={fav}>
-              <span className="sw" /> {t('nav.favorites', 'Favourites')} ({favorites.length})
-            </button>
-          </div>
-          <div className="filter-chips">
-            <button className={`fchip ${!part ? 'active' : ''}`} onClick={() => set('part', '')}>
-              {!part && <motion.span className="bg" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 420, damping: 28 }} />}
-              <span>{t('lib.all', 'All')}</span> <small>{exercises.length}</small>
-            </button>
-            {BODY_PARTS.filter((b) => counts[b.key]).map((b) => (
-              <button key={b.key} className={`fchip ${part === b.key ? 'active' : ''}`} onClick={() => set('part', b.key)}>
-                {part === b.key && <motion.span className="bg" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 420, damping: 28 }} />}
-                <span>{t(`part.${b.key}`, b.label)}</span> <small>{counts[b.key]}</small>
-              </button>
-            ))}
           </div>
         </div>
 

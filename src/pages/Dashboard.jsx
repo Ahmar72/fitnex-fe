@@ -8,7 +8,7 @@ import { useLanguage } from '../context/LanguageContext.jsx';
 import { Counter, GlowCard, Paper, Reveal, SplitText } from '../components/Motion.jsx';
 import { Arrow, Bolt, Dumbbell, Flame, Heart, Play, Trophy } from '../components/Icons.jsx';
 import { ROUTINES } from '../sections/Programs.jsx';
-import { goalOf, routineFor } from '../lib/goals.js';
+import { goalOf, routineFor, DEFAULT_PLAN_BY_GOAL } from '../lib/goals.js';
 import { PLANS } from '../lib/plansData.js';
 import { getActivePlanWithProgression } from '../lib/progressionEngine.js';
 import { dayKey, fmt, sample, title, readLS, writeLS } from '../lib/utils.js';
@@ -25,13 +25,6 @@ function greeting() {
   const h = new Date().getHours();
   return h < 5 ? 'Late night grind' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 }
-
-const DEFAULT_PLAN_BY_GOAL = {
-  muscle: 'muscle-building',
-  fat: 'weight-loss',
-  strength: 'boulder-shoulders',
-  fit: 'abs-building',
-};
 
 export default function Dashboard() {
   const { user } = useAuth();

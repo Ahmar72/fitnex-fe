@@ -4,8 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { useToast } from '../components/Toast.jsx';
-import { Arrow, ArrowLeft, Check, Dumbbell, Flame, Bolt, Trophy, Logo } from '../components/Icons.jsx';
-import { GOALS, LEVELS } from '../lib/goals.js';
+import { Arrow, ArrowLeft, Check, Dumbbell, Flame, Bolt, Trophy, Logo, Up, Down } from '../components/Icons.jsx';
+import { GOALS, LEVELS, DEFAULT_PLAN_BY_GOAL } from '../lib/goals.js';
 import { getProgramForUser } from '../lib/progressionEngine.js';
 import { PLANS } from '../lib/plansData.js';
 import { asset, readLS, writeLS } from '../lib/utils.js';
@@ -13,16 +13,9 @@ import '../onboarding.css';
 
 const ease = [0.22, 1, 0.36, 1];
 
-const DEFAULT_PLAN_BY_GOAL = {
-  muscle: 'muscle-building',
-  fat: 'weight-loss',
-  strength: 'boulder-shoulders',
-  fit: 'abs-building',
-};
-
 const ONBOARDING_STEPS = [
   { id: 'goal', title: 'Main Goal', subtitle: 'What are you training for?' },
-  { id: 'plan', title: 'Your Routine', subtitle: 'Experience level, schedule & target program' },
+  { id: 'plan', title: 'Your Routine', subtitle: 'Experience level & weekly schedule' },
   { id: 'metrics', title: 'Body Stats', subtitle: 'Calibrate starting volume and stats' },
   { id: 'ready', title: 'Your Program', subtitle: 'Your personalized starter routine is ready' },
 ];
@@ -44,10 +37,10 @@ export default function Onboarding() {
   const [dir, setDir] = useState(1);
   const [busy, setBusy] = useState(false);
 
-  // Form state
+  // Form state - plan strictly corresponds to the chosen goal
   const [form, setForm] = useState({
     goal: user?.profile?.goal || 'muscle',
-    planId: user?.profile?.activePlanId || DEFAULT_PLAN_BY_GOAL[user?.profile?.goal || 'muscle'] || 'muscle-building',
+    planId: DEFAULT_PLAN_BY_GOAL[user?.profile?.goal || 'muscle'] || 'muscle-building',
     level: user?.profile?.level || 'beginner',
     days: user?.profile?.days || 3,
     weight: user?.profile?.weight || '',
@@ -72,11 +65,11 @@ export default function Onboarding() {
     setVal('planId', DEFAULT_PLAN_BY_GOAL[goalKey] || 'muscle-building');
   };
 
-  // Resolved active program for user matching selection
+  // Resolved active program strictly matching selected goal
   const selectedPlan = useMemo(() => {
-    const id = form.planId || DEFAULT_PLAN_BY_GOAL[form.goal] || 'muscle-building';
+    const id = DEFAULT_PLAN_BY_GOAL[form.goal] || 'muscle-building';
     return PLANS.find((p) => p.id === id) || PLANS[0];
-  }, [form.planId, form.goal]);
+  }, [form.goal]);
 
   // Resolved tailored program for user
   const tailoredProgram = useMemo(() => {
@@ -124,6 +117,37 @@ export default function Onboarding() {
       }
     }
     setHeightUnit(newUnit);
+  };
+
+  // Step weight value up or down
+  const stepWeight = (dir) => {
+    const step = weightUnit === 'kg' ? 0.5 : 1;
+    const min = weightUnit === 'kg' ? 25 : 55;
+    const max = weightUnit === 'kg' ? 300 : 660;
+    const defaultVal = weightUnit === 'kg' ? 75 : 165;
+    const cur = form.weight === '' || isNaN(Number(form.weight)) ? defaultVal : Number(form.weight);
+    const next = Math.min(max, Math.max(min, Math.round((cur + dir * step) * 10) / 10));
+    setVal('weight', next);
+  };
+
+  // Step height value up or down
+  const stepHeight = (dir) => {
+    if (heightUnit === 'cm') {
+      const min = 100, max = 250, defaultVal = 180;
+      const cur = form.height === '' || isNaN(Number(form.height)) ? defaultVal : Number(form.height);
+      const next = Math.min(max, Math.max(min, cur + dir * 1));
+      setVal('height', next);
+    } else if (heightUnit === 'm') {
+      const min = 1.0, max = 2.5, defaultVal = 1.80;
+      const cur = form.height === '' || isNaN(Number(form.height)) ? defaultVal : Number(form.height);
+      const next = Math.min(max, Math.max(min, Math.round((cur + dir * 0.01) * 100) / 100));
+      setVal('height', next.toFixed(2));
+    } else {
+      const min = 3.2, max = 8.2, defaultVal = 5.9;
+      const cur = form.height === '' || isNaN(Number(form.height)) ? defaultVal : Number(form.height);
+      const next = Math.min(max, Math.max(min, Math.round((cur + dir * 0.1) * 10) / 10));
+      setVal('height', next.toFixed(1));
+    }
   };
 
   // Live weight conversion text
@@ -470,41 +494,6 @@ export default function Onboarding() {
                       );
                     })}
                   </div>
-
-                  {/* Target Training Program Selection */}
-                  <div className="plan-block-header" style={{ marginTop: 22 }}>
-                    <label className="section-label">Target Training Program</label>
-                    <span className="section-sublabel">Matched to your goal — you can keep this or select any program</span>
-                  </div>
-
-                  <div className="experience-columns-list">
-                    <div className="experience-row-card selected" style={{ cursor: 'default' }}>
-                      <div className="exp-left-col">
-                        <div className="exp-details">
-                          <b className="exp-title">{selectedPlan.name}</b>
-                          <span className="exp-desc">{selectedPlan.tagline} · {selectedPlan.targetMuscle}</span>
-                        </div>
-                      </div>
-
-                      <div className="exp-right-col" onClick={(e) => e.stopPropagation()}>
-                        <div className="exp-days-dropdown-wrap">
-                          <select
-                            id="program-select"
-                            className="experience-days-select"
-                            value={selectedPlan.id}
-                            onChange={(e) => setVal('planId', e.target.value)}
-                            style={{ minWidth: 170 }}
-                          >
-                            {PLANS.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
@@ -539,6 +528,7 @@ export default function Onboarding() {
                     </div>
 
                     <div className="metric-input-wrap">
+                      <span className="metric-unit-left">{weightUnit}</span>
                       <input
                         type="number"
                         className="metric-input"
@@ -549,7 +539,24 @@ export default function Onboarding() {
                         max={weightUnit === 'kg' ? 300 : 660}
                         step={0.5}
                       />
-                      <span className="metric-unit">{weightUnit}</span>
+                      <div className="metric-stepper">
+                        <button
+                          type="button"
+                          className="metric-stepper-btn"
+                          onClick={() => stepWeight(1)}
+                          aria-label="Increase weight"
+                        >
+                          <Up width={12} height={12} />
+                        </button>
+                        <button
+                          type="button"
+                          className="metric-stepper-btn"
+                          onClick={() => stepWeight(-1)}
+                          aria-label="Decrease weight"
+                        >
+                          <Down width={12} height={12} />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Live automatic unit conversion only when user enters number */}
@@ -593,6 +600,7 @@ export default function Onboarding() {
                     </div>
 
                     <div className="metric-input-wrap">
+                      <span className="metric-unit-left">{heightUnit}</span>
                       <input
                         type="number"
                         className="metric-input"
@@ -603,7 +611,24 @@ export default function Onboarding() {
                         max={heightUnit === 'cm' ? 250 : heightUnit === 'm' ? 2.5 : 8.2}
                         step={heightUnit === 'cm' ? 1 : 0.01}
                       />
-                      <span className="metric-unit">{heightUnit}</span>
+                      <div className="metric-stepper">
+                        <button
+                          type="button"
+                          className="metric-stepper-btn"
+                          onClick={() => stepHeight(1)}
+                          aria-label="Increase height"
+                        >
+                          <Up width={12} height={12} />
+                        </button>
+                        <button
+                          type="button"
+                          className="metric-stepper-btn"
+                          onClick={() => stepHeight(-1)}
+                          aria-label="Decrease height"
+                        >
+                          <Down width={12} height={12} />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Live automatic height conversion only when user enters number */}

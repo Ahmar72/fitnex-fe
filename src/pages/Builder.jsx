@@ -19,6 +19,7 @@ const ease = [0.22, 1, 0.36, 1];
 const WorkoutItem = forwardRef(function WorkoutItem({ item, ex, index, total, onStartSet }, ref) {
   const { removeItem, moveItem, addSet, removeSet, updateSet } = useWorkout();
   const { t } = useLanguage();
+  const isBodyweight = ex?.equipment && /body\s*weight/i.test(ex.equipment);
   return (
     <motion.div
       ref={ref}
@@ -79,13 +80,24 @@ const WorkoutItem = forwardRef(function WorkoutItem({ item, ex, index, total, on
             >
               <span className="n">{i + 1}</span>
               <input
-                className="num-input"
-                type="number"
-                min="0"
-                step="0.5"
-                value={s.weight}
+                className={`num-input ${isBodyweight && (!s.weight || Number(s.weight) === 0) ? 'bw-input' : ''}`}
+                type="text"
+                value={isBodyweight && (!s.weight || Number(s.weight) === 0) ? 'Bodyweight' : s.weight}
                 disabled={s.done}
-                onChange={(e) => updateSet(item.uid, s.id, { weight: e.target.value })}
+                onFocus={(e) => {
+                  if (isBodyweight && (!s.weight || Number(s.weight) === 0)) {
+                    e.target.select();
+                  }
+                }}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9.]/g, '');
+                  updateSet(item.uid, s.id, { weight: val });
+                }}
+                onBlur={(e) => {
+                  if (isBodyweight && (!e.target.value || Number(e.target.value) === 0)) {
+                    updateSet(item.uid, s.id, { weight: '' });
+                  }
+                }}
                 aria-label={`Set ${i + 1} weight`}
               />
               <input
@@ -351,6 +363,7 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
   };
 
   if (!item || !ex) return null;
+  const isBodyweight = ex?.equipment && /body\s*weight/i.test(ex.equipment);
 
   return (
     <motion.div
@@ -416,11 +429,24 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
               <div key={s.id} className={`set-row ${s.done ? 'done' : ''}`} style={{ gridTemplateColumns: '46px 1fr 1fr 100px' }}>
                 <span className="n">{i + 1}</span>
                 <input
-                  className="num-input"
-                  type="number"
-                  value={s.weight}
+                  className={`num-input ${isBodyweight && (!s.weight || Number(s.weight) === 0) ? 'bw-input' : ''}`}
+                  type="text"
+                  value={isBodyweight && (!s.weight || Number(s.weight) === 0) ? 'Bodyweight' : s.weight}
                   disabled={s.done}
-                  onChange={(e) => updateSet(item.uid, s.id, { weight: e.target.value })}
+                  onFocus={(e) => {
+                    if (isBodyweight && (!s.weight || Number(s.weight) === 0)) {
+                      e.target.select();
+                    }
+                  }}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9.]/g, '');
+                    updateSet(item.uid, s.id, { weight: val });
+                  }}
+                  onBlur={(e) => {
+                    if (isBodyweight && (!e.target.value || Number(e.target.value) === 0)) {
+                      updateSet(item.uid, s.id, { weight: '' });
+                    }
+                  }}
                   aria-label="Weight"
                 />
                 <input
@@ -574,7 +600,11 @@ export default function Builder() {
       finish();
       return false;
     }
-    const vol = done.reduce((a, s) => a + Number(s.weight || 0), 0);
+    const safeVol = (list) => list.reduce((a, s) => {
+      const n = Number(s.weight);
+      return a + (!isNaN(n) ? n : 0);
+    }, 0);
+    const vol = safeVol(done);
     const completedItems = items.filter((it) => it.sets.some((s) => s.done));
     const effectiveItems = completedItems.length > 0 ? completedItems : items;
     const trainedMuscles = [...new Set(effectiveItems.map((it) => byId.get(it.exerciseId)?.bodyPart).filter(Boolean))];
@@ -634,7 +664,10 @@ export default function Builder() {
   const stats = useMemo(() => {
     const sets = items.flatMap((i) => i.sets);
     const done = sets.filter((s) => s.done);
-    const vol = sets.reduce((a, s) => a + Number(s.weight || 0), 0);
+    const vol = sets.reduce((a, s) => {
+      const n = Number(s.weight);
+      return a + (!isNaN(n) ? n : 0);
+    }, 0);
     const parts = {};
     items.forEach((i) => {
       const p = byId.get(i.exerciseId)?.bodyPart;

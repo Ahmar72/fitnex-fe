@@ -1,5 +1,12 @@
 import { getProgramForUser } from './progressionEngine.js';
 
+export const DEFAULT_PLAN_BY_GOAL = {
+  muscle: 'muscle-building',
+  fat: 'abs-building',
+  strength: 'boulder-shoulders',
+  fit: 'weight-loss',
+};
+
 export const GOALS = [
   {
     key: 'muscle',
