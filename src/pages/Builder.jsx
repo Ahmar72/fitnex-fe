@@ -679,7 +679,7 @@ export default function Builder() {
                   </h4>
                 </div>
                 <span className="quick-add-hint">
-                  {q ? `${matches.length} matches` : 'Type to search exercises or click popular picks'}
+                  {q ? `${matches.length} matches` : 'Type to search exercises'}
                 </span>
               </div>
 
@@ -704,27 +704,6 @@ export default function Builder() {
                   )}
                 </label>
               </div>
-
-              {/* Popular quick-pick chips when search input is empty */}
-              {!q && popularExercises.length > 0 && (
-                <div className="quick-add-popular-row">
-                  <span className="quick-add-popular-label">Popular picks:</span>
-                  <div className="quick-add-popular-chips">
-                    {popularExercises.map((e) => (
-                      <button
-                        key={e.id}
-                        type="button"
-                        className="quick-add-chip-btn"
-                        onClick={() => addToWorkout(e.id)}
-                        title={`Add ${e.name} to workout`}
-                      >
-                        <Plus width={12} height={12} />
-                        <span>{e.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Live Search Match Cards in a Wide Responsive Grid */}
               {q && (
