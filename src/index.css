@@ -336,41 +336,79 @@ html.theme-transitioning *:after {
   display: none !important;
 }
 
+/* Universal Hand Pointer on Hover for All Interactive Elements */
+button,
+button:hover,
+.btn,
+.btn:hover,
+[role="button"],
+[role="button"]:hover,
+a:hover,
+select:hover,
+.clickable:hover,
+.fchip:hover,
+.tab:hover,
+.plan-card:hover,
+.plan-item:hover,
+.check:hover,
+.builder-set-start-btn:hover,
+.icon-btn:hover,
+.x-btn:hover,
+.add-set:hover,
+.link-btn:hover,
+.unit-pill:hover,
+.goal-btn:hover,
+.goal-card:hover,
+.ex-card:hover,
+.summary-ex-row:hover,
+input[type="button"]:hover,
+input[type="submit"]:hover {
+  cursor: pointer !important;
+}
+
 /* Custom Standard Arrow Cursor Colors */
 html[data-cursor-color="black"],
 html[data-cursor-color="black"] * {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M4.5 3.5L10.5 19.5L13.5 13.5L19.5 10.5L4.5 3.5Z' fill='%23111827' stroke='%23ffffff' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, auto !important;
-}
-html[data-cursor-color="black"] a,
-html[data-cursor-color="black"] button,
-html[data-cursor-color="black"] [role="button"],
-html[data-cursor-color="black"] select,
-html[data-cursor-color="black"] .clickable {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M4.5 3.5L10.5 19.5L13.5 13.5L19.5 10.5L4.5 3.5Z' fill='%23111827' stroke='%23ffffff' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, pointer !important;
 }
 
 html[data-cursor-color="white"],
 html[data-cursor-color="white"] * {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M4.5 3.5L10.5 19.5L13.5 13.5L19.5 10.5L4.5 3.5Z' fill='%23ffffff' stroke='%23111827' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, auto !important;
 }
-html[data-cursor-color="white"] a,
-html[data-cursor-color="white"] button,
-html[data-cursor-color="white"] [role="button"],
-html[data-cursor-color="white"] select,
-html[data-cursor-color="white"] .clickable {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M4.5 3.5L10.5 19.5L13.5 13.5L19.5 10.5L4.5 3.5Z' fill='%23ffffff' stroke='%23111827' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, pointer !important;
-}
 
 html[data-cursor-color="orange"],
 html[data-cursor-color="orange"] * {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M4.5 3.5L10.5 19.5L13.5 13.5L19.5 10.5L4.5 3.5Z' fill='%23ff5500' stroke='%23ffffff' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, auto !important;
 }
-html[data-cursor-color="orange"] a,
-html[data-cursor-color="orange"] button,
-html[data-cursor-color="orange"] [role="button"],
-html[data-cursor-color="orange"] select,
-html[data-cursor-color="orange"] .clickable {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M4.5 3.5L10.5 19.5L13.5 13.5L19.5 10.5L4.5 3.5Z' fill='%23ff5500' stroke='%23ffffff' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 4 3, pointer !important;
+
+/* Ensure interactive elements ALWAYS switch to native hand pointer on hover, even under data-cursor-color */
+html[data-cursor-color] button,
+html[data-cursor-color] button:hover,
+html[data-cursor-color] .btn,
+html[data-cursor-color] .btn:hover,
+html[data-cursor-color] [role="button"],
+html[data-cursor-color] [role="button"]:hover,
+html[data-cursor-color] a:hover,
+html[data-cursor-color] select:hover,
+html[data-cursor-color] .clickable:hover,
+html[data-cursor-color] .fchip:hover,
+html[data-cursor-color] .tab:hover,
+html[data-cursor-color] .plan-card:hover,
+html[data-cursor-color] .plan-item:hover,
+html[data-cursor-color] .check:hover,
+html[data-cursor-color] .builder-set-start-btn:hover,
+html[data-cursor-color] .icon-btn:hover,
+html[data-cursor-color] .x-btn:hover,
+html[data-cursor-color] .add-set:hover,
+html[data-cursor-color] .link-btn:hover,
+html[data-cursor-color] .unit-pill:hover,
+html[data-cursor-color] .goal-btn:hover,
+html[data-cursor-color] .goal-card:hover,
+html[data-cursor-color] .ex-card:hover,
+html[data-cursor-color] input[type="button"]:hover,
+html[data-cursor-color] input[type="submit"]:hover {
+  cursor: pointer !important;
 }
 
 html[data-cursor-color] input[type="text"],
@@ -1640,10 +1678,10 @@ select.input option { background: var(--surface); }
   border: 0;
   outline: none;
   font-family: var(--display);
-  font-weight: 900;
-  font-size: clamp(20px, 2.2vw, 28px);
+  font-weight: 800;
+  font-size: clamp(16px, 1.4vw, 19px);
   text-transform: uppercase;
-  line-height: 1.15;
+  line-height: 1.25;
   color: var(--text);
   padding: 0;
   border-bottom: 2px dashed transparent;

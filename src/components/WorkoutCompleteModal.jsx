@@ -239,14 +239,6 @@ export default function WorkoutCompleteModal({ isOpen, onClose, data }) {
     }
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
-
-  const durationMin = data?.durationMinutes ?? Math.max(1, Math.round((data?.durationSecs || 0) / 60));
-  const volumeKg = data?.volume ? new Intl.NumberFormat('en-US').format(Math.round(data.volume)) : '0';
-  const setsTotal = data?.setsCount ?? 0;
-  const workSetsTotal = data?.workSetsCount ?? setsTotal;
-  const calories = data?.caloriesBurned ?? data?.calories ?? Math.round(setsTotal * 18 + durationMin * 6);
-  const prs = data?.prsCount ?? '—';
   const trainedMuscles = data?.trainedMuscles || [];
   const trainedTargets = data?.trainedTargets || [];
   const displayTargets = useMemo(() => {
@@ -255,6 +247,15 @@ export default function WorkoutCompleteModal({ isOpen, onClose, data }) {
       .map((t) => (typeof t === 'string' ? t.trim() : ''))
       .filter((t) => t.length > 0 && t.toLowerCase() !== 'all');
   }, [trainedTargets, trainedMuscles]);
+
+  if (!isOpen) return null;
+
+  const durationMin = data?.durationMinutes ?? Math.max(1, Math.round((data?.durationSecs || 0) / 60));
+  const volumeKg = data?.volume ? new Intl.NumberFormat('en-US').format(Math.round(data.volume)) : '0';
+  const setsTotal = data?.setsCount ?? 0;
+  const workSetsTotal = data?.workSetsCount ?? setsTotal;
+  const calories = data?.caloriesBurned ?? data?.calories ?? Math.round(setsTotal * 18 + durationMin * 6);
+  const prs = data?.prsCount ?? '—';
 
   return (
     <AnimatePresence>

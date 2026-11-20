@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useData } from '../context/DataContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useWorkout } from '../context/WorkoutContext.jsx';
 import { useLanguage } from '../context/LanguageContext.jsx';
 import { Paper, Reveal, SplitText } from '../components/Motion.jsx';
@@ -144,6 +145,7 @@ const WorkoutItem = forwardRef(function WorkoutItem({ item, ex, index, total, on
 });
 
 function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId = null, initialAnnouncedExId = null, onFinishWorkout }) {
+  const { user } = useAuth();
   const { updateSet, finish } = useWorkout();
   const { t } = useLanguage();
   const [idx, setIdx] = useState(() => Math.min(Math.max(0, initialIndex), Math.max(0, items.length - 1)));
@@ -396,10 +398,10 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
         </div>
         <div className="live-progress"><span style={{ width: `${(doneCount / Math.max(1, allSets.length)) * 100}%` }} /></div>
         <AnimatePresence mode="wait">
-          <motion.div key={ex.id} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.5, ease }}>
-            <h2 className="display">{ex.name}</h2>
-            <p className="muted" style={{ margin: '10px 0 0', textTransform: 'capitalize' }}>{ex.target} · {ex.equipment}</p>
-            <p className="muted" style={{ fontSize: 14 }}>{ex.steps[0]}</p>
+          <motion.div key={ex.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.35, ease }}>
+            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, textTransform: 'uppercase', margin: '4px 0 2px', lineHeight: 1.25, letterSpacing: '-0.01em', color: 'var(--text)' }}>{ex.name}</h2>
+            <p className="muted" style={{ margin: '4px 0 2px', textTransform: 'capitalize', fontSize: '12px', fontWeight: 600 }}>{ex.target} · {ex.equipment}</p>
+            <p className="muted" style={{ fontSize: '12px', margin: '2px 0 8px', lineHeight: 1.4 }}>{ex.steps[0]}</p>
           </motion.div>
         </AnimatePresence>
 
@@ -728,14 +730,8 @@ export default function Builder() {
                 maxLength={40}
                 placeholder="Workout Name..."
               />
-              <span className="wk-title-meta">
-                {items.length} {items.length === 1 ? 'exercise' : 'exercises'} · {stats.sets} sets · {fmt(stats.vol)} kg volume
-              </span>
             </div>
             <div className="wk-title-actions">
-              <Link to="/exercises" className="btn btn-ghost btn-sm" title="Browse full exercise library">
-                {t('builder.browse_lib', 'Browse library')} <Arrow width={14} height={14} />
-              </Link>
               {items.length > 0 && (
                 <button
                   className="btn btn-primary start-workout-main-btn"

@@ -857,7 +857,7 @@ export default function Plans() {
               >
                 <ArrowLeft width={16} height={16} /> Return to Training Schedule
               </button>
-              <span className="summary-plan-badge">{completedWorkoutSummary.plan.name}</span>
+              <span className="summary-plan-badge">{completedWorkoutSummary?.plan?.name || 'Training Plan'}</span>
             </div>
 
             {/* Hero Success Celebration Card */}
