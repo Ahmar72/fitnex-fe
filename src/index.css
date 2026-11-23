@@ -1761,6 +1761,15 @@ select.input option { background: var(--surface); }
 .steps-list li { display: grid; grid-template-columns: 44px 1fr; gap: 14px; padding: 16px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line); align-items: start; }
 .steps-list li span { width: 44px; height: 44px; border-radius: 12px; background: var(--surface-2); display: grid; place-items: center; font-family: var(--display); font-weight: 900; font-size: 22px; color: var(--accent); }
 .steps-list li p { margin: 0; padding-top: 9px; color: var(--text); }
+.steps-bullets { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.step-bullet-item { display: flex; align-items: flex-start; gap: 12px; line-height: 1.6; font-size: 15px; color: var(--text); }
+.step-bullet-item .bullet-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-top: 9px; flex-shrink: 0; }
+.step-bullet-item .step-text { flex: 1; }
+.muscles-worked-simple { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.muscle-simple-line { display: flex; align-items: baseline; gap: 10px; font-size: 15px; line-height: 1.5; flex-wrap: wrap; }
+.muscle-simple-label { font-weight: 600; color: var(--muted); min-width: 140px; }
+.muscle-simple-val { font-weight: 600; color: var(--text); text-transform: capitalize; }
+.muscle-simple-val.primary { color: var(--accent); }
 .lang-select { display: flex; gap: 4px; flex-wrap: wrap; }
 .lang-select button { height: 32px; padding: 0 11px; border-radius: 8px; font-size: 12px; font-weight: 800; color: var(--muted); border: 1px solid var(--line); text-transform: uppercase; transition: 0.3s; }
 .lang-select button.on { background: var(--text); color: var(--bg); border-color: var(--text); }

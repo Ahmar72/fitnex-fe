@@ -18,10 +18,12 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
     fn();
   };
 
-  const handleCardClick = () => {
+  const handleCardClick = (e) => {
     if (onSelect) {
+      if (e) e.preventDefault();
       onSelect(ex);
     } else {
+      if (e?.target?.closest('a')) return;
       navigate(`/exercises/${ex.id}`);
     }
   };
@@ -38,28 +40,40 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2, delay: Math.min(index % 12, 6) * 0.02 }}
       >
-        <div className="ex-list-thumb" title={ex.name}>
-          <img
-            src={asset(ex.image || `images/${ex.id}.jpg`)}
-            alt={ex.name}
-            onError={(e) => {
-              e.currentTarget.src = asset('images/0001-2gPfomN.jpg');
-            }}
-          />
-        </div>
-        <div className="ex-list-content">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="ex-list-id">#{ex.id}</span>
-            <span className="ex-list-title">
-              {ex.name}
-            </span>
+        <Link
+          to={`/exercises/${ex.id}`}
+          className="ex-list-link"
+          onClick={(e) => {
+            if (onSelect) {
+              e.preventDefault();
+              onSelect(ex);
+            }
+          }}
+          style={{ display: 'flex', alignItems: 'center', flex: 1, textDecoration: 'none', color: 'inherit' }}
+        >
+          <div className="ex-list-thumb" title={ex.name}>
+            <img
+              src={asset(ex.image || `images/${ex.id}.jpg`)}
+              alt={ex.name}
+              onError={(e) => {
+                e.currentTarget.src = asset('images/0001-2gPfomN.jpg');
+              }}
+            />
           </div>
-          <div className="ex-list-tags">
-            <span className="chip"><span className="dot" style={{ background: part.color }} />{part.label}</span>
-            <span className="chip">{ex.target}</span>
-            <span className="chip">{ex.equipment}</span>
+          <div className="ex-list-content">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="ex-list-id">#{ex.id}</span>
+              <span className="ex-list-title">
+                {ex.name}
+              </span>
+            </div>
+            <div className="ex-list-tags">
+              <span className="chip"><span className="dot" style={{ background: part.color }} />{part.label}</span>
+              <span className="chip">{ex.target}</span>
+              <span className="chip">{ex.equipment}</span>
+            </div>
           </div>
-        </div>
+        </Link>
         <div className="ex-list-actions" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
@@ -100,45 +114,41 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
       whileHover={{ y: -4 }}
       onHoverStart={() => setHover(true)}
       onHoverEnd={() => setHover(false)}
+      onClick={handleCardClick}
+      style={{ cursor: 'pointer' }}
     >
-      {onSelect ? (
-        <div
-          onClick={handleCardClick}
-          data-cursor="View"
-          style={{ display: 'contents', cursor: 'pointer' }}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleCardClick(); }}
-        >
-          <Paper src={ex.image} gif={ex.gif} play={hover} autoplay="touch" alt={ex.name}>
-            <span className="play-badge">{hover ? '● Live' : 'Hover to play'}</span>
-            <span className="ex-id">#{ex.id}</span>
-          </Paper>
-          <div className="ex-body">
-            <h3>{ex.name}</h3>
-            <div className="ex-tags">
-              <span className="chip"><span className="dot" style={{ background: part.color }} />{part.label}</span>
-              <span className="chip">{ex.target}</span>
-              <span className="chip">{ex.equipment}</span>
-            </div>
+      <Link
+        to={`/exercises/${ex.id}`}
+        data-cursor="View"
+        className="ex-card-link"
+        onClick={(e) => {
+          if (onSelect) {
+            e.preventDefault();
+            onSelect(ex);
+          }
+        }}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          textDecoration: 'none',
+          color: 'inherit',
+          cursor: 'pointer',
+        }}
+      >
+        <Paper src={ex.image} gif={ex.gif} play={hover} autoplay="touch" alt={ex.name}>
+          <span className="play-badge">{hover ? '● Live' : 'Hover to play'}</span>
+          <span className="ex-id">#{ex.id}</span>
+        </Paper>
+        <div className="ex-body">
+          <h3>{ex.name}</h3>
+          <div className="ex-tags">
+            <span className="chip"><span className="dot" style={{ background: part.color }} />{part.label}</span>
+            <span className="chip">{ex.target}</span>
+            <span className="chip">{ex.equipment}</span>
           </div>
         </div>
-      ) : (
-        <Link to={`/exercises/${ex.id}`} data-cursor="View" style={{ display: 'contents' }}>
-          <Paper src={ex.image} gif={ex.gif} play={hover} autoplay="touch" alt={ex.name}>
-            <span className="play-badge">{hover ? '● Live' : 'Hover to play'}</span>
-            <span className="ex-id">#{ex.id}</span>
-          </Paper>
-          <div className="ex-body">
-            <h3>{ex.name}</h3>
-            <div className="ex-tags">
-              <span className="chip"><span className="dot" style={{ background: part.color }} />{part.label}</span>
-              <span className="chip">{ex.target}</span>
-              <span className="chip">{ex.equipment}</span>
-            </div>
-          </div>
-        </Link>
-      )}
+      </Link>
       <div className="ex-actions" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"

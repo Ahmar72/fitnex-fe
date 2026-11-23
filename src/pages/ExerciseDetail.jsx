@@ -124,8 +124,6 @@ export default function ExerciseDetail() {
               animate={{ scale: 1 }}
               transition={{ duration: 1.4, delay: 0.2, ease }}
             />
-            <span className="corner tl" /><span className="corner tr" /><span className="corner bl" /><span className="corner br" />
-            <span className="media-tag">{t('detail.target', 'Target')} · {ex.target}</span>
           </motion.div>
 
           <div>
@@ -162,36 +160,40 @@ export default function ExerciseDetail() {
               <h2>{t('detail.how_to', 'How to do it')}</h2>
             </div>
             <AnimatePresence mode="wait">
-              <motion.ol key={lang} className="steps-list" initial="hidden" animate="show" exit={{ opacity: 0, transition: { duration: 0.15 } }} variants={{ show: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } } }}>
-                {steps.slice(0, 2).map((s, i) => (
-                  <motion.li key={i} variants={{ hidden: { opacity: 0, x: 30 }, show: { opacity: 1, x: 0, transition: { duration: 0.5, ease } } }}>
-                    <span>{i + 1}</span>
-                    <p>{s}</p>
+              <motion.ul
+                key={lang}
+                className="steps-bullets"
+                initial="hidden"
+                animate="show"
+                exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                variants={{ show: { transition: { staggerChildren: 0.06, delayChildren: 0.08 } } }}
+              >
+                {steps.map((s, i) => (
+                  <motion.li
+                    key={i}
+                    className="step-bullet-item"
+                    variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { duration: 0.35, ease } } }}
+                  >
+                    <span className="bullet-dot" />
+                    <span className="step-text">{s}</span>
                   </motion.li>
                 ))}
-              </motion.ol>
+              </motion.ul>
             </AnimatePresence>
 
             <div className="sub-title"><h2>{t('detail.muscles_worked', 'Muscles worked')}</h2></div>
-            <Reveal className="muscles-overview">
-              <div className="muscle-card primary">
-                <div className="muscle-card-meta">
-                  <span className="muscle-card-dot" />
-                  <span className="muscle-card-role">{t('detail.primary_target', 'Primary Target')}</span>
-                </div>
-                <div className="muscle-card-name">{ex.target}</div>
+            <div className="muscles-worked-simple">
+              <div className="muscle-simple-line">
+                <span className="muscle-simple-label">{t('detail.primary_target', 'Primary Target')}:</span>
+                <span className="muscle-simple-val primary">{ex.target}</span>
               </div>
-
               {ex.secondary?.length > 0 && (
-                <div className="muscle-card secondary">
-                  <div className="muscle-card-meta">
-                    <span className="muscle-card-dot" />
-                    <span className="muscle-card-role">{t('detail.supporting_muscles', 'Supporting Muscles')}</span>
-                  </div>
-                  <div className="muscle-card-name">{ex.secondary.join(' · ')}</div>
+                <div className="muscle-simple-line">
+                  <span className="muscle-simple-label">{t('detail.supporting_muscles', 'Supporting Muscles')}:</span>
+                  <span className="muscle-simple-val">{ex.secondary.join(', ')}</span>
                 </div>
               )}
-            </Reveal>
+            </div>
           </div>
         </div>
 
