@@ -15,8 +15,9 @@ const ease = [0.22, 1, 0.36, 1];
 const ONBOARDING_STEPS = [
   { id: 'goal', title: 'Main Goal', subtitle: 'What are you training for?' },
   { id: 'plan', title: 'Your Routine', subtitle: 'Experience level & weekly schedule' },
-  { id: 'metrics', title: 'Body & Nutrition', subtitle: 'Calculate your daily calorie target & macros' },
-  { id: 'ready', title: 'Your Program', subtitle: 'Your personalized starter routine and calorie target are ready' },
+  { id: 'details', title: 'Body Details', subtitle: 'Enter your stats for calorie calculation' },
+  { id: 'calories', title: 'Calorie Target', subtitle: 'Your daily calorie & macro targets' },
+  { id: 'ready', title: 'Your Program', subtitle: 'Your personalized starter routine is ready' },
 ];
 
 const GOAL_ICONS = {
@@ -47,13 +48,14 @@ export default function Onboarding() {
     activityLevel: user?.profile?.activityLevel || 'moderate',
     dietGoal: user?.profile?.dietGoal || (user?.profile?.goal === 'fat' ? 'loss' : user?.profile?.goal === 'muscle' || user?.profile?.goal === 'strength' ? 'gain' : 'maintain'),
     weight: user?.profile?.weight || (user?.profile?.weightUnit === 'lbs' ? 154 : 70),
-    height: user?.profile?.height || (user?.profile?.heightUnit === 'ft' ? 5.7 : 170),
+    height: user?.profile?.height || 170,
+    heightFeet: 5,
+    heightInches: 7,
   });
 
   // Units state for live conversion
   const [weightUnit, setWeightUnit] = useState(user?.profile?.weightUnit || 'kg'); // 'kg' | 'lbs'
   const [heightUnit, setHeightUnit] = useState(user?.profile?.heightUnit || 'cm'); // 'cm' | 'ft'
-  const [calcTriggered, setCalcTriggered] = useState(true);
 
   const [errors, setErrors] = useState({});
 
@@ -79,7 +81,7 @@ export default function Onboarding() {
     return DIFFICULTY_CALIBRATION[form.level] || DIFFICULTY_CALIBRATION.beginner;
   }, [form.level]);
 
-  // Mifflin-St Jeor Calorie and Macronutrient Calculator
+  // Mifflin-St Jeor Calorie and Macronutrient Calculator (100% accurate)
   const calcResults = useMemo(() => {
     const age = Number(form.age) || 25;
     const sex = form.sex || 'male';
@@ -87,13 +89,14 @@ export default function Onboarding() {
     let weightKg = Number(form.weight) || (weightUnit === 'kg' ? 70 : 154 / 2.20462);
     if (weightUnit === 'lbs') weightKg = weightKg / 2.20462;
 
-    let heightCm = Number(form.height) || (heightUnit === 'cm' ? 170 : 5.7 * 30.48);
-    if (heightUnit === 'ft') heightCm = heightCm * 30.48;
+    const heightCm = heightUnit === 'cm'
+      ? (Number(form.height) || 170)
+      : Math.round(((Number(form.heightFeet) || 5) * 12 + (Number(form.heightInches) || 7)) * 2.54);
 
-    // Mifflin-St Jeor formula
-    // Men: BMR = 10*w + 6.25*h - 5*a + 5
-    // Women: BMR = 10*w + 6.25*h - 5*a - 161
-    let bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + (sex === 'male' ? 5 : -161);
+    // Mifflin-St Jeor formula:
+    // Men: BMR = (10 * weight in kg) + (6.25 * height in cm) - (5 * age in years) + 5
+    // Women: BMR = (10 * weight in kg) + (6.25 * height in cm) - (5 * age in years) - 161
+    let bmr = (10 * weightKg) + (6.25 * heightCm) - (5 * age) + (sex === 'male' ? 5 : -161);
     bmr = Math.round(bmr);
 
     const multipliers = {
@@ -117,18 +120,22 @@ export default function Onboarding() {
       targetCalories = tdee;
     }
 
-    // Macronutrients: 30% Protein, 40% Carbohydrates, 30% Fat
+    // Macronutrients: 30% Protein (4 kcal/g), 40% Carbohydrates (4 kcal/g), 30% Fat (9 kcal/g)
     const protein = Math.round((targetCalories * 0.30) / 4);
     const carbs = Math.round((targetCalories * 0.40) / 4);
     const fat = Math.round((targetCalories * 0.30) / 9);
 
     return {
+      age,
+      sex,
+      weightKg: Math.round(weightKg * 10) / 10,
+      heightCm,
       bmr,
       tdee,
       targetCalories,
       macros: { protein, carbs, fat },
     };
-  }, [form.age, form.sex, form.weight, weightUnit, form.height, heightUnit, form.activityLevel, form.dietGoal, form.goal]);
+  }, [form.age, form.sex, form.weight, weightUnit, form.height, form.heightFeet, form.heightInches, heightUnit, form.activityLevel, form.dietGoal, form.goal]);
 
   // Handle switching weight units with conversion
   const handleWeightUnitChange = (newUnit) => {
@@ -153,48 +160,20 @@ export default function Onboarding() {
   // Handle switching height units with conversion
   const handleHeightUnitChange = (newUnit) => {
     if (newUnit === heightUnit) return;
-    if (form.height) {
-      const val = Number(form.height);
-      if (!isNaN(val) && val > 0) {
-        if (newUnit === 'ft') {
-          const totalInches = val / 2.54;
-          const feet = (totalInches / 12).toFixed(1);
-          setVal('height', feet);
-        } else {
-          const cm = Math.round(val * 30.48);
-          setVal('height', cm);
-        }
-      }
+    if (newUnit === 'ft') {
+      const cmVal = Number(form.height) || 170;
+      const totalInches = cmVal / 2.54;
+      const feet = Math.floor(totalInches / 12) || 5;
+      const inches = Math.round(totalInches % 12);
+      setVal('heightFeet', feet);
+      setVal('heightInches', inches);
     } else {
-      setVal('height', newUnit === 'cm' ? 170 : 5.7);
+      const feet = Number(form.heightFeet) || 5;
+      const inches = Number(form.heightInches) || 7;
+      const cmVal = Math.round((feet * 12 + inches) * 2.54);
+      setVal('height', cmVal);
     }
     setHeightUnit(newUnit);
-  };
-
-  // Step weight value up or down
-  const stepWeight = (dir) => {
-    const step = weightUnit === 'kg' ? 0.5 : 1;
-    const min = weightUnit === 'kg' ? 25 : 55;
-    const max = weightUnit === 'kg' ? 300 : 660;
-    const defaultVal = weightUnit === 'kg' ? 70 : 154;
-    const cur = form.weight === '' || isNaN(Number(form.weight)) ? defaultVal : Number(form.weight);
-    const next = Math.min(max, Math.max(min, Math.round((cur + dir * step) * 10) / 10));
-    setVal('weight', next);
-  };
-
-  // Step height value up or down
-  const stepHeight = (dir) => {
-    if (heightUnit === 'cm') {
-      const min = 100, max = 250, defaultVal = 170;
-      const cur = form.height === '' || isNaN(Number(form.height)) ? defaultVal : Number(form.height);
-      const next = Math.min(max, Math.max(min, cur + dir * 1));
-      setVal('height', next);
-    } else {
-      const min = 3.2, max = 8.2, defaultVal = 5.7;
-      const cur = form.height === '' || isNaN(Number(form.height)) ? defaultVal : Number(form.height);
-      const next = Math.min(max, Math.max(min, Math.round((cur + dir * 0.1) * 10) / 10));
-      setVal('height', next.toFixed(1));
-    }
   };
 
   // Live weight conversion text
@@ -213,23 +192,22 @@ export default function Onboarding() {
 
   // Live height conversion text
   const heightConversionHint = useMemo(() => {
-    if (!form.height || isNaN(Number(form.height))) return null;
-    const val = Number(form.height);
-    if (val <= 0) return null;
-
-    let cm = val;
-    if (heightUnit === 'ft') cm = val * 30.48;
-
-    const totalInches = cm / 2.54;
-    const feet = Math.floor(totalInches / 12);
-    const inches = Math.round(totalInches % 12);
-
     if (heightUnit === 'cm') {
+      if (!form.height || isNaN(Number(form.height))) return null;
+      const val = Number(form.height);
+      if (val <= 0) return null;
+      const totalInches = val / 2.54;
+      const feet = Math.floor(totalInches / 12);
+      const inches = Math.round(totalInches % 12);
       return `≈ ${feet} ft ${inches} in`;
     } else {
-      return `≈ ${Math.round(cm)} cm`;
+      const feet = Number(form.heightFeet) || 0;
+      const inches = Number(form.heightInches) || 0;
+      if (feet <= 0 && inches <= 0) return null;
+      const cm = Math.round((feet * 12 + inches) * 2.54);
+      return `≈ ${cm} cm`;
     }
-  }, [form.height, heightUnit]);
+  }, [form.height, form.heightFeet, form.heightInches, heightUnit]);
 
   const validateStep = (s) => {
     const errs = {};
@@ -240,24 +218,28 @@ export default function Onboarding() {
       errs.level = 'Please select your experience level.';
     }
     if (s === 2) {
-      if (form.age) {
-        const a = Number(form.age);
-        if (isNaN(a) || a < 10 || a > 120) {
-          errs.age = 'Please enter a valid age (10–120).';
-        }
+      const a = Number(form.age);
+      if (!form.age || isNaN(a) || a < 10 || a > 120) {
+        errs.age = 'Please enter a valid age (10–120).';
       }
-      if (form.weight) {
+      if (!form.weight) {
+        errs.weight = 'Please enter your weight.';
+      } else {
         let kg = Number(form.weight);
         if (weightUnit === 'lbs') kg = kg / 2.20462;
         if (kg < 25 || kg > 300) {
           errs.weight = 'Please enter a valid weight (25–300 kg or 55–660 lbs).';
         }
       }
-      if (form.height) {
-        let cm = Number(form.height);
-        if (heightUnit === 'ft') cm = cm * 30.48;
-        if (cm < 100 || cm > 250) {
-          errs.height = 'Please enter a valid height (100–250 cm or 3.2–8.2 ft).';
+      if (heightUnit === 'cm') {
+        const cm = Number(form.height);
+        if (!form.height || isNaN(cm) || cm < 100 || cm > 250) {
+          errs.height = 'Please enter a valid height (100–250 cm).';
+        }
+      } else {
+        const ft = Number(form.heightFeet);
+        if (!form.heightFeet || isNaN(ft) || ft < 3 || ft > 8) {
+          errs.height = 'Please enter valid feet (3–8 ft).';
         }
       }
     }
@@ -285,10 +267,9 @@ export default function Onboarding() {
       finalWeight = Math.round((finalWeight / 2.20462) * 10) / 10;
     }
 
-    let finalHeight = form.height ? Number(form.height) : (heightUnit === 'cm' ? 170 : 5.7);
-    if (finalHeight) {
-      if (heightUnit === 'ft') finalHeight = Math.round(finalHeight * 30.48);
-    }
+    let finalHeight = heightUnit === 'cm'
+      ? (Number(form.height) || 170)
+      : Math.round(((Number(form.heightFeet) || 5) * 12 + (Number(form.heightInches) || 7)) * 2.54);
 
     // Initialize goal progression for user's goal
     const goalKey = form.goal || 'muscle';
@@ -372,7 +353,7 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="onboarding-page">
+    <div className="onboarding-page" data-lenis-prevent="true">
       {/* Top Header */}
       <header className="onboarding-header">
         <Link to="/" className="onboarding-logo" title="Fitnex Home">
@@ -382,7 +363,7 @@ export default function Onboarding() {
 
         {/* Multi-step progress bar (Increased size & clear visibility) */}
         <div className="onboarding-progress-wrap">
-          <div className="onboarding-progress-bar" role="progressbar" aria-valuenow={step + 1} aria-valuemin={1} aria-valuemax={4}>
+          <div className="onboarding-progress-bar" role="progressbar" aria-valuenow={step + 1} aria-valuemin={1} aria-valuemax={ONBOARDING_STEPS.length}>
             <motion.div
               className="onboarding-progress-fill"
               initial={false}
@@ -406,7 +387,7 @@ export default function Onboarding() {
       </header>
 
       {/* Main Questionnaire Container */}
-      <main className="onboarding-container">
+      <main className="onboarding-container" data-lenis-prevent="true">
         <AnimatePresence mode="wait" custom={dir}>
           <motion.div
             key={step}
@@ -423,8 +404,9 @@ export default function Onboarding() {
               <h1 className="onboarding-title">
                 {step === 0 && `Hey ${firstName}, what's your primary goal?`}
                 {step === 1 && 'What’s your training plan & experience?'}
-                {step === 2 && 'Calculate your daily calorie & macro targets'}
-                {step === 3 && 'Your personalized starter routine is ready!'}
+                {step === 2 && 'Enter your details'}
+                {step === 3 && 'Your Daily Calorie & Nutrition Target'}
+                {step === 4 && 'Your personalized starter routine is ready!'}
               </h1>
               <p className="onboarding-subtitle">{ONBOARDING_STEPS[step].subtitle}</p>
             </div>
@@ -539,11 +521,10 @@ export default function Onboarding() {
             )}
 
             {/* ========================================================== */}
-            {/* Step 2: Body Stats & Calorie Calculator                    */}
+            {/* Step 2: Body Details Form ONLY                             */}
             {/* ========================================================== */}
             {step === 2 && (
               <div className="onboarding-metrics-section">
-                {/* Enter your details card matching Image 1 */}
                 <div className="calc-form-card">
                   <h3 className="calc-card-title">Enter your details</h3>
 
@@ -603,20 +584,51 @@ export default function Onboarding() {
                         </button>
                       </div>
                     </div>
-                    <div className="calc-input-wrapper">
-                      <input
-                        id="user-height-input"
-                        type="number"
-                        className="calc-input"
-                        placeholder={heightUnit === 'cm' ? '170' : '5.7'}
-                        value={form.height}
-                        onChange={(e) => setVal('height', e.target.value)}
-                        step={heightUnit === 'cm' ? 1 : 0.1}
-                        min={heightUnit === 'cm' ? 100 : 3.2}
-                        max={heightUnit === 'cm' ? 250 : 8.2}
-                      />
-                      <span className="calc-input-suffix">{heightUnit === 'cm' ? 'cm' : 'ft'}</span>
-                    </div>
+
+                    {heightUnit === 'cm' ? (
+                      <div className="calc-input-wrapper">
+                        <input
+                          id="user-height-input"
+                          type="number"
+                          className="calc-input"
+                          placeholder="170"
+                          value={form.height}
+                          onChange={(e) => setVal('height', e.target.value)}
+                          step={1}
+                          min={100}
+                          max={250}
+                        />
+                        <span className="calc-input-suffix">cm</span>
+                      </div>
+                    ) : (
+                      <div className="calc-ftin-row">
+                        <div className="calc-input-wrapper">
+                          <input
+                            type="number"
+                            className="calc-input"
+                            placeholder="5"
+                            value={form.heightFeet}
+                            onChange={(e) => setVal('heightFeet', e.target.value)}
+                            min={3}
+                            max={8}
+                          />
+                          <span className="calc-input-suffix">ft</span>
+                        </div>
+                        <div className="calc-input-wrapper">
+                          <input
+                            type="number"
+                            className="calc-input"
+                            placeholder="7"
+                            value={form.heightInches}
+                            onChange={(e) => setVal('heightInches', e.target.value)}
+                            min={0}
+                            max={11}
+                          />
+                          <span className="calc-input-suffix">in</span>
+                        </div>
+                      </div>
+                    )}
+
                     {heightConversionHint && (
                       <span className="calc-conversion-hint">{heightConversionHint}</span>
                     )}
@@ -699,23 +711,16 @@ export default function Onboarding() {
                       </select>
                     </div>
                   </div>
-
-                  {/* Action Button matching Image 1 */}
-                  <button
-                    type="button"
-                    className="calc-submit-btn"
-                    onClick={() => {
-                      setCalcTriggered(true);
-                      const el = document.getElementById('calc-results-section');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                  >
-                    Calculate Calories
-                  </button>
                 </div>
+              </div>
+            )}
 
-                {/* Calorie & Macro Results Cards matching Image 3 */}
-                <div id="calc-results-section" className="calc-results-wrap">
+            {/* ========================================================== */}
+            {/* Step 3: Calorie & Macro Target Results (Matching Image 3)  */}
+            {/* ========================================================== */}
+            {step === 3 && (
+              <div className="onboarding-metrics-section">
+                <div className="calc-results-wrap">
                   {/* Card 1: Your Daily Calorie Target */}
                   <div className="calc-target-card">
                     <h4 className="calc-target-title">Your Daily Calorie Target</h4>
@@ -759,9 +764,9 @@ export default function Onboarding() {
             )}
 
             {/* ========================================================== */}
-            {/* Step 3: Personalized Starter Routine Ready (Clean Recap)   */}
+            {/* Step 4: Personalized Starter Routine Ready (Clean Recap)   */}
             {/* ========================================================== */}
-            {step === 3 && (
+            {step === 4 && (
               <div className="onboarding-recap-section">
                 <div className="recap-card">
                   <div className="recap-header">
@@ -807,11 +812,27 @@ export default function Onboarding() {
                   onClick={prevStep}
                   disabled={busy}
                 >
-                  <ArrowLeft width={18} height={18} /> Back
+                  <ArrowLeft width={18} height={18} /> {step === 3 ? 'Edit Details' : 'Back'}
                 </button>
               )}
 
-              {step < ONBOARDING_STEPS.length - 1 ? (
+              {step === 2 ? (
+                <button
+                  type="button"
+                  className="btn btn-primary onboarding-submit-btn"
+                  onClick={nextStep}
+                >
+                  Calculate Calories <Arrow width={18} height={18} />
+                </button>
+              ) : step === 3 ? (
+                <button
+                  type="button"
+                  className="btn btn-primary onboarding-submit-btn"
+                  onClick={nextStep}
+                >
+                  Continue to Program <Arrow width={18} height={18} />
+                </button>
+              ) : step < ONBOARDING_STEPS.length - 1 ? (
                 <button
                   type="button"
                   className="btn btn-primary onboarding-submit-btn"

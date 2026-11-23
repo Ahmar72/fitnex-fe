@@ -3,15 +3,13 @@
    ========================================================================== */
 
 .onboarding-page {
-  height: 100vh;
-  max-height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   background: var(--bg);
   color: var(--text);
   position: relative;
   overflow-x: hidden;
-  overflow-y: auto;
 }
 
 /* Universal pointer for all clickable buttons and interactive items */
@@ -138,24 +136,27 @@
   z-index: 1;
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: clamp(6px, 1.4vh, 16px) clamp(14px, 2.5vw, 24px);
-  min-height: 0;
+  justify-content: flex-start;
+  padding: clamp(24px, 4vw, 44px) clamp(16px, 3vw, 28px) 60px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .onboarding-step-card {
   width: 100%;
-  max-width: 740px;
+  max-width: 680px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: clamp(8px, 1.3vh, 14px);
+  gap: 18px;
   transition: max-width 0.3s ease;
 }
 
 /* Expand step 0 so 4 goal cards fit side by side in one line */
 .onboarding-step-card.step-0 {
-  max-width: 980px;
+  max-width: 1040px;
 }
 
 /* Heading */
@@ -466,33 +467,33 @@
 }
 
 /* --------------------------------------------------------------------------
-   Step 2: Calorie & Macro Calculator (Matching Reference Screenshots)
+   Step 2: Body Details Form & Step 3: Calorie & Macro Target Results
+   (Styled strictly with Fitnex original design tokens and theme)
    -------------------------------------------------------------------------- */
 .onboarding-metrics-section {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 600px;
-  margin: 0 auto;
   width: 100%;
 }
 
 .calc-form-card {
   background: var(--surface);
   border: 1.5px solid var(--line);
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  border-radius: 18px;
+  padding: clamp(20px, 3.5vw, 28px);
+  box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .calc-card-title {
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-family: var(--display);
+  font-size: 1.25rem;
+  font-weight: 800;
   color: var(--text);
-  margin: 0 0 4px;
+  margin: 0;
 }
 
 .calc-grid-2col {
@@ -514,58 +515,61 @@
 }
 
 .calc-field-label {
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--text);
+  text-transform: capitalize;
 }
 
 .calc-unit-toggle {
   display: inline-flex;
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 2px;
   gap: 2px;
 }
 
 .calc-unit-btn {
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 9px;
+  border-radius: 6px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   border: none;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s var(--ease);
+}
+
+.calc-unit-btn:hover {
+  color: var(--text);
 }
 
 .calc-unit-btn.active {
-  background: #252836;
-  color: #ffffff;
-}
-
-[data-theme='dark'] .calc-unit-btn.active {
   background: var(--accent);
   color: var(--accent-ink);
+  box-shadow: 0 2px 6px var(--accent-glow);
 }
 
 .calc-input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
+  flex: 1;
 }
 
 .calc-input,
 .calc-select {
   width: 100%;
-  height: 42px;
-  padding: 0 36px 0 14px;
+  height: 44px;
+  padding: 0 42px 0 14px;
   border: 1.5px solid var(--line-2);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--surface-2);
   color: var(--text);
   font-size: 14px;
+  font-weight: 600;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
   box-sizing: border-box;
@@ -585,10 +589,17 @@
 .calc-input-suffix {
   position: absolute;
   right: 14px;
-  font-size: 12.5px;
-  color: var(--muted);
-  font-weight: 600;
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 800;
+  text-transform: uppercase;
   pointer-events: none;
+}
+
+.calc-ftin-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .calc-conversion-hint {
@@ -597,130 +608,127 @@
   margin-top: 2px;
 }
 
-.calc-submit-btn {
-  width: 100%;
-  height: 46px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #e4729f 0%, #db2777 100%);
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
-  margin-top: 6px;
-  transition: transform 0.15s, opacity 0.2s;
-  box-shadow: 0 4px 14px rgba(219, 39, 119, 0.25);
-}
-
-.calc-submit-btn:hover {
-  opacity: 0.95;
-  transform: translateY(-1px);
-}
-
-/* Results section matching Image 3 */
+/* Results section matching Image 3 (Original Fitnex Theme) */
 .calc-results-wrap {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+  width: 100%;
 }
 
 .calc-target-card {
   background: var(--surface);
   border: 1.5px solid var(--line);
-  border-left: 5px solid #3b82f6;
-  border-radius: 12px;
-  padding: 22px 24px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+  border-left: 5px solid var(--accent);
+  border-radius: 18px;
+  padding: 24px 28px;
+  box-shadow: var(--card-shadow);
 }
 
 .calc-target-title {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
   color: var(--text);
-  margin: 0 0 10px;
+  margin: 0 0 12px;
 }
 
 .calc-target-number-row {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .calc-target-number {
-  font-size: 38px;
-  font-weight: 800;
+  font-size: clamp(38px, 5vw, 46px);
+  font-weight: 900;
   color: var(--text);
   line-height: 1;
   font-family: var(--display);
+  letter-spacing: -0.02em;
 }
 
 .calc-target-badge {
-  background: rgba(59, 130, 246, 0.12);
-  color: #3b82f6;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-glow);
   padding: 4px 12px;
   border-radius: 999px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .calc-target-meta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 
 .calc-meta-line {
-  font-size: 13.5px;
-  color: var(--text);
+  font-size: 14px;
+  color: var(--muted);
   margin: 0;
+}
+
+.calc-meta-line strong {
+  color: var(--text);
+  font-weight: 800;
 }
 
 .calc-macros-card {
   background: var(--surface);
   border: 1.5px solid var(--line);
-  border-radius: 12px;
-  padding: 22px 24px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
+  border-radius: 18px;
+  padding: 24px 28px;
+  box-shadow: var(--card-shadow);
 }
 
 .calc-macros-title {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
   color: var(--text);
-  margin: 0 0 14px;
+  margin: 0 0 16px;
 }
 
 .calc-macros-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
 .calc-macro-box {
   background: var(--surface-2);
   border: 1.5px solid var(--line-2);
-  border-radius: 10px;
-  padding: 16px 8px;
+  border-radius: 14px;
+  padding: 18px 12px;
   text-align: center;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.calc-macro-box:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
 }
 
 .calc-macro-val {
-  font-size: 24px;
-  font-weight: 800;
+  font-size: clamp(24px, 3.2vw, 30px);
+  font-weight: 900;
   color: var(--text);
   line-height: 1.1;
   font-family: var(--display);
 }
 
 .calc-macro-label {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--muted);
-  font-weight: 600;
+  font-weight: 700;
+  text-transform: capitalize;
 }
 
 .calc-macros-disclaimer {
