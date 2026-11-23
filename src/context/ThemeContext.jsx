@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 
 const ThemeContext = createContext(null);
 const THEME_KEY = 'fx:theme';
@@ -14,7 +14,14 @@ export function ThemeProvider({ children }) {
     }
   });
 
+  const currentThemeRef = useRef(theme);
+  const isTransitioningRef = useRef(false);
+  const pendingThemeRef = useRef(null);
+  const activeAnimRef = useRef(null);
+  const lastToggleTimeRef = useRef(0);
+
   useEffect(() => {
+    currentThemeRef.current = theme;
     try {
       document.documentElement.setAttribute('data-theme', theme);
       localStorage.setItem(THEME_KEY, theme);
@@ -23,8 +30,9 @@ export function ThemeProvider({ children }) {
     }
   }, [theme]);
 
-  const toggleTheme = (e) => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+  const applyThemeWithTransition = (nextTheme, e) => {
+    isTransitioningRef.current = true;
+    currentThemeRef.current = nextTheme;
 
     // If View Transitions API is supported, animate using circular reveal clip-path
     if (
@@ -42,36 +50,77 @@ export function ThemeProvider({ children }) {
         Math.max(y, window.innerHeight - y)
       );
 
-      document.documentElement.classList.add('theme-transitioning');
-
-      const transition = document.startViewTransition(() => {
+      let transition;
+      try {
+        transition = document.startViewTransition(() => {
+          setTheme(nextTheme);
+          document.documentElement.setAttribute('data-theme', nextTheme);
+          try {
+            localStorage.setItem(THEME_KEY, nextTheme);
+          } catch {}
+        });
+      } catch (err) {
         setTheme(nextTheme);
         document.documentElement.setAttribute('data-theme', nextTheme);
         try {
           localStorage.setItem(THEME_KEY, nextTheme);
         } catch {}
-      });
+        isTransitioningRef.current = false;
+        return;
+      }
 
-      transition.ready.then(() => {
-        const clipPath = [
-          `circle(0px at ${x}px ${y}px)`,
-          `circle(${endRadius}px at ${x}px ${y}px)`,
-        ];
-        document.documentElement.animate(
-          {
-            clipPath: clipPath,
-          },
-          {
-            duration: 520,
-            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-            pseudoElement: '::view-transition-new(root)',
+      transition.ready
+        .then(() => {
+          try {
+            const clipPath = [
+              `circle(0px at ${x}px ${y}px)`,
+              `circle(${endRadius}px at ${x}px ${y}px)`,
+            ];
+            const anim = document.documentElement.animate(
+              {
+                clipPath: clipPath,
+              },
+              {
+                duration: 440,
+                easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                pseudoElement: '::view-transition-new(root)',
+              }
+            );
+            activeAnimRef.current = anim;
+            anim.onfinish = () => {
+              activeAnimRef.current = null;
+            };
+            anim.oncancel = () => {
+              activeAnimRef.current = null;
+            };
+          } catch (animErr) {
+            // Silently ignore if pseudo-element was removed
           }
-        );
-      });
+        })
+        .catch(() => {
+          // Gracefully catch AbortError if transition was aborted
+        });
 
-      transition.finished.finally(() => {
-        document.documentElement.classList.remove('theme-transitioning');
-      });
+      transition.finished
+        .catch(() => {})
+        .finally(() => {
+          if (activeAnimRef.current) {
+            try {
+              activeAnimRef.current.cancel();
+            } catch {}
+            activeAnimRef.current = null;
+          }
+          isTransitioningRef.current = false;
+
+          // If another toggle occurred while transitioning, execute the queued theme change
+          if (pendingThemeRef.current && pendingThemeRef.current !== currentThemeRef.current) {
+            const queued = pendingThemeRef.current;
+            pendingThemeRef.current = null;
+            applyThemeWithTransition(queued, null);
+          } else {
+            pendingThemeRef.current = null;
+          }
+        });
     } else {
       // Smooth CSS transition fallback
       document.documentElement.classList.add('theme-transitioning');
@@ -82,13 +131,45 @@ export function ThemeProvider({ children }) {
       } catch {}
       setTimeout(() => {
         document.documentElement.classList.remove('theme-transitioning');
-      }, 550);
+        isTransitioningRef.current = false;
+        if (pendingThemeRef.current && pendingThemeRef.current !== currentThemeRef.current) {
+          const queued = pendingThemeRef.current;
+          pendingThemeRef.current = null;
+          applyThemeWithTransition(queued, null);
+        } else {
+          pendingThemeRef.current = null;
+        }
+      }, 440);
     }
+  };
+
+  const toggleTheme = (e) => {
+    // Prevent ultra-rapid re-triggering under 100ms
+    const now = performance.now();
+    if (now - lastToggleTimeRef.current < 100) {
+      return;
+    }
+    lastToggleTimeRef.current = now;
+
+    const baseTheme = pendingThemeRef.current || currentThemeRef.current;
+    const nextTheme = baseTheme === 'dark' ? 'light' : 'dark';
+
+    // If an animation/transition is already running, queue the desired final state
+    // so we never create overlapping view transitions that crash Chromium
+    if (isTransitioningRef.current) {
+      pendingThemeRef.current = nextTheme;
+      return;
+    }
+
+    applyThemeWithTransition(nextTheme, e);
   };
 
   // Global 'd' keyboard shortcut to toggle dark/light mode with animation
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Never switch themes if key is repeating (held down)
+      if (e.repeat) return;
+
       // Never switch themes if user is typing in ANY field in the system
       const isInputLike = (el) => {
         if (!el || typeof el.getAttribute !== 'function') return false;
@@ -114,11 +195,14 @@ export function ThemeProvider({ children }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [theme]);
+  }, []);
 
   const value = {
     theme,
-    setTheme,
+    setTheme: (newTheme) => {
+      currentThemeRef.current = newTheme;
+      setTheme(newTheme);
+    },
     toggleTheme,
     isDark: theme === 'dark',
     isLight: theme === 'light',

@@ -339,13 +339,17 @@ body::after {
 
 /* Global CSS smooth transition fallback */
 html.theme-transitioning,
-html.theme-transitioning *,
-html.theme-transitioning *:before,
-html.theme-transitioning *:after {
-  transition: background-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-              border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-              color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-              box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1) !important;
+html.theme-transitioning body,
+html.theme-transitioning .app-layout,
+html.theme-transitioning .sidebar,
+html.theme-transitioning .header,
+html.theme-transitioning .card,
+html.theme-transitioning .panel,
+html.theme-transitioning .paper {
+  transition: background-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              color 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1) !important;
   transition-delay: 0s !important;
 }
 
