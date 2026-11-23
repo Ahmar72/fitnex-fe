@@ -750,12 +750,9 @@ export default function Builder() {
             {/* WIDE QUICK ADD CARD - Placed widely right under the start workout button & title */}
             <div className="card builder-quick-add-card">
               <div className="quick-add-card-header">
-                <div className="quick-add-eyebrow-wrap">
-                  <span className="quick-add-indicator-dot" />
-                  <h4 className="eyebrow" style={{ margin: 0 }}>
-                    {t('builder.quick_add', 'Quick add')}
-                  </h4>
-                </div>
+                <h4 className="quick-add-title">
+                  {t('builder.quick_add', 'Quick add')}
+                </h4>
                 <span className="quick-add-hint">
                   {q ? `${matches.length} matches` : 'Type to search exercises'}
                 </span>
