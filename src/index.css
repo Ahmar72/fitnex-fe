@@ -1146,8 +1146,11 @@ select.input option { background: var(--surface); }
 .search {
   position: relative;
   flex: 1 1 260px;
+  display: flex;
+  align-items: center;
 }
-.search svg {
+.search > svg,
+.search .search-icon {
   position: absolute;
   left: 14px;
   top: 50%;
@@ -1155,16 +1158,19 @@ select.input option { background: var(--surface); }
   width: 15px;
   height: 15px;
   color: var(--accent);
+  pointer-events: none;
 }
 .search .input {
   height: 42px;
   padding-left: 40px;
+  padding-right: 38px;
   border-radius: 10px;
   background: var(--surface-2);
   border: 1px solid var(--line-2);
   font-size: 13px;
   color: var(--text);
   transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
 }
 .search .input:focus {
   border-color: var(--accent);
@@ -1180,25 +1186,71 @@ select.input option { background: var(--surface); }
   border: 1px solid var(--line-2);
   border-radius: 4px;
   padding: 1px 5px;
+  pointer-events: none;
+}
+.search .search-clear-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+  z-index: 2;
+}
+.search .search-clear-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.search .search-clear-btn svg {
+  position: static !important;
+  transform: none !important;
+  left: auto !important;
+  top: auto !important;
+  width: 12px !important;
+  height: 12px !important;
+  color: inherit !important;
+  display: block;
 }
 .toolbar select.input {
-  flex: 0 1 180px;
+  flex: 0 1 190px;
   height: 42px;
   border-radius: 10px;
-  background: var(--surface-2);
+  background-color: var(--surface-2);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23ff5e1a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: calc(100% - 12px) center;
+  background-size: 12px;
+  padding: 0 32px 0 14px;
   border: 1px solid var(--line-2);
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
-  padding: 0 12px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .toolbar select.input:hover {
-  border-color: var(--line);
+  border-color: var(--accent);
 }
 .toolbar select.input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
+  outline: none;
 }
 
 /* ONE Master White Card containing all exercises, results header & pagination */

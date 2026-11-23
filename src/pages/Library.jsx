@@ -203,10 +203,12 @@ export default function Library() {
         <div className="toolbar">
           <div className="toolbar-row">
             <label className="search">
-              <Search />
+              <Search className="search-icon" />
               <input ref={input} className="input" placeholder={t('lib.search_placeholder', 'Search exercises, muscles, equipment…')} value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search exercises" />
               {query ? (
-                <button className="kbd" onClick={() => setQuery('')} aria-label="Clear search" style={{ display: 'grid', placeItems: 'center' }}><X width={12} height={12} /></button>
+                <button type="button" className="search-clear-btn" onClick={() => setQuery('')} aria-label="Clear search">
+                  <X width={13} height={13} />
+                </button>
               ) : (
                 <span className="kbd">/</span>
               )}

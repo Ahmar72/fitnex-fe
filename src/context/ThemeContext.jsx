@@ -89,15 +89,24 @@ export function ThemeProvider({ children }) {
   // Global 'd' keyboard shortcut to toggle dark/light mode with animation
   useEffect(() => {
     const handleKeyDown = (e) => {
-      const tag = document.activeElement?.tagName?.toLowerCase();
+      // Never switch themes if user is typing in ANY field in the system
+      const isInputLike = (el) => {
+        if (!el || typeof el.getAttribute !== 'function') return false;
+        const tag = el.tagName?.toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+        if (el.isContentEditable || el.getAttribute('contenteditable') === 'true') return true;
+        if (el.getAttribute('role') === 'textbox' || el.getAttribute('role') === 'searchbox') return true;
+        return !!el.closest?.('input, textarea, select, [contenteditable="true"], [role="textbox"], [role="searchbox"], .search, label');
+      };
+
       if (
-        tag === 'input' ||
-        tag === 'textarea' ||
-        tag === 'select' ||
-        document.activeElement?.isContentEditable
+        isInputLike(e.target) ||
+        isInputLike(document.activeElement) ||
+        (e.composedPath && e.composedPath().some(isInputLike))
       ) {
         return;
       }
+
       if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         toggleTheme(e);
