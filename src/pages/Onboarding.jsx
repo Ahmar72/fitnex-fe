@@ -15,8 +15,8 @@ const ease = [0.22, 1, 0.36, 1];
 const ONBOARDING_STEPS = [
   { id: 'goal', title: 'Main Goal', subtitle: 'What are you training for?' },
   { id: 'plan', title: 'Your Routine', subtitle: 'Experience level & weekly schedule' },
-  { id: 'metrics', title: 'Body Stats', subtitle: 'Calibrate starting volume and stats' },
-  { id: 'ready', title: 'Your Program', subtitle: 'Your personalized starter routine is ready' },
+  { id: 'metrics', title: 'Body & Nutrition', subtitle: 'Calculate your daily calorie target & macros' },
+  { id: 'ready', title: 'Your Program', subtitle: 'Your personalized starter routine and calorie target are ready' },
 ];
 
 const GOAL_ICONS = {
@@ -42,13 +42,18 @@ export default function Onboarding() {
     planId: DEFAULT_PLAN_BY_GOAL?.[user?.profile?.goal || 'muscle'] || 'muscle-building',
     level: user?.profile?.level || 'beginner',
     days: user?.profile?.days || 3,
-    weight: user?.profile?.weight || '',
-    height: user?.profile?.height || '',
+    age: user?.profile?.age || 25,
+    sex: user?.profile?.sex || 'male',
+    activityLevel: user?.profile?.activityLevel || 'moderate',
+    dietGoal: user?.profile?.dietGoal || (user?.profile?.goal === 'fat' ? 'loss' : user?.profile?.goal === 'muscle' || user?.profile?.goal === 'strength' ? 'gain' : 'maintain'),
+    weight: user?.profile?.weight || (user?.profile?.weightUnit === 'lbs' ? 154 : 70),
+    height: user?.profile?.height || (user?.profile?.heightUnit === 'ft' ? 5.7 : 170),
   });
 
   // Units state for live conversion
-  const [weightUnit, setWeightUnit] = useState('kg'); // 'kg' | 'lbs'
-  const [heightUnit, setHeightUnit] = useState('cm'); // 'cm' | 'ft' | 'm'
+  const [weightUnit, setWeightUnit] = useState(user?.profile?.weightUnit || 'kg'); // 'kg' | 'lbs'
+  const [heightUnit, setHeightUnit] = useState(user?.profile?.heightUnit || 'cm'); // 'cm' | 'ft'
+  const [calcTriggered, setCalcTriggered] = useState(true);
 
   const [errors, setErrors] = useState({});
 
@@ -61,6 +66,8 @@ export default function Onboarding() {
 
   const handleSelectGoal = (goalKey) => {
     setVal('goal', goalKey);
+    const defaultDietGoal = goalKey === 'fat' ? 'loss' : goalKey === 'muscle' || goalKey === 'strength' ? 'gain' : 'maintain';
+    setVal('dietGoal', defaultDietGoal);
   };
 
   // Resolved tailored goal program for user
@@ -72,6 +79,57 @@ export default function Onboarding() {
     return DIFFICULTY_CALIBRATION[form.level] || DIFFICULTY_CALIBRATION.beginner;
   }, [form.level]);
 
+  // Mifflin-St Jeor Calorie and Macronutrient Calculator
+  const calcResults = useMemo(() => {
+    const age = Number(form.age) || 25;
+    const sex = form.sex || 'male';
+
+    let weightKg = Number(form.weight) || (weightUnit === 'kg' ? 70 : 154 / 2.20462);
+    if (weightUnit === 'lbs') weightKg = weightKg / 2.20462;
+
+    let heightCm = Number(form.height) || (heightUnit === 'cm' ? 170 : 5.7 * 30.48);
+    if (heightUnit === 'ft') heightCm = heightCm * 30.48;
+
+    // Mifflin-St Jeor formula
+    // Men: BMR = 10*w + 6.25*h - 5*a + 5
+    // Women: BMR = 10*w + 6.25*h - 5*a - 161
+    let bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + (sex === 'male' ? 5 : -161);
+    bmr = Math.round(bmr);
+
+    const multipliers = {
+      sedentary: 1.2,
+      light: 1.375,
+      moderate: 1.55,
+      very_active: 1.725,
+      extra_active: 1.9,
+    };
+    const mult = multipliers[form.activityLevel] || 1.55;
+    const tdee = Math.round(bmr * mult);
+
+    let targetCalories = tdee;
+    const dietGoal = form.dietGoal || (form.goal === 'fat' ? 'loss' : form.goal === 'muscle' || form.goal === 'strength' ? 'gain' : 'maintain');
+
+    if (dietGoal === 'loss') {
+      targetCalories = Math.max(1200, Math.round(tdee - 500));
+    } else if (dietGoal === 'gain') {
+      targetCalories = Math.round(tdee + 350);
+    } else {
+      targetCalories = tdee;
+    }
+
+    // Macronutrients: 30% Protein, 40% Carbohydrates, 30% Fat
+    const protein = Math.round((targetCalories * 0.30) / 4);
+    const carbs = Math.round((targetCalories * 0.40) / 4);
+    const fat = Math.round((targetCalories * 0.30) / 9);
+
+    return {
+      bmr,
+      tdee,
+      targetCalories,
+      macros: { protein, carbs, fat },
+    };
+  }, [form.age, form.sex, form.weight, weightUnit, form.height, heightUnit, form.activityLevel, form.dietGoal, form.goal]);
+
   // Handle switching weight units with conversion
   const handleWeightUnitChange = (newUnit) => {
     if (newUnit === weightUnit) return;
@@ -80,12 +138,14 @@ export default function Onboarding() {
       if (!isNaN(val) && val > 0) {
         if (newUnit === 'lbs') {
           // kg to lbs
-          setVal('weight', (val * 2.20462).toFixed(1));
+          setVal('weight', Math.round(val * 2.20462));
         } else {
           // lbs to kg
-          setVal('weight', (val / 2.20462).toFixed(1));
+          setVal('weight', Math.round(val / 2.20462));
         }
       }
+    } else {
+      setVal('weight', newUnit === 'kg' ? 70 : 154);
     }
     setWeightUnit(newUnit);
   };
@@ -96,21 +156,17 @@ export default function Onboarding() {
     if (form.height) {
       const val = Number(form.height);
       if (!isNaN(val) && val > 0) {
-        // Convert to cm first
-        let inCm = val;
-        if (heightUnit === 'm') inCm = val * 100;
-        else if (heightUnit === 'ft') inCm = val * 30.48;
-
-        if (newUnit === 'cm') {
-          setVal('height', Math.round(inCm));
-        } else if (newUnit === 'm') {
-          setVal('height', (inCm / 100).toFixed(2));
-        } else if (newUnit === 'ft') {
-          const totalInches = inCm / 2.54;
+        if (newUnit === 'ft') {
+          const totalInches = val / 2.54;
           const feet = (totalInches / 12).toFixed(1);
           setVal('height', feet);
+        } else {
+          const cm = Math.round(val * 30.48);
+          setVal('height', cm);
         }
       }
+    } else {
+      setVal('height', newUnit === 'cm' ? 170 : 5.7);
     }
     setHeightUnit(newUnit);
   };
@@ -120,7 +176,7 @@ export default function Onboarding() {
     const step = weightUnit === 'kg' ? 0.5 : 1;
     const min = weightUnit === 'kg' ? 25 : 55;
     const max = weightUnit === 'kg' ? 300 : 660;
-    const defaultVal = weightUnit === 'kg' ? 75 : 165;
+    const defaultVal = weightUnit === 'kg' ? 70 : 154;
     const cur = form.weight === '' || isNaN(Number(form.weight)) ? defaultVal : Number(form.weight);
     const next = Math.min(max, Math.max(min, Math.round((cur + dir * step) * 10) / 10));
     setVal('weight', next);
@@ -129,17 +185,12 @@ export default function Onboarding() {
   // Step height value up or down
   const stepHeight = (dir) => {
     if (heightUnit === 'cm') {
-      const min = 100, max = 250, defaultVal = 180;
+      const min = 100, max = 250, defaultVal = 170;
       const cur = form.height === '' || isNaN(Number(form.height)) ? defaultVal : Number(form.height);
       const next = Math.min(max, Math.max(min, cur + dir * 1));
       setVal('height', next);
-    } else if (heightUnit === 'm') {
-      const min = 1.0, max = 2.5, defaultVal = 1.80;
-      const cur = form.height === '' || isNaN(Number(form.height)) ? defaultVal : Number(form.height);
-      const next = Math.min(max, Math.max(min, Math.round((cur + dir * 0.01) * 100) / 100));
-      setVal('height', next.toFixed(2));
     } else {
-      const min = 3.2, max = 8.2, defaultVal = 5.9;
+      const min = 3.2, max = 8.2, defaultVal = 5.7;
       const cur = form.height === '' || isNaN(Number(form.height)) ? defaultVal : Number(form.height);
       const next = Math.min(max, Math.max(min, Math.round((cur + dir * 0.1) * 10) / 10));
       setVal('height', next.toFixed(1));
@@ -152,35 +203,31 @@ export default function Onboarding() {
     const val = Number(form.weight);
     if (val <= 0) return null;
     if (weightUnit === 'kg') {
-      const inLbs = (val * 2.20462).toFixed(1);
+      const inLbs = Math.round(val * 2.20462);
       return `≈ ${inLbs} lbs`;
     } else {
-      const inKg = (val / 2.20462).toFixed(1);
+      const inKg = Math.round(val / 2.20462);
       return `≈ ${inKg} kg`;
     }
   }, [form.weight, weightUnit]);
 
-  // Live height conversion text (always includes feet and inches)
+  // Live height conversion text
   const heightConversionHint = useMemo(() => {
     if (!form.height || isNaN(Number(form.height))) return null;
     const val = Number(form.height);
     if (val <= 0) return null;
 
     let cm = val;
-    if (heightUnit === 'm') cm = val * 100;
-    else if (heightUnit === 'ft') cm = val * 30.48;
+    if (heightUnit === 'ft') cm = val * 30.48;
 
     const totalInches = cm / 2.54;
     const feet = Math.floor(totalInches / 12);
     const inches = Math.round(totalInches % 12);
-    const meters = (cm / 100).toFixed(2);
 
     if (heightUnit === 'cm') {
-      return `≈ ${feet} ft ${inches} in (${meters} m)`;
-    } else if (heightUnit === 'm') {
-      return `≈ ${feet} ft ${inches} in (${Math.round(cm)} cm)`;
+      return `≈ ${feet} ft ${inches} in`;
     } else {
-      return `≈ ${feet} ft ${inches} in (${Math.round(cm)} cm · ${meters} m)`;
+      return `≈ ${Math.round(cm)} cm`;
     }
   }, [form.height, heightUnit]);
 
@@ -193,6 +240,12 @@ export default function Onboarding() {
       errs.level = 'Please select your experience level.';
     }
     if (s === 2) {
+      if (form.age) {
+        const a = Number(form.age);
+        if (isNaN(a) || a < 10 || a > 120) {
+          errs.age = 'Please enter a valid age (10–120).';
+        }
+      }
       if (form.weight) {
         let kg = Number(form.weight);
         if (weightUnit === 'lbs') kg = kg / 2.20462;
@@ -202,10 +255,9 @@ export default function Onboarding() {
       }
       if (form.height) {
         let cm = Number(form.height);
-        if (heightUnit === 'm') cm = cm * 100;
         if (heightUnit === 'ft') cm = cm * 30.48;
         if (cm < 100 || cm > 250) {
-          errs.height = 'Please enter a valid height (100–250 cm).';
+          errs.height = 'Please enter a valid height (100–250 cm or 3.2–8.2 ft).';
         }
       }
     }
@@ -228,15 +280,14 @@ export default function Onboarding() {
     setBusy(true);
 
     // Normalize weight/height to standard kg / cm for storage
-    let finalWeight = form.weight ? Number(form.weight) : null;
+    let finalWeight = form.weight ? Number(form.weight) : (weightUnit === 'kg' ? 70 : 154);
     if (finalWeight && weightUnit === 'lbs') {
       finalWeight = Math.round((finalWeight / 2.20462) * 10) / 10;
     }
 
-    let finalHeight = form.height ? Number(form.height) : null;
+    let finalHeight = form.height ? Number(form.height) : (heightUnit === 'cm' ? 170 : 5.7);
     if (finalHeight) {
-      if (heightUnit === 'm') finalHeight = Math.round(finalHeight * 100);
-      else if (heightUnit === 'ft') finalHeight = Math.round(finalHeight * 30.48);
+      if (heightUnit === 'ft') finalHeight = Math.round(finalHeight * 30.48);
     }
 
     // Initialize goal progression for user's goal
@@ -256,16 +307,24 @@ export default function Onboarding() {
       goal: goalKey,
       level: form.level || 'beginner',
       days: Number(form.days) || 3,
+      age: Number(form.age) || 25,
+      sex: form.sex || 'male',
+      activityLevel: form.activityLevel || 'moderate',
+      dietGoal: form.dietGoal || (goalKey === 'fat' ? 'loss' : goalKey === 'muscle' || goalKey === 'strength' ? 'gain' : 'maintain'),
       weight: finalWeight,
       height: finalHeight,
       weightUnit,
       heightUnit,
+      bmr: calcResults.bmr,
+      tdee: calcResults.tdee,
+      calorieTarget: calcResults.targetCalories,
+      macros: calcResults.macros,
       onboardingComplete: true,
     };
 
     updateUser({ profile: profileData });
 
-    toast(`Welcome aboard, ${firstName}! Your personalized ${tailoredProgram.name} is ready on your dashboard.`, 'bolt');
+    toast(`Welcome aboard, ${firstName}! Your personalized ${tailoredProgram.name} and calorie target are ready.`, 'bolt');
     navigate('/dashboard', { replace: true });
   };
 
@@ -287,10 +346,18 @@ export default function Onboarding() {
         goal: goalKey,
         level: 'beginner',
         days: 3,
-        weight: null,
-        height: null,
+        age: 25,
+        sex: 'male',
+        activityLevel: 'moderate',
+        dietGoal: 'gain',
+        weight: 70,
+        height: 170,
         weightUnit: 'kg',
         heightUnit: 'cm',
+        bmr: 1643,
+        tdee: 2547,
+        calorieTarget: 2897,
+        macros: { protein: 217, carbs: 290, fat: 97 },
         onboardingComplete: true,
       },
     });
@@ -356,7 +423,7 @@ export default function Onboarding() {
               <h1 className="onboarding-title">
                 {step === 0 && `Hey ${firstName}, what's your primary goal?`}
                 {step === 1 && 'What’s your training plan & experience?'}
-                {step === 2 && 'What are your body metrics?'}
+                {step === 2 && 'Calculate your daily calorie & macro targets'}
                 {step === 3 && 'Your personalized starter routine is ready!'}
               </h1>
               <p className="onboarding-subtitle">{ONBOARDING_STEPS[step].subtitle}</p>
@@ -472,146 +539,220 @@ export default function Onboarding() {
             )}
 
             {/* ========================================================== */}
-            {/* Step 2: Body Metrics (Clean, Light Placeholders & Live)    */}
+            {/* Step 2: Body Stats & Calorie Calculator                    */}
             {/* ========================================================== */}
             {step === 2 && (
               <div className="onboarding-metrics-section">
-                <div className="metrics-grid">
-                  {/* Body Weight Input Card */}
-                  <div className="metric-card">
-                    <div className="metric-header-row">
-                      <span className="metric-label">Body Weight</span>
-                      {/* Unit Selector */}
-                      <div className="unit-toggle-pills" role="group" aria-label="Weight Unit">
+                {/* Enter your details card matching Image 1 */}
+                <div className="calc-form-card">
+                  <h3 className="calc-card-title">Enter your details</h3>
+
+                  {/* Row 1: Age & Sex */}
+                  <div className="calc-grid-2col">
+                    <div className="calc-field-group">
+                      <label htmlFor="user-age-input" className="calc-field-label">Age</label>
+                      <div className="calc-input-wrapper">
+                        <input
+                          id="user-age-input"
+                          type="number"
+                          className="calc-input"
+                          placeholder="25"
+                          value={form.age}
+                          onChange={(e) => setVal('age', e.target.value)}
+                          min={12}
+                          max={100}
+                        />
+                      </div>
+                      {errors.age && <span className="field-error">{errors.age}</span>}
+                    </div>
+
+                    <div className="calc-field-group">
+                      <label htmlFor="user-sex-select" className="calc-field-label">Sex</label>
+                      <div className="calc-input-wrapper">
+                        <select
+                          id="user-sex-select"
+                          className="calc-select"
+                          value={form.sex}
+                          onChange={(e) => setVal('sex', e.target.value)}
+                        >
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 2: Height with Unit Toggle */}
+                  <div className="calc-field-group">
+                    <div className="calc-field-header">
+                      <label htmlFor="user-height-input" className="calc-field-label">Height</label>
+                      <div className="calc-unit-toggle" role="group" aria-label="Height Unit">
                         <button
                           type="button"
-                          className={`unit-pill ${weightUnit === 'kg' ? 'active' : ''}`}
+                          className={`calc-unit-btn ${heightUnit === 'cm' ? 'active' : ''}`}
+                          onClick={() => handleHeightUnitChange('cm')}
+                        >
+                          cm
+                        </button>
+                        <button
+                          type="button"
+                          className={`calc-unit-btn ${heightUnit === 'ft' ? 'active' : ''}`}
+                          onClick={() => handleHeightUnitChange('ft')}
+                        >
+                          ft/in
+                        </button>
+                      </div>
+                    </div>
+                    <div className="calc-input-wrapper">
+                      <input
+                        id="user-height-input"
+                        type="number"
+                        className="calc-input"
+                        placeholder={heightUnit === 'cm' ? '170' : '5.7'}
+                        value={form.height}
+                        onChange={(e) => setVal('height', e.target.value)}
+                        step={heightUnit === 'cm' ? 1 : 0.1}
+                        min={heightUnit === 'cm' ? 100 : 3.2}
+                        max={heightUnit === 'cm' ? 250 : 8.2}
+                      />
+                      <span className="calc-input-suffix">{heightUnit === 'cm' ? 'cm' : 'ft'}</span>
+                    </div>
+                    {heightConversionHint && (
+                      <span className="calc-conversion-hint">{heightConversionHint}</span>
+                    )}
+                    {errors.height && <span className="field-error">{errors.height}</span>}
+                  </div>
+
+                  {/* Row 3: Weight with Unit Toggle */}
+                  <div className="calc-field-group">
+                    <div className="calc-field-header">
+                      <label htmlFor="user-weight-input" className="calc-field-label">Weight</label>
+                      <div className="calc-unit-toggle" role="group" aria-label="Weight Unit">
+                        <button
+                          type="button"
+                          className={`calc-unit-btn ${weightUnit === 'kg' ? 'active' : ''}`}
                           onClick={() => handleWeightUnitChange('kg')}
                         >
-                          KG
+                          kg
                         </button>
                         <button
                           type="button"
-                          className={`unit-pill ${weightUnit === 'lbs' ? 'active' : ''}`}
+                          className={`calc-unit-btn ${weightUnit === 'lbs' ? 'active' : ''}`}
                           onClick={() => handleWeightUnitChange('lbs')}
                         >
-                          LBS
+                          lbs
                         </button>
                       </div>
                     </div>
-
-                    <div className="metric-input-wrap">
-                      <span className="metric-unit-left">{weightUnit}</span>
+                    <div className="calc-input-wrapper">
                       <input
+                        id="user-weight-input"
                         type="number"
-                        className="metric-input"
-                        placeholder={weightUnit === 'kg' ? '75' : '165'}
+                        className="calc-input"
+                        placeholder={weightUnit === 'kg' ? '70' : '154'}
                         value={form.weight}
                         onChange={(e) => setVal('weight', e.target.value)}
+                        step={0.5}
                         min={weightUnit === 'kg' ? 25 : 55}
                         max={weightUnit === 'kg' ? 300 : 660}
-                        step={0.5}
                       />
-                      <div className="metric-stepper">
-                        <button
-                          type="button"
-                          className="metric-stepper-btn"
-                          onClick={() => stepWeight(1)}
-                          aria-label="Increase weight"
-                        >
-                          <Up width={12} height={12} />
-                        </button>
-                        <button
-                          type="button"
-                          className="metric-stepper-btn"
-                          onClick={() => stepWeight(-1)}
-                          aria-label="Decrease weight"
-                        >
-                          <Down width={12} height={12} />
-                        </button>
-                      </div>
+                      <span className="calc-input-suffix">{weightUnit}</span>
                     </div>
-
-                    {/* Live automatic unit conversion only when user enters number */}
                     {weightConversionHint && (
-                      <div className="metric-conversion-line">
-                        <span className="conversion-active">{weightConversionHint}</span>
-                      </div>
+                      <span className="calc-conversion-hint">{weightConversionHint}</span>
                     )}
-
                     {errors.weight && <span className="field-error">{errors.weight}</span>}
                   </div>
 
-                  {/* Height Input Card */}
-                  <div className="metric-card">
-                    <div className="metric-header-row">
-                      <span className="metric-label">Height</span>
-                      {/* Unit Selector */}
-                      <div className="unit-toggle-pills" role="group" aria-label="Height Unit">
-                        <button
-                          type="button"
-                          className={`unit-pill ${heightUnit === 'cm' ? 'active' : ''}`}
-                          onClick={() => handleHeightUnitChange('cm')}
-                        >
-                          CM
-                        </button>
-                        <button
-                          type="button"
-                          className={`unit-pill ${heightUnit === 'ft' ? 'active' : ''}`}
-                          onClick={() => handleHeightUnitChange('ft')}
-                        >
-                          FT
-                        </button>
-                        <button
-                          type="button"
-                          className={`unit-pill ${heightUnit === 'm' ? 'active' : ''}`}
-                          onClick={() => handleHeightUnitChange('m')}
-                        >
-                          M
-                        </button>
+                  {/* Row 4: Activity Level matching Image 1 & 2 */}
+                  <div className="calc-field-group">
+                    <label htmlFor="user-activity-select" className="calc-field-label">Activity Level</label>
+                    <div className="calc-input-wrapper">
+                      <select
+                        id="user-activity-select"
+                        className="calc-select"
+                        value={form.activityLevel}
+                        onChange={(e) => setVal('activityLevel', e.target.value)}
+                      >
+                        <option value="sedentary">Sedentary (little or no exercise)</option>
+                        <option value="light">Lightly active (light exercise 1-3 days/week)</option>
+                        <option value="moderate">Moderately active (moderate exercise 3-5 days/week)</option>
+                        <option value="very_active">Very active (hard exercise 6-7 days/week)</option>
+                        <option value="extra_active">Extra active (very hard exercise, physical job)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Row 5: Your Goal matching Image 1 */}
+                  <div className="calc-field-group">
+                    <label htmlFor="user-goal-select" className="calc-field-label">Your Goal</label>
+                    <div className="calc-input-wrapper">
+                      <select
+                        id="user-goal-select"
+                        className="calc-select"
+                        value={form.dietGoal}
+                        onChange={(e) => setVal('dietGoal', e.target.value)}
+                      >
+                        <option value="maintain">Maintain weight</option>
+                        <option value="loss">Weight loss / Cut</option>
+                        <option value="gain">Muscle gain / Bulk</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Action Button matching Image 1 */}
+                  <button
+                    type="button"
+                    className="calc-submit-btn"
+                    onClick={() => {
+                      setCalcTriggered(true);
+                      const el = document.getElementById('calc-results-section');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                  >
+                    Calculate Calories
+                  </button>
+                </div>
+
+                {/* Calorie & Macro Results Cards matching Image 3 */}
+                <div id="calc-results-section" className="calc-results-wrap">
+                  {/* Card 1: Your Daily Calorie Target */}
+                  <div className="calc-target-card">
+                    <h4 className="calc-target-title">Your Daily Calorie Target</h4>
+                    <div className="calc-target-number-row">
+                      <span className="calc-target-number">{calcResults.targetCalories}</span>
+                      <span className="calc-target-badge">calories/day</span>
+                    </div>
+                    <div className="calc-target-meta">
+                      <p className="calc-meta-line">
+                        Basal Metabolic Rate (BMR): <strong>{calcResults.bmr} calories</strong>
+                      </p>
+                      <p className="calc-meta-line">
+                        Total Daily Energy Expenditure: <strong>{calcResults.tdee} calories</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Suggested Macronutrients */}
+                  <div className="calc-macros-card">
+                    <h4 className="calc-macros-title">Suggested Macronutrients</h4>
+                    <div className="calc-macros-grid">
+                      <div className="calc-macro-box">
+                        <span className="calc-macro-val">{calcResults.macros.protein}g</span>
+                        <span className="calc-macro-label">Protein</span>
+                      </div>
+                      <div className="calc-macro-box">
+                        <span className="calc-macro-val">{calcResults.macros.carbs}g</span>
+                        <span className="calc-macro-label">Carbs</span>
+                      </div>
+                      <div className="calc-macro-box">
+                        <span className="calc-macro-val">{calcResults.macros.fat}g</span>
+                        <span className="calc-macro-label">Fat</span>
                       </div>
                     </div>
-
-                    <div className="metric-input-wrap">
-                      <span className="metric-unit-left">{heightUnit}</span>
-                      <input
-                        type="number"
-                        className="metric-input"
-                        placeholder={heightUnit === 'cm' ? '180' : heightUnit === 'm' ? '1.80' : '5.9'}
-                        value={form.height}
-                        onChange={(e) => setVal('height', e.target.value)}
-                        min={heightUnit === 'cm' ? 100 : heightUnit === 'm' ? 1.0 : 3.2}
-                        max={heightUnit === 'cm' ? 250 : heightUnit === 'm' ? 2.5 : 8.2}
-                        step={heightUnit === 'cm' ? 1 : 0.01}
-                      />
-                      <div className="metric-stepper">
-                        <button
-                          type="button"
-                          className="metric-stepper-btn"
-                          onClick={() => stepHeight(1)}
-                          aria-label="Increase height"
-                        >
-                          <Up width={12} height={12} />
-                        </button>
-                        <button
-                          type="button"
-                          className="metric-stepper-btn"
-                          onClick={() => stepHeight(-1)}
-                          aria-label="Decrease height"
-                        >
-                          <Down width={12} height={12} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Live automatic height conversion only when user enters number */}
-                    {heightConversionHint && (
-                      <div className="metric-conversion-line">
-                        <span className="conversion-active">{heightConversionHint}</span>
-                      </div>
-                    )}
-
-                    {errors.height && <span className="field-error">{errors.height}</span>}
+                    <p className="calc-macros-disclaimer">
+                      Based on approximately 30% protein, 40% carbohydrates, and 30% fat. Adjust based on your specific dietary needs and preferences.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -649,8 +790,8 @@ export default function Onboarding() {
                       <b>{form.days} Days / Week · {diffConfig.label}</b>
                     </div>
                     <div className="recap-detail">
-                      <span className="recap-lbl">Week 1 Progression</span>
-                      <b>{diffConfig.sets} Sets × {diffConfig.reps} Reps · {diffConfig.timerLabel}</b>
+                      <span className="recap-lbl">Daily Target</span>
+                      <b>{calcResults.targetCalories} kcal ({calcResults.macros.protein}P · {calcResults.macros.carbs}C · {calcResults.macros.fat}F)</b>
                     </div>
                   </div>
                 </div>

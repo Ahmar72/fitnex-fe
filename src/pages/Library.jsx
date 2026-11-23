@@ -19,6 +19,34 @@ export default function Library() {
   const input = useRef(null);
   const gridTopRef = useRef(null);
 
+  // Selected exercise for right side panel drawer
+  const [selectedEx, setSelectedEx] = useState(null);
+  const [panelI18n, setPanelI18n] = useState(null);
+
+  useEffect(() => {
+    if (!selectedEx?.id) {
+      setPanelI18n(null);
+      return;
+    }
+    let alive = true;
+    fetch(asset(`data/steps/${selectedEx.id}.json`))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => alive && setPanelI18n(d))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [selectedEx?.id]);
+
+  useEffect(() => {
+    if (!selectedEx) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setSelectedEx(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedEx]);
+
   // Cards per page setting (selectable: 5-25 cards per page, default 20)
   const [pageSize, setPageSize] = useState(() => {
     try {
@@ -273,7 +301,7 @@ export default function Library() {
                   transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
                 >
                   {paginatedExercises.map((e, i) => (
-                    <ExerciseCard key={e.id} ex={e} index={i} viewMode={viewMode} />
+                    <ExerciseCard key={e.id} ex={e} index={i} viewMode={viewMode} onSelect={setSelectedEx} />
                   ))}
                 </motion.div>
               </AnimatePresence>
@@ -346,6 +374,135 @@ export default function Library() {
           )}
         </div>
       </section>
+
+      {/* Side Panel Drawer for Exercise Details */}
+      <AnimatePresence>
+        {selectedEx && (
+          <>
+            <motion.div
+              className="ex-drawer-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setSelectedEx(null)}
+            />
+            <motion.aside
+              className="ex-side-panel"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              aria-label="Exercise details panel"
+              data-lenis-prevent="true"
+              onWheel={(e) => e.stopPropagation()}
+            >
+              <div className="ex-panel-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="chip">
+                    <span className="dot" style={{ background: partMeta(selectedEx.bodyPart)?.color }} />
+                    {partMeta(selectedEx.bodyPart)?.label}
+                  </span>
+                  <span className="chip">#{selectedEx.id}</span>
+                </div>
+                <button
+                  type="button"
+                  className="ex-panel-close-btn"
+                  onClick={() => setSelectedEx(null)}
+                  aria-label="Close details"
+                >
+                  <X width={16} height={16} />
+                </button>
+              </div>
+
+              <div className="ex-panel-body" data-lenis-prevent="true">
+                {/* Animation clearly visible on top */}
+                <div className="ex-panel-media">
+                  <img
+                    src={asset(selectedEx.gif || selectedEx.image)}
+                    alt={selectedEx.name}
+                    onError={(e) => {
+                      e.currentTarget.src = asset(selectedEx.image || 'images/0001-2gPfomN.jpg');
+                    }}
+                  />
+                </div>
+
+                {/* Exercise Title */}
+                <h2 className="ex-panel-title">
+                  {selectedEx.name}
+                </h2>
+
+                {/* Specs */}
+                <div className="spec" style={{ margin: '14px 0 18px' }}>
+                  <div><small>{t('detail.target', 'Target')}</small><b>{selectedEx.target}</b></div>
+                  <div><small>{t('detail.equipment', 'Equipment')}</small><b>{selectedEx.equipment}</b></div>
+                  <div><small>{t('detail.body_part', 'Body part')}</small><b>{selectedEx.bodyPart}</b></div>
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: 10, margin: '0 0 20px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ flex: 1, height: 40, fontSize: 13.5 }}
+                    onClick={() => addToWorkout(selectedEx.id)}
+                  >
+                    <Plus width={15} height={15} /> {t('detail.add_workout', 'Add to workout')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{
+                      height: 40,
+                      padding: '0 16px',
+                      fontSize: 13.5,
+                      ...(favorites.includes(selectedEx.id) ? { borderColor: 'var(--hot)', color: 'var(--hot)' } : {}),
+                    }}
+                    onClick={() => toggleFavorite(selectedEx.id)}
+                  >
+                    <Heart width={15} height={15} filled={favorites.includes(selectedEx.id)} stroke={favorites.includes(selectedEx.id) ? 'var(--hot)' : undefined} />
+                    {favorites.includes(selectedEx.id) ? t('detail.saved', 'Saved') : t('detail.save', 'Save')}
+                  </button>
+                </div>
+
+                {/* Brief 1-2 lines of instructions */}
+                <div className="ex-panel-section-title">
+                  <h4>{t('detail.how_to', 'How to do it')}</h4>
+                </div>
+                {(() => {
+                  const rawPanelSteps = (panelI18n && panelI18n[lang]) || selectedEx.steps;
+                  const panelSteps = typeof translateSteps === 'function' ? translateSteps(rawPanelSteps, panelI18n) : rawPanelSteps || [];
+                  const briefSteps = (panelSteps && panelSteps.length > 0)
+                    ? panelSteps.slice(0, 2)
+                    : ['Maintain strict form with steady tempo and controlled breathing.', 'Engage the target muscle group throughout the entire range of motion.'];
+                  return (
+                    <ul style={{ margin: '10px 0 20px', paddingLeft: '18px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
+                      {briefSteps.map((st, idx) => (
+                        <li key={idx} style={{ marginBottom: 6 }}>{st}</li>
+                      ))}
+                    </ul>
+                  );
+                })()}
+
+                {/* Simple muscles worked */}
+                <div className="ex-panel-section-title">
+                  <h4>{t('detail.muscles_worked', 'Muscles worked')}</h4>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                  <span className="trained-muscle-tag" style={{ background: 'var(--accent)', color: '#fff', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>
+                    {selectedEx.target}
+                  </span>
+                  {selectedEx.secondary?.map((sec, i) => (
+                    <span key={i} className="chip" style={{ fontSize: 12 }}>{sec}</span>
+                  ))}
+                </div>
+
+                {/* Note: NO suggested more exercises in this section as requested */}
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 }
