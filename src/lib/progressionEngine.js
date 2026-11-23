@@ -1059,14 +1059,163 @@ export function getTodayWorkoutForUser(profile = {}, activePlanData = null, find
   };
 }
 
+// Dynamic goal exercise pool for automatic new exercise rotation across days & weeks
+export const GOAL_ROTATION_POOLS = {
+  muscle: [
+    '0025', '0047', '0031', '0043', '0027', '0030', '0085', '0652', '0289', '0198',
+    '0294', '0274', '0334', '1760', '0026', '0493', '0293', '0201', '0868', '0017',
+    '0032', '0024', '0052', '0472', '0283', '0662', '0001', '0009', '0019', '0038',
+    '0044', '0053', '0060', '0074', '0105', '0118', '0122', '0007', '0015', '1431'
+  ],
+  fat: [
+    '0001', '0274', '0493', '1760', '0198', '0662', '0293', '0201', '0017', '0472',
+    '0085', '0283', '0652', '0043', '0025', '0032', '0024', '0030', '0052', '0002',
+    '0003', '0006', '0011', '0012', '0013', '0014', '0015', '0020', '0023', '0028',
+    '0041', '0042', '0046', '0054', '0068', '0071', '0087', '0092', '0100', '0111'
+  ],
+  strength: [
+    '0025', '0043', '0027', '0031', '0472', '0085', '0047', '0652', '0030', '0283',
+    '0032', '0052', '0024', '0026', '0289', '0198', '1760', '0294', '0274', '0662',
+    '0034', '0036', '0039', '0045', '0057', '0073', '0081', '0089', '0095', '0108',
+    '0115', '0120', '0128', '0140', '0148', '0155', '0160', '0165', '0170'
+  ],
+  fit: [
+    '1760', '0493', '0274', '0198', '0294', '0662', '0293', '0001', '0017', '0201',
+    '0472', '0085', '0283', '0652', '0043', '0025', '0032', '0024', '0030', '0052',
+    '0003', '0006', '0011', '0014', '0023', '0028', '0038', '0041', '0044', '0053',
+    '0060', '0068', '0074', '0087', '0092', '0100', '0105', '0118', '0122', '0007'
+  ],
+};
+
+// Full 7-day daily templates for all goals and levels ensuring every day has an active routine
+export const DAILY_GOAL_TEMPLATES = {
+  muscle: {
+    beginner: [
+      { weekday: 'Monday', title: 'Upper Torso & Chest Foundation', focus: 'Dumbbell bench press, lat pulldowns & light core control', exerciseIds: ['0289', '0198', '0294', '0274', '0334'] },
+      { weekday: 'Tuesday', title: 'Lower Body & Stability', focus: 'Goblet squats, bench squats & leg control', exerciseIds: ['1760', '0026', '0493', '0001', '0274'] },
+      { weekday: 'Wednesday', title: 'Back Width & Lat Hypertrophy', focus: 'Cable pulldown, dumbbell rows & back extension', exerciseIds: ['0198', '0293', '0201', '0274', '0334'] },
+      { weekday: 'Thursday', title: 'Push / Pull Progression', focus: 'Incline push-ups, dumbbell rows & tricep extensions', exerciseIds: ['0493', '0293', '0201', '0868', '0274'] },
+      { weekday: 'Friday', title: 'Full Body Muscle Density', focus: 'Assisted pull-ups, dumbbell bench press & goblet squats', exerciseIds: ['0017', '0289', '1760', '0294', '0001'] },
+      { weekday: 'Saturday', title: 'Deltoid Cap & Arm Hypertrophy', focus: 'Dumbbell lateral raise, bicep curls & tricep control', exerciseIds: ['0294', '0289', '0201', '0868', '0001'] },
+      { weekday: 'Sunday', title: 'Muscular Endurance & Tone', focus: 'Goblet squats, push-ups & dumbbell overhead work', exerciseIds: ['1760', '0017', '0289', '0293', '0334'] },
+    ],
+    intermediate: [
+      { weekday: 'Monday', title: 'Compound Chest & Biceps Overload', focus: 'Heavy barbell bench press, barbell curls & hanging leg raises', exerciseIds: ['0025', '0047', '0031', '0472', '0334'] },
+      { weekday: 'Tuesday', title: 'Posterior Chain & Quad Depth', focus: 'Barbell full squats, Romanian deadlifts & diamond push-ups', exerciseIds: ['0043', '0085', '0283', '0030', '0001'] },
+      { weekday: 'Wednesday', title: 'Back Width & Lat Overload', focus: 'Pull-ups, bent over rows, incline barbell presses & curls', exerciseIds: ['0652', '0027', '0047', '0031', '0472'] },
+      { weekday: 'Thursday', title: 'Back Width & Incline Power', focus: 'Pull-ups, bent over rows, incline barbell presses & JM presses', exerciseIds: ['0652', '0027', '0047', '0052', '0472'] },
+      { weekday: 'Friday', title: 'Upper Body Finisher & Arm Pump', focus: 'Barbell bench, close-grip presses, barbell curls & drop sets', exerciseIds: ['0025', '0030', '0031', '0652', '0283'] },
+      { weekday: 'Saturday', title: 'Shoulders & Arm Density Overload', focus: 'Overhead press, lateral raises, close-grip bench & barbell curls', exerciseIds: ['0047', '0030', '0031', '0052', '0472'] },
+      { weekday: 'Sunday', title: 'Full Body Hypertrophy Finisher', focus: 'Full squats, bench press, deadlifts & pull-ups', exerciseIds: ['0043', '0025', '0085', '0652', '0334'] },
+    ],
+    advanced: [
+      { weekday: 'Monday', title: 'Heavy Barbell Deadlift & Squat Drive', focus: 'Maximal deadlifts, deep back squats & weighted pull-ups', exerciseIds: ['0032', '0043', '0652', '0025', '0030'] },
+      { weekday: 'Tuesday', title: 'Front Squats & Incline Pec Destruction', focus: 'Barbell front squats, incline barbell presses & pendlay rows', exerciseIds: ['0024', '0047', '0027', '0283', '0472'] },
+      { weekday: 'Wednesday', title: 'CNS Back & Deadlift Drive', focus: 'Deadlifts, weighted pull-ups, barbell rows & hammer curls', exerciseIds: ['0032', '0652', '0027', '0047', '0031'] },
+      { weekday: 'Thursday', title: 'Romanian Deadlifts & Back Density', focus: 'Heavy RDLs, full pull-ups, barbell rows & hanging leg raises', exerciseIds: ['0085', '0043', '0025', '0652', '0031'] },
+      { weekday: 'Friday', title: 'Peak Density Giant Sets', focus: 'Deadlifts, front squats, incline presses, JM bench & core', exerciseIds: ['0032', '0024', '0047', '0027', '0052'] },
+      { weekday: 'Saturday', title: 'Upper Body High-Tension Complex', focus: 'Barbell bench, incline press, close-grip bench & JM press', exerciseIds: ['0025', '0047', '0030', '0652', '0052'] },
+      { weekday: 'Sunday', title: 'Max Muscle Density Climax', focus: 'Deadlifts, full squats, front squats & pull-ups', exerciseIds: ['0032', '0043', '0024', '0025', '0472'] },
+    ],
+  },
+  fat: {
+    beginner: [
+      { weekday: 'Monday', title: 'Core Flexion & Caloric Ignition', focus: '3/4 sit-ups, crunch floor, incline push-ups & goblet squats', exerciseIds: ['0001', '0274', '0493', '1760', '0198'] },
+      { weekday: 'Tuesday', title: 'Metabolic Interval Circuits', focus: 'Push-ups, goblet squats, dumbbell rows & crunches', exerciseIds: ['0662', '1760', '0293', '0001', '0201'] },
+      { weekday: 'Wednesday', title: 'Metabolic Torch & Core Flexion', focus: '3/4 sit-ups, floor crunches, push-ups & goblet squats', exerciseIds: ['0001', '0274', '0662', '0493', '0293'] },
+      { weekday: 'Thursday', title: 'Oblique & Transverse Burn', focus: '3/4 sit-ups, crunches, push-ups & pulldowns', exerciseIds: ['0001', '0274', '0493', '0198', '0294'] },
+      { weekday: 'Friday', title: 'Full Body Calorie Torch', focus: 'Assisted pull-ups, goblet squats, floor crunches & push-ups', exerciseIds: ['0017', '1760', '0274', '0662', '0001'] },
+      { weekday: 'Saturday', title: 'Full Body Interval Shred', focus: 'Incline push-ups, goblet squats, crunches & sit-ups', exerciseIds: ['0493', '0662', '1760', '0274', '0001'] },
+      { weekday: 'Sunday', title: 'Total Core Deficit Burn', focus: 'Sit-ups, crunches, pulldowns, rows & goblet squats', exerciseIds: ['0001', '0274', '0198', '0293', '1760'] },
+    ],
+    intermediate: [
+      { weekday: 'Monday', title: 'Upper Abs & Core Compression', focus: '3/4 sit-ups, floor crunches, push-ups & hanging leg raises', exerciseIds: ['0001', '0274', '0662', '1760', '0472'] },
+      { weekday: 'Tuesday', title: 'Lower Abdominal Hanging Power', focus: 'Hanging leg raises, Romanian deadlifts, diamond push-ups & sit-ups', exerciseIds: ['0472', '0085', '0283', '0198', '0001'] },
+      { weekday: 'Wednesday', title: 'Oblique Definition & Hanging Core', focus: 'Hanging leg raises, diamond push-ups, crunches & sit-ups', exerciseIds: ['0472', '0662', '0283', '0001', '0274'] },
+      { weekday: 'Thursday', title: 'Oblique Carving & Serratus Sculpt', focus: 'Push-ups, squats, pull-ups, hanging leg raises & crunches', exerciseIds: ['0662', '0043', '0652', '0472', '0274'] },
+      { weekday: 'Friday', title: 'Metabolic Shred & Core Torch', focus: 'Hanging leg raises, 3/4 sit-ups, pull-ups, bench press & diamond push-ups', exerciseIds: ['0472', '0001', '0652', '0025', '0283'] },
+      { weekday: 'Saturday', title: 'Metabolic Power Intervals', focus: 'Pull-ups, Romanian deadlifts, diamond push-ups & leg raises', exerciseIds: ['0652', '0085', '0283', '0472', '0001'] },
+      { weekday: 'Sunday', title: 'Six-Pack Chisel Final Peak', focus: 'Hanging leg raises, floor crunches, push-ups & diamond push-ups', exerciseIds: ['0472', '0274', '0001', '0662', '0283'] },
+    ],
+    advanced: [
+      { weekday: 'Monday', title: 'Heavy Compound & Hanging Core Overload', focus: 'Hanging leg raises, barbell deadlifts, bench presses & pull-ups', exerciseIds: ['0472', '0032', '0025', '0652', '0283'] },
+      { weekday: 'Tuesday', title: 'Front Squats & Dynamic Core Drive', focus: 'Barbell front squats, diamond push-ups, hanging leg raises & rows', exerciseIds: ['0024', '0283', '0472', '0027', '0085'] },
+      { weekday: 'Wednesday', title: 'Metabolic Complex & Anti-Extension', focus: 'Barbell deadlift, hanging leg raises, pull-ups & bench press', exerciseIds: ['0032', '0472', '0652', '0025', '0052'] },
+      { weekday: 'Thursday', title: 'Full-Body Metabolic Complex', focus: 'Deadlifts, pull-ups, close-grip bench, squats & leg raises', exerciseIds: ['0032', '0652', '0030', '0043', '0472'] },
+      { weekday: 'Friday', title: 'Extreme Shred Finisher & Core Burn', focus: 'Deadlifts, front squats, pull-ups, hanging leg raises & JM presses', exerciseIds: ['0032', '0024', '0652', '0472', '0052'] },
+      { weekday: 'Saturday', title: 'High Velocity Athletic Shred', focus: 'Front squats, deadlifts, diamond push-ups & pull-ups', exerciseIds: ['0024', '0032', '0283', '0652', '0472'] },
+      { weekday: 'Sunday', title: 'Max Caloric Overload Complex', focus: 'Barbell deadlift, full squats, bench press & hanging leg raises', exerciseIds: ['0032', '0043', '0025', '0472', '0283'] },
+    ],
+  },
+  strength: {
+    beginner: [
+      { weekday: 'Monday', title: 'Horizontal Press & Upper Pull', focus: 'Dumbbell bench press, cable pulldown & goblet squats', exerciseIds: ['0289', '0198', '1760', '0294', '0274'] },
+      { weekday: 'Tuesday', title: 'Squat Mechanics & Core Stability', focus: 'Barbell bench squat, push-ups & dumbbell rows', exerciseIds: ['0026', '0662', '0293', '0001', '0289'] },
+      { weekday: 'Wednesday', title: 'Upper Pull & Squat Mechanics', focus: 'Goblet squats, cable pulldown, dumbbell bench press & rows', exerciseIds: ['1760', '0198', '0289', '0293', '0274'] },
+      { weekday: 'Thursday', title: 'Progressive Overload Intro', focus: 'Barbell bench press, goblet squat & assisted pull-ups', exerciseIds: ['0025', '1760', '0017', '0201', '0274'] },
+      { weekday: 'Friday', title: 'Full Body Power Base', focus: 'Barbell bench press, goblet squats, pulldowns & curls', exerciseIds: ['0025', '1760', '0198', '0294', '0001'] },
+      { weekday: 'Saturday', title: 'Compound Strength Reinforcement', focus: 'Barbell bench squat, bench press, goblet squats & rows', exerciseIds: ['0026', '0025', '1760', '0293', '0001'] },
+      { weekday: 'Sunday', title: 'Strength Calibration & Deload', focus: 'Dumbbell bench press, goblet squats, pulldowns & crunches', exerciseIds: ['0289', '1760', '0198', '0274', '0001'] },
+    ],
+    intermediate: [
+      { weekday: 'Monday', title: 'Heavy Bench Press & Squat Day', focus: 'Barbell bench press, barbell full squat, barbell row & curls', exerciseIds: ['0025', '0043', '0027', '0031', '0472'] },
+      { weekday: 'Tuesday', title: 'Romanian Deadlift & Incline Drive', focus: 'Romanian deadlifts, incline barbell bench & pull-ups', exerciseIds: ['0085', '0047', '0652', '0030', '0283'] },
+      { weekday: 'Wednesday', title: 'Overhead Press & Strict Row Force', focus: 'Incline bench press, barbell bent over row, bench press & pull-ups', exerciseIds: ['0047', '0027', '0025', '0652', '0472'] },
+      { weekday: 'Thursday', title: 'Heavy Deadlift & Pull-Up Overload', focus: 'Barbell deadlift, pull-ups, bent rows & JM bench press', exerciseIds: ['0032', '0652', '0027', '0052', '0472'] },
+      { weekday: 'Friday', title: 'Max Power Output Circuit', focus: 'Squats, bench press, deadlifts & hanging leg raises', exerciseIds: ['0043', '0025', '0032', '0652', '0030'] },
+      { weekday: 'Saturday', title: 'Posterior Force & Pause Squats', focus: 'Romanian deadlifts, barbell full squats, bent rows & bench press', exerciseIds: ['0085', '0043', '0027', '0025', '0472'] },
+      { weekday: 'Sunday', title: 'Full Compound Power Output', focus: 'Barbell deadlift, full squats, bench press & pull-ups', exerciseIds: ['0032', '0043', '0025', '0652', '0283'] },
+    ],
+    advanced: [
+      { weekday: 'Monday', title: 'Max Effort Deadlift & Pause Squats', focus: 'Heavy barbell deadlifts, full squats, bench presses & pull-ups', exerciseIds: ['0032', '0043', '0025', '0652', '0030'] },
+      { weekday: 'Tuesday', title: 'Front Squat Power & Incline Press', focus: 'Barbell front squats, incline bench, pendlay rows & leg raises', exerciseIds: ['0024', '0047', '0027', '0283', '0472'] },
+      { weekday: 'Wednesday', title: 'Deficit Pulls & Explosive Drive', focus: 'Barbell deadlift, incline bench, barbell rows & weighted pull-ups', exerciseIds: ['0032', '0047', '0027', '0652', '0052'] },
+      { weekday: 'Thursday', title: 'Deficit Deadlifts & Heavy Upper Pull', focus: 'Heavy deadlifts, weighted pull-ups, incline bench & JM presses', exerciseIds: ['0032', '0652', '0047', '0052', '0472'] },
+      { weekday: 'Friday', title: 'Peak Force Generation', focus: 'Deadlifts, front squats, bench press, pull-ups & JM bench', exerciseIds: ['0032', '0024', '0025', '0652', '0052'] },
+      { weekday: 'Saturday', title: 'Paused Compound Force Development', focus: 'Full squats, front squats, bench press & Romanian deadlifts', exerciseIds: ['0043', '0024', '0025', '0085', '0472'] },
+      { weekday: 'Sunday', title: 'Max Neuromuscular Climax', focus: 'Barbell deadlift, full squats, front squats, pull-ups & JM bench', exerciseIds: ['0032', '0043', '0024', '0652', '0052'] },
+    ],
+  },
+  fit: {
+    beginner: [
+      { weekday: 'Monday', title: 'Full Body Activation', focus: 'Goblet squats, incline push-ups, crunches & pulldowns', exerciseIds: ['1760', '0493', '0274', '0198', '0294'] },
+      { weekday: 'Tuesday', title: 'Mobility & Torso Alignment', focus: 'Push-ups, dumbbell rows, goblet squats & 3/4 sit-ups', exerciseIds: ['0662', '0293', '1760', '0001', '0493'] },
+      { weekday: 'Wednesday', title: 'Cardiovascular Tone & Core Alignment', focus: 'Goblet squats, crunches, push-ups, cable pulldowns & dumbbell rows', exerciseIds: ['1760', '0274', '0662', '0198', '0293'] },
+      { weekday: 'Thursday', title: 'Endurance Progression', focus: 'Assisted pull-ups, push-ups, goblet squats & crunches', exerciseIds: ['0017', '0662', '1760', '0274', '0201'] },
+      { weekday: 'Friday', title: 'Total Body Health Circuit', focus: 'Goblet squats, pulldowns, dumbbell press & crunches', exerciseIds: ['1760', '0198', '0289', '0274', '0294'] },
+      { weekday: 'Saturday', title: 'Full Body Functional Agility', focus: 'Push-ups, goblet squats, lateral raises, crunches & sit-ups', exerciseIds: ['0662', '1760', '0294', '0274', '0001'] },
+      { weekday: 'Sunday', title: 'Athletic Vitality & Core Flow', focus: 'Goblet squats, incline push-ups, pulldowns, rows & crunches', exerciseIds: ['1760', '0493', '0198', '0293', '0274'] },
+    ],
+    intermediate: [
+      { weekday: 'Monday', title: 'Athletic Compound Conditioning', focus: 'Barbell squats, push-ups, cable pulldowns & hanging leg raises', exerciseIds: ['0043', '0662', '0198', '0472', '0031'] },
+      { weekday: 'Tuesday', title: 'Upper Torso & Pull Power', focus: 'Pull-ups, incline dumbbell presses, rows & diamond push-ups', exerciseIds: ['0652', '0289', '0293', '0283', '0001'] },
+      { weekday: 'Wednesday', title: 'Functional Power & Torso Alignment', focus: 'Pull-ups, goblet squats, diamond push-ups, hanging leg raises & rows', exerciseIds: ['0652', '1760', '0283', '0472', '0027'] },
+      { weekday: 'Thursday', title: 'Leg Drive & Core Endurance', focus: 'Romanian deadlifts, squats, hanging leg raises & push-ups', exerciseIds: ['0085', '0043', '0472', '0662', '0201'] },
+      { weekday: 'Friday', title: 'Peak Functional Conditioning', focus: 'Squats, pull-ups, bench press, hanging leg raises & curls', exerciseIds: ['0043', '0652', '0025', '0472', '0031'] },
+      { weekday: 'Saturday', title: 'Athletic Conditioning & Agility', focus: 'Barbell full squats, push-ups, dumbbell rows & hanging leg raises', exerciseIds: ['0043', '0662', '0293', '0472', '0283'] },
+      { weekday: 'Sunday', title: 'Functional Endurance & Core Sculpt', focus: 'Goblet squats, pull-ups, Romanian deadlifts, bench press & sit-ups', exerciseIds: ['1760', '0652', '0085', '0025', '0001'] },
+    ],
+    advanced: [
+      { weekday: 'Monday', title: 'Heavy Compound & Explosive Pulls', focus: 'Barbell deadlifts, full squats, pull-ups & bench presses', exerciseIds: ['0032', '0043', '0652', '0025', '0472'] },
+      { weekday: 'Tuesday', title: 'Front Squats & Athletic Upper Drive', focus: 'Barbell front squats, diamond push-ups, bent rows & leg raises', exerciseIds: ['0024', '0283', '0027', '0472', '0085'] },
+      { weekday: 'Wednesday', title: 'Metabolic Density & Power Output', focus: 'Barbell deadlift, full squats, pull-ups, incline bench & leg raises', exerciseIds: ['0032', '0043', '0652', '0047', '0472'] },
+      { weekday: 'Thursday', title: 'Maximal Density Complexes', focus: 'Deadlifts, pull-ups, incline presses, squats & JM presses', exerciseIds: ['0032', '0652', '0047', '0043', '0052'] },
+      { weekday: 'Friday', title: 'Championship Work Capacity', focus: 'Deadlifts, front squats, pull-ups, bench press & hanging core', exerciseIds: ['0032', '0024', '0652', '0025', '0472'] },
+      { weekday: 'Saturday', title: 'Elite Functional Athleticism', focus: 'Front squats, deadlifts, incline bench, diamond push-ups & leg raises', exerciseIds: ['0024', '0032', '0047', '0283', '0472'] },
+      { weekday: 'Sunday', title: 'High Capacity Full Body Output', focus: 'Barbell deadlift, full squats, bench press, pull-ups & leg raises', exerciseIds: ['0032', '0043', '0025', '0652', '0472'] },
+    ],
+  },
+};
+
 /**
  * Resolves today's goal workout strictly driven by user's onboarding/profile goal,
- * difficulty level, and weekly schedule (completely decoupled from /plans).
+ * difficulty level, and automatically rotating exercises daily with new additions.
  */
 export function getGoalWorkoutForToday({
   profile = {},
   goalProgress = null,
   byId = new Map(),
+  exercises = [],
 } = {}) {
   const goalKey = profile.goal || 'muscle';
   const levelKey = profile.level || 'beginner';
@@ -1075,17 +1224,39 @@ export function getGoalWorkoutForToday({
   const diffConfig = DIFFICULTY_CALIBRATION[levelKey] || DIFFICULTY_CALIBRATION.beginner;
   const program = getProgramForUser(goalKey, levelKey, daysCount);
 
-  // Day index based on progression or weekday
-  const currentDayIndex = (goalProgress?.currentDayIndex || 0) % program.schedule.length;
-  let todayDay = program.schedule[currentDayIndex];
-  if (todayDay?.isRest) {
-    todayDay = program.schedule.find((d) => !d.isRest) || todayDay;
+  // Derive today's active day index from current calendar date so it rotates daily automatically
+  const now = new Date();
+  // 0 = Monday, 1 = Tuesday, ..., 6 = Sunday
+  const calendarDayOfWeek = (now.getDay() + 6) % 7;
+  const epochDays = Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000);
+
+  // If goalProgress has a progression index offset, incorporate it; otherwise use today's weekday
+  const currentDayIndex = goalProgress?.currentDayIndex
+    ? (calendarDayOfWeek + goalProgress.currentDayIndex) % 7
+    : calendarDayOfWeek;
+
+  // Resolve today's tailored routine from DAILY_GOAL_TEMPLATES
+  const goalTemplates = DAILY_GOAL_TEMPLATES[goalKey] || DAILY_GOAL_TEMPLATES.muscle;
+  const levelTemplates = goalTemplates[levelKey] || goalTemplates.beginner;
+  const todayDay = levelTemplates[currentDayIndex] || levelTemplates[0];
+
+  // Rotate in new exercises from the goal pool automatically based on date/progression
+  const pool = GOAL_ROTATION_POOLS[goalKey] || GOAL_ROTATION_POOLS.muscle;
+  const rot1 = pool[(epochDays * 3 + currentDayIndex * 7) % pool.length];
+  const rot2 = pool[(epochDays * 5 + currentDayIndex * 11 + 3) % pool.length];
+
+  const exerciseIds = [...(todayDay.exerciseIds || [])];
+  if (rot1 && !exerciseIds.includes(rot1)) {
+    exerciseIds[Math.min(3, exerciseIds.length - 1)] = rot1;
+  }
+  if (rot2 && !exerciseIds.includes(rot2)) {
+    exerciseIds[Math.min(4, exerciseIds.length - 1)] = rot2;
   }
 
   // Calculate day-over-day timer progression: base timer + 5s per workout index
   const setDuration = diffConfig.timerSeconds + (currentDayIndex % 7) * 5;
 
-  const items = (todayDay.exerciseIds || []).map((id) => {
+  const items = exerciseIds.map((id) => {
     const ex = byId.get(id) || null;
     const isBodyweight = ex?.equipment === 'body weight';
     const weight = isBodyweight ? 0 : diffConfig.baseWeight;
@@ -1103,6 +1274,7 @@ export function getGoalWorkoutForToday({
   return {
     program,
     todayDay,
+    dayIndex: currentDayIndex,
     goal: goalKey,
     level: levelKey,
     diffConfig,

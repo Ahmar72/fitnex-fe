@@ -50,8 +50,9 @@ export default function Dashboard() {
       profile,
       goalProgress,
       byId,
+      exercises,
     });
-  }, [ready, profile, goalProgress, byId]);
+  }, [ready, profile, goalProgress, byId, exercises]);
 
   const stats = useMemo(() => {
     const volume = history.reduce((a, h) => a + (Number(h.volume) || 0), 0);
