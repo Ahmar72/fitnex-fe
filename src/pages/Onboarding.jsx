@@ -784,19 +784,15 @@ export default function Onboarding() {
                   <div className="recap-details-grid">
                     <div className="recap-detail">
                       <span className="recap-lbl">Primary Goal</span>
-                      <b>{GOALS.find((g) => g.key === form.goal)?.label || 'Muscle'}</b>
-                    </div>
-                    <div className="recap-detail">
-                      <span className="recap-lbl">Target Focus</span>
-                      <b>{tailoredProgram.day1Workout?.focus || 'Core Compound Movements'}</b>
+                      <span className="recap-val">{GOALS.find((g) => g.key === form.goal)?.label || 'Muscle'}</span>
                     </div>
                     <div className="recap-detail">
                       <span className="recap-lbl">Schedule</span>
-                      <b>{form.days} Days / Week · {diffConfig.label}</b>
+                      <span className="recap-val">{form.days} Days / Week · {diffConfig.label}</span>
                     </div>
                     <div className="recap-detail">
                       <span className="recap-lbl">Daily Target</span>
-                      <b>{calcResults.targetCalories} kcal ({calcResults.macros.protein}P · {calcResults.macros.carbs}C · {calcResults.macros.fat}F)</b>
+                      <span className="recap-val">{calcResults.targetCalories} kcal ({calcResults.macros.protein}P · {calcResults.macros.carbs}C · {calcResults.macros.fat}F)</span>
                     </div>
                   </div>
                 </div>
@@ -805,17 +801,6 @@ export default function Onboarding() {
 
             {/* Step Navigation Controls */}
             <div className="onboarding-actions">
-              {step > 0 && (
-                <button
-                  type="button"
-                  className="btn btn-ghost onboarding-back-btn"
-                  onClick={prevStep}
-                  disabled={busy}
-                >
-                  <ArrowLeft width={18} height={18} /> {step === 3 ? 'Edit Details' : 'Back'}
-                </button>
-              )}
-
               {step === 2 ? (
                 <button
                   type="button"

@@ -95,14 +95,6 @@ export default function MealDetail() {
     <div className="meal-detail-page">
       {/* Navigation Breadcrumb */}
       <div className="meal-detail-nav">
-        <button
-          onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/nutrition'))}
-          className="nav-back-pill"
-          aria-label="Back to previous page"
-        >
-          <ArrowLeft width={16} height={16} />
-          <span>Back</span>
-        </button>
         <div className="meal-nav-cat">
           <span className="cat-pill">{meal.category}</span>
           <span className="prep-pill">{meal.prepTime} min prep</span>

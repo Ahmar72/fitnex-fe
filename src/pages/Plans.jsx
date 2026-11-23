@@ -1602,25 +1602,6 @@ export default function Plans() {
              VIEW 3: PLANS CATALOG OVERVIEW (SCREEN FIT & REAL IMAGES)
              ============================================================ */
           <div className="plans-catalog-view">
-            {/* Top-Left Back Navigation Button */}
-            <div className="catalog-top-nav">
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm catalog-back-btn"
-                onClick={() => {
-                  if (window.history.length > 1) {
-                    navigate(-1);
-                  } else {
-                    navigate('/dashboard');
-                  }
-                }}
-                aria-label="Go back"
-              >
-                <ArrowLeft width={18} height={18} />
-                <span>Back</span>
-              </button>
-            </div>
-
             {/* Active Training Program Resume Banner (Continuity where left off) */}
             {activePlan && (
               <div className="active-program-banner">

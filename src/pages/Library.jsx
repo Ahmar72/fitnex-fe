@@ -484,20 +484,7 @@ export default function Library() {
                   );
                 })()}
 
-                {/* Simple muscles worked */}
-                <div className="ex-panel-section-title">
-                  <h4>{t('detail.muscles_worked', 'Muscles worked')}</h4>
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                  <span className="trained-muscle-tag" style={{ background: 'var(--accent)', color: '#fff', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>
-                    {selectedEx.target}
-                  </span>
-                  {selectedEx.secondary?.map((sec, i) => (
-                    <span key={i} className="chip" style={{ fontSize: 12 }}>{sec}</span>
-                  ))}
-                </div>
-
-                {/* Note: NO suggested more exercises in this section as requested */}
+                {/* Note: NO suggested more exercises or muscle chips in this section as requested */}
               </div>
             </motion.aside>
           </>

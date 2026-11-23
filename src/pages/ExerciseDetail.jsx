@@ -91,24 +91,6 @@ export default function ExerciseDetail() {
   return (
     <section className="detail">
       <div className="container">
-        {/* Working Back Arrow Button: Always returns to specific referring page without disappearing on hover */}
-        <div style={{ marginBottom: 18 }}>
-          <button
-            type="button"
-            className="nav-back-pill"
-            onClick={() => {
-              if (window.history.length > 1) {
-                navigate(-1);
-              } else {
-                navigate(isFromPlan ? '/plans' : isFromRoutine ? '/dashboard' : '/exercises');
-              }
-            }}
-          >
-            <ArrowLeft width={15} height={15} />
-            <span>Back{planName ? ` to ${planName}` : ''}</span>
-          </button>
-        </div>
-
         <div className="detail-grid">
           <motion.div
             key={ex.id}
@@ -180,20 +162,6 @@ export default function ExerciseDetail() {
                 ))}
               </motion.ul>
             </AnimatePresence>
-
-            <div className="sub-title"><h2>{t('detail.muscles_worked', 'Muscles worked')}</h2></div>
-            <div className="muscles-worked-simple">
-              <div className="muscle-simple-line">
-                <span className="muscle-simple-label">{t('detail.primary_target', 'Primary Target')}:</span>
-                <span className="muscle-simple-val primary">{ex.target}</span>
-              </div>
-              {ex.secondary?.length > 0 && (
-                <div className="muscle-simple-line">
-                  <span className="muscle-simple-label">{t('detail.supporting_muscles', 'Supporting Muscles')}:</span>
-                  <span className="muscle-simple-val">{ex.secondary.join(', ')}</span>
-                </div>
-              )}
-            </div>
           </div>
         </div>
 

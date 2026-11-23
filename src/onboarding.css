@@ -139,7 +139,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: clamp(24px, 4vw, 44px) clamp(16px, 3vw, 28px) 60px;
+  padding: clamp(14px, 2vw, 22px) clamp(16px, 3vw, 28px) 20px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -150,13 +150,19 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
   transition: max-width 0.3s ease;
 }
 
 /* Expand step 0 so 4 goal cards fit side by side in one line */
 .onboarding-step-card.step-0 {
   max-width: 1040px;
+}
+
+/* Step 3 compact view to prevent scrolling */
+.onboarding-step-card.step-3 {
+  max-width: 580px;
+  gap: 8px;
 }
 
 /* Heading */
@@ -612,36 +618,36 @@
 .calc-results-wrap {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
   width: 100%;
 }
 
 .calc-target-card {
   background: var(--surface);
   border: 1.5px solid var(--line);
-  border-left: 5px solid var(--accent);
-  border-radius: 18px;
-  padding: 24px 28px;
+  border-left: 4px solid var(--accent);
+  border-radius: 14px;
+  padding: 12px 18px;
   box-shadow: var(--card-shadow);
 }
 
 .calc-target-title {
-  font-size: 16px;
-  font-weight: 800;
+  font-size: 13.5px;
+  font-weight: 700;
   color: var(--text);
-  margin: 0 0 12px;
+  margin: 0 0 6px;
 }
 
 .calc-target-number-row {
   display: flex;
   align-items: baseline;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
 .calc-target-number {
-  font-size: clamp(38px, 5vw, 46px);
-  font-weight: 900;
+  font-size: 28px;
+  font-weight: 800;
   color: var(--text);
   line-height: 1;
   font-family: var(--display);
@@ -652,62 +658,62 @@
   background: var(--accent-soft);
   color: var(--accent);
   border: 1px solid var(--accent-glow);
-  padding: 4px 12px;
+  padding: 2px 8px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
 }
 
 .calc-target-meta {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-top: 14px;
+  gap: 3px;
+  padding-top: 6px;
   border-top: 1px solid var(--line);
 }
 
 .calc-meta-line {
-  font-size: 14px;
+  font-size: 11.5px;
   color: var(--muted);
   margin: 0;
 }
 
 .calc-meta-line strong {
   color: var(--text);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .calc-macros-card {
   background: var(--surface);
   border: 1.5px solid var(--line);
-  border-radius: 18px;
-  padding: 24px 28px;
+  border-radius: 14px;
+  padding: 12px 18px;
   box-shadow: var(--card-shadow);
 }
 
 .calc-macros-title {
-  font-size: 16px;
-  font-weight: 800;
+  font-size: 13.5px;
+  font-weight: 700;
   color: var(--text);
-  margin: 0 0 16px;
+  margin: 0 0 8px;
 }
 
 .calc-macros-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .calc-macro-box {
   background: var(--surface-2);
   border: 1.5px solid var(--line-2);
-  border-radius: 14px;
-  padding: 18px 12px;
+  border-radius: 10px;
+  padding: 8px 6px;
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
@@ -717,24 +723,24 @@
 }
 
 .calc-macro-val {
-  font-size: clamp(24px, 3.2vw, 30px);
-  font-weight: 900;
+  font-size: 19px;
+  font-weight: 800;
   color: var(--text);
   line-height: 1.1;
   font-family: var(--display);
 }
 
 .calc-macro-label {
-  font-size: 13px;
+  font-size: 11px;
   color: var(--muted);
-  font-weight: 700;
+  font-weight: 600;
   text-transform: capitalize;
 }
 
 .calc-macros-disclaimer {
-  font-size: 12px;
+  font-size: 10.5px;
   color: var(--muted);
-  line-height: 1.55;
+  line-height: 1.35;
   margin: 0;
 }
 
@@ -807,9 +813,9 @@
 
 .recap-details-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  padding: 10px 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 10px 14px;
   border-radius: 12px;
   background: var(--surface-2);
   border: 1px solid var(--line);
@@ -829,11 +835,12 @@
   color: var(--muted);
 }
 
+.recap-detail .recap-val,
 .recap-detail b {
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 500 !important;
   color: var(--text);
-  line-height: 1.2;
+  line-height: 1.3;
 }
 
 /* --------------------------------------------------------------------------
@@ -841,16 +848,16 @@
    -------------------------------------------------------------------------- */
 .onboarding-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 10px;
   margin-top: 2px;
 }
 
-.onboarding-back-btn {
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 700;
+.onboarding-back-btn,
+.catalog-back-btn,
+.nav-back-pill {
+  display: none !important;
 }
 
 .onboarding-submit-btn {
