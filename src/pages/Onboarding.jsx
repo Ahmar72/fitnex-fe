@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { Arrow, ArrowLeft, Check, Dumbbell, Flame, Bolt, Trophy, Logo, Up, Down } from '../components/Icons.jsx';
-import { GOALS, LEVELS } from '../lib/goals.js';
+import { GOALS, LEVELS, DEFAULT_PLAN_BY_GOAL } from '../lib/goals.js';
 import { getProgramForUser, DIFFICULTY_CALIBRATION } from '../lib/progressionEngine.js';
 import { asset, readLS, writeLS } from '../lib/utils.js';
 import '../onboarding.css';
@@ -39,7 +39,7 @@ export default function Onboarding() {
   // Form state - plan strictly corresponds to the chosen goal
   const [form, setForm] = useState({
     goal: user?.profile?.goal || 'muscle',
-    planId: DEFAULT_PLAN_BY_GOAL[user?.profile?.goal || 'muscle'] || 'muscle-building',
+    planId: DEFAULT_PLAN_BY_GOAL?.[user?.profile?.goal || 'muscle'] || 'muscle-building',
     level: user?.profile?.level || 'beginner',
     days: user?.profile?.days || 3,
     weight: user?.profile?.weight || '',
