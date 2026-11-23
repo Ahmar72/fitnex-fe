@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useData } from '../context/DataContext.jsx';
@@ -16,7 +16,6 @@ export default function Library() {
   const { t, lang, translateSteps } = useLanguage();
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get('q') || '');
-  const deferred = useDeferredValue(query);
   const input = useRef(null);
   const gridTopRef = useRef(null);
 
@@ -103,12 +102,24 @@ export default function Library() {
     );
   };
 
-  // keep ?q in the URL in sync with the search box
+  // keep ?q in the URL in sync with the search box without reloading or disrupting typing
   useEffect(() => {
-    const t = setTimeout(() => set('q', deferred.trim()), 300);
+    const t = setTimeout(() => {
+      const trimmed = query.trim();
+      setParams(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          const current = p.get('q') || '';
+          if (trimmed === current) return prev;
+          if (trimmed) p.set('q', trimmed);
+          else p.delete('q');
+          return p;
+        },
+        { replace: true }
+      );
+    }, 400);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deferred]);
+  }, [query, setParams]);
 
   // "/" focuses search
   useEffect(() => {
@@ -123,7 +134,7 @@ export default function Library() {
   }, []);
 
   const results = useMemo(() => {
-    const tokens = deferred.toLowerCase().split(/\s+/).filter(Boolean);
+    const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
     let list = exercises.filter((e) => {
       if (part && e.bodyPart !== part) return false;
       if (eq && e.equipment !== eq) return false;
@@ -139,14 +150,14 @@ export default function Library() {
     else if (sort === 'id') list = [...list].sort((a, b) => a.id.localeCompare(b.id));
     else list = [...list].sort((a, b) => a.name.localeCompare(b.name));
     return list;
-  }, [exercises, deferred, part, eq, target, fav, favorites, sort]);
+  }, [exercises, query, part, eq, target, fav, favorites, sort]);
 
   // Reset to page 1 ONLY when an actual filter or query changes
-  const prevFiltersRef = useRef({ deferred, part, eq, target, fav, sort });
+  const prevFiltersRef = useRef({ query, part, eq, target, fav, sort });
   useEffect(() => {
     const prev = prevFiltersRef.current;
     if (
-      prev.deferred !== deferred ||
+      prev.query !== query ||
       prev.part !== part ||
       prev.eq !== eq ||
       prev.target !== target ||
@@ -154,9 +165,9 @@ export default function Library() {
       prev.sort !== sort
     ) {
       setCurrentPage(1);
-      prevFiltersRef.current = { deferred, part, eq, target, fav, sort };
+      prevFiltersRef.current = { query, part, eq, target, fav, sort };
     }
-  }, [deferred, part, eq, target, fav, sort]);
+  }, [query, part, eq, target, fav, sort]);
 
   const totalPages = Math.max(1, Math.ceil(results.length / pageSize));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
@@ -190,7 +201,7 @@ export default function Library() {
   }, [totalPages, safePage]);
 
   const counts = Object.fromEntries(facets.bodyPart);
-  const active = part || eq || target || fav || deferred;
+  const active = part || eq || target || fav || query;
   const reset = () => {
     setQuery('');
     setParams({}, { replace: true });

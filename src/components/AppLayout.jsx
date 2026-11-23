@@ -76,7 +76,7 @@ export default function AppLayout({ children }) {
     setNavigating(true);
     const timer = setTimeout(() => setNavigating(false), 240);
     return () => clearTimeout(timer);
-  }, [location.pathname, location.search]);
+  }, [location.pathname]);
 
   // Lock scroll when mobile drawer is open
   useEffect(() => {
