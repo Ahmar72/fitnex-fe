@@ -14,22 +14,7 @@ export const initials = (name = '') =>
   name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 
 export function AnnouncementBar() {
-  const { t } = useLanguage();
-  const items = (
-    <>
-      <span><b>{t('announce.item1', 'New · Animated exercise demos for all 1,324 moves')}</b></span>
-      <span>✦</span>
-      <span><b>{t('announce.item2', 'Live workout mode with auto rest timer')}</b></span>
-      <span>✦</span>
-      <span><b>{t('announce.item3', 'Free forever · No ads · No tracking')}</b></span>
-      <span>✦</span>
-    </>
-  );
-  return (
-    <div className="announce">
-      <Marquee duration={28}>{items}</Marquee>
-    </div>
-  );
+  return null;
 }
 
 function UserMenu({ user, onLogout }) {
@@ -130,7 +115,7 @@ export default function Navbar() {
         className={`nav ${scrolled ? 'scrolled' : ''}`}
         animate={{ y: hidden ? -110 : 0 }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        style={{ top: scrolled ? 0 : 38 }}
+        style={{ top: 0 }}
       >
         <div className="nav-inner">
           <Link to={user ? '/dashboard' : '/'} className="logo" aria-label="Fitnex home">

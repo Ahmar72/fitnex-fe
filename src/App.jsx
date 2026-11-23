@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, useLocation, Outlet } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import Navbar, { AnnouncementBar } from './components/Navbar.jsx';
+import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
 import Preloader from './components/Preloader.jsx';
 import Cursor from './components/Cursor.jsx';
@@ -82,7 +82,6 @@ export default function App() {
       <Preloader />
       <Cursor />
       {!isAppRoute && <ScrollProgress />}
-      {!isAuthPage && !isAppRoute && <AnnouncementBar />}
       {!isAuthPage && !isAppRoute && <Navbar />}
       <Suspense fallback={<AppSpinner label="Loading Fitnex..." />}>
         <Routes>

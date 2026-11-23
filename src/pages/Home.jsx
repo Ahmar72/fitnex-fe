@@ -3,7 +3,7 @@ import Features from '../sections/Features.jsx';
 import Explorer from '../sections/Explorer.jsx';
 import Showcase from '../sections/Showcase.jsx';
 import Programs from '../sections/Programs.jsx';
-import { Band, CTA, FAQ, HowItWorks, Stats } from '../sections/Misc.jsx';
+import { CTA, FAQ, HowItWorks, Stats } from '../sections/Misc.jsx';
 import { useData } from '../context/DataContext.jsx';
 
 export default function Home() {
@@ -11,7 +11,6 @@ export default function Home() {
   return (
     <>
       <Hero />
-      <Band />
       <Stats />
       <Features />
       {ready && <Explorer />}
