@@ -22,11 +22,14 @@ import {
   ChevronRight,
   Clock,
   Settings,
+  Arrow,
 } from '../components/Icons.jsx';
 import { PLANS, PLAN_CATEGORIES } from '../lib/plansData.js';
 import { getProgressionForWeek, getSetDurationForDay } from '../lib/progressionEngine.js';
 import { asset, dayKey, readLS, writeLS, playChimeSound, playWhistleSound, speakVoice, getExerciseVoiceOverview, partMeta } from '../lib/utils.js';
 import WorkoutCompleteModal from '../components/WorkoutCompleteModal.jsx';
+
+const ease = [0.22, 1, 0.36, 1];
 
 /**
  * Calculates current week days (Monday - Sunday) with calendar dates and relative time status.
@@ -565,6 +568,22 @@ export default function Plans() {
     return () => clearInterval(interval);
   }, [liveWorkoutSession?.activeTimer?.isRunning]);
 
+  // Update set reps or weight directly in the table
+  const updatePlanSet = (exId, setIdx, field, value) => {
+    setLiveWorkoutSession((prev) => {
+      if (!prev) return prev;
+      const oldSets = prev.setsMap[exId] || [];
+      const newSets = oldSets.map((s, idx) => (idx === setIdx ? { ...s, [field]: value } : s));
+      return {
+        ...prev,
+        setsMap: {
+          ...prev.setsMap,
+          [exId]: newSets,
+        },
+      };
+    });
+  };
+
   // Click on "Start" for a set: starts the SET DURATION timer (not rest).
   // Once a set is completed, it cannot be edited or restarted.
   const handleStartSet = (exId, setIdx) => {
@@ -985,274 +1004,267 @@ export default function Plans() {
             </div>
           </div>
         ) : liveWorkoutSession ? (
-          <div className="live-workout-screen">
-            {/* Top Navigation & Status Bar */}
-            <div className="live-workout-header-bar">
-              <div className="live-header-left">
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => {
-                    if (window.confirm('Exit live workout? Your completed sets will be preserved.')) {
-                      setLiveWorkoutSession(null);
-                    }
-                  }}
-                >
-                  <ArrowLeft width={16} height={16} /> Exit
-                </button>
-                <div>
-                  <span className="live-routine-tagline">
-                    {liveWorkoutSession.plan.name} • {liveWorkoutSession.dayName}
-                  </span>
-                  <h2 className="live-routine-heading">{liveWorkoutSession.dayRoutine.title}</h2>
+          (() => {
+            const currentEx = liveWorkoutSession.exercises[liveWorkoutSession.currentExIdx];
+            if (!currentEx) return null;
+            const sets = liveWorkoutSession.setsMap[currentEx.id] || [];
+            const isBodyweight = currentEx?.equipment && /body\s*weight/i.test(currentEx.equipment);
+            const allSets = Object.values(liveWorkoutSession.setsMap).flat();
+            const doneCount = allSets.filter((s) => s.done).length;
+
+            return (
+              <motion.div
+                className="live"
+                data-lenis-prevent
+                initial={{ clipPath: 'inset(100% 0 0 0)' }}
+                animate={{ clipPath: 'inset(0% 0 0 0)' }}
+                exit={{ clipPath: 'inset(0 0 100% 0)' }}
+                transition={{ duration: 0.8, ease: [0.76, 0, 0.24, 1] }}
+              >
+                <div className="live-media paper">
+                  <AnimatePresence mode="wait">
+                    <motion.img
+                      key={currentEx.id}
+                      src={asset(currentEx.gif || currentEx.image)}
+                      alt={currentEx.name}
+                      initial={{ opacity: 0, scale: 0.85, x: 60 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.9, x: -60 }}
+                      transition={{ duration: 0.6, ease }}
+                      onError={(e) => {
+                        e.currentTarget.src = asset(currentEx.image || 'images/0001-2gPfomN.jpg');
+                      }}
+                    />
+                  </AnimatePresence>
                 </div>
-              </div>
 
-              <div className="live-header-right">
-                <div className="live-progress-pill">
-                  <span>Exercise {liveWorkoutSession.currentExIdx + 1} of {liveWorkoutSession.exercises.length}</span>
-                </div>
-                <div className="live-timer-chip">
-                  <span>⏱ {formatDigitalTime(liveWorkoutSession.elapsedSeconds)}</span>
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={handleFinishWorkout}
-                  style={{ fontWeight: 800 }}
-                  title="Finish workout and save session"
-                >
-                  <Trophy width={14} height={14} /> Finish Workout
-                </button>
-              </div>
-            </div>
-
-            {/* Overall Workout Progress Bar */}
-            <div className="live-overall-progressbar-wrap">
-              <div
-                className="live-overall-progressbar-fill"
-                style={{
-                  width: `${Math.round(
-                    ((liveWorkoutSession.currentExIdx + 1) / liveWorkoutSession.exercises.length) * 100
-                  )}%`,
-                }}
-              />
-            </div>
-
-            {/* 2-Column Training Workspace */}
-            {(() => {
-              const currentEx = liveWorkoutSession.exercises[liveWorkoutSession.currentExIdx];
-              if (!currentEx) return null;
-              const sets = liveWorkoutSession.setsMap[currentEx.id] || [];
-              const part = partMeta(currentEx.bodyPart);
-
-              return (
-                <div className="live-workspace-grid">
-                  {/* Left Column: Visuals, Animation & Cues EXACTLY matching ExerciseDetail */}
-                  <div className="live-exercise-card">
-                    {/* Animated Exercise Visual with scanner, corners and media tag */}
-                    <div className="detail-media paper">
-                      <img
-                        src={asset(currentEx.gif || currentEx.image)}
-                        alt={currentEx.name}
-                        onError={(e) => {
-                          e.currentTarget.src = asset(currentEx.image || 'images/0001-2gPfomN.jpg');
-                        }}
-                      />
-                      <span className="corner tl" /><span className="corner tr" /><span className="corner bl" /><span className="corner br" />
-                      <span className="media-tag">Target · {currentEx.target}</span>
-                    </div>
-
-                    {/* Chips, Title and Specs identical to ExerciseDetail */}
-                    <div style={{ marginTop: 8 }}>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                        <span className="chip"><span className="dot" style={{ background: part.color }} />{part.label}</span>
-                        <span className="chip">#{currentEx.id}</span>
-                      </div>
-                      <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '8px 0 12px', textTransform: 'capitalize', color: 'var(--text)', lineHeight: 1.3 }}>
-                        {currentEx.name}
-                      </h2>
-
-                      <div className="spec" style={{ margin: '12px 0 16px' }}>
-                        <div><small>Target</small><b>{currentEx.target}</b></div>
-                        <div><small>Equipment</small><b>{currentEx.equipment}</b></div>
-                        <div><small>Body part</small><b>{currentEx.bodyPart}</b></div>
-                      </div>
-
-                      {/* Clean simple line of instruction text outside any card */}
-                      <p style={{ margin: '12px 0 0', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.55 }}>
-                        {currentEx.steps?.[0] || 'Execute with steady cadence, full extension and strict contraction on every rep.'}
-                      </p>
-                    </div>
+                <div className="live-panel">
+                  <div className="live-top">
+                    <span className="eyebrow">
+                      {liveWorkoutSession.plan.name} · {liveWorkoutSession.currentExIdx + 1} / {liveWorkoutSession.exercises.length}
+                    </span>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      onClick={() => {
+                        if (window.confirm('Exit live workout? Your completed sets will be preserved.')) {
+                          setLiveWorkoutSession(null);
+                        }
+                      }}
+                      aria-label="Close workout"
+                    >
+                      <X />
+                    </button>
                   </div>
 
-                  {/* Right Column: Sets Table & White Minimalist Countdown Timer */}
-                  <div className="live-sets-card">
-                    <div className="live-sets-header">
-                      <h3 className="live-sets-title">Sets & Rest Tracking</h3>
-                      <span className="muted" style={{ fontSize: 13, fontWeight: 700 }}>
-                        {liveWorkoutSession.restDuration}s rest configured
-                      </span>
+                  <div className="live-progress">
+                    <span style={{ width: `${(doneCount / Math.max(1, allSets.length)) * 100}%` }} />
+                  </div>
+
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={currentEx.id}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -12 }}
+                      transition={{ duration: 0.35, ease }}
+                    >
+                      <h2
+                        style={{
+                          fontSize: '1.35rem',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          margin: '4px 0 2px',
+                          lineHeight: 1.25,
+                          letterSpacing: '-0.01em',
+                          color: 'var(--text)',
+                        }}
+                      >
+                        {currentEx.name}
+                      </h2>
+                      <p
+                        className="muted"
+                        style={{
+                          margin: '4px 0 2px',
+                          textTransform: 'capitalize',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {currentEx.target} · {currentEx.equipment}
+                      </p>
+                      <p
+                        className="muted"
+                        style={{
+                          fontSize: '12px',
+                          margin: '2px 0 8px',
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {currentEx.steps?.[0] || 'Execute with steady cadence, full extension and strict contraction on every rep.'}
+                      </p>
+                    </motion.div>
+                  </AnimatePresence>
+
+                  <div className="sets">
+                    <div
+                      className="sets-header-row"
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '46px 1fr 1fr 100px',
+                        gap: 10,
+                        padding: '0 8px 6px',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                        color: 'var(--muted)',
+                      }}
+                    >
+                      <span style={{ textAlign: 'center' }}>Set</span>
+                      <span style={{ textAlign: 'center' }}>Kg</span>
+                      <span style={{ textAlign: 'center' }}>Reps</span>
+                      <span></span>
                     </div>
+                    {sets.map((s, i) => {
+                      const isSetTimerActive =
+                        liveWorkoutSession.activeTimer?.mode === 'set' &&
+                        liveWorkoutSession.activeTimer?.exId === currentEx.id &&
+                        liveWorkoutSession.activeTimer?.setIdx === i;
 
-                    {/* Active Timer Box: Simply White in Color with Orange Text & Minimalist Design */}
-                    {liveWorkoutSession.activeTimer?.exId === currentEx.id && (
-                      <div className="live-rest-timer-box">
-                        {liveWorkoutSession.activeTimer.mode === 'set' ? (
-                          <>
-                            <span className="timer-box-tag">
-                              Set {liveWorkoutSession.activeTimer.setIdx + 1} · In Progress
-                            </span>
-                            <div className="timer-countdown-digital">
-                              {formatDigitalTime(liveWorkoutSession.activeTimer.secondsLeft)}
-                            </div>
-                            <span className="timer-sub-note">
-                              Perform repetitions with controlled cadence
-                            </span>
+                      const isRestActive =
+                        liveWorkoutSession.activeTimer?.mode === 'rest' &&
+                        liveWorkoutSession.activeTimer?.exId === currentEx.id &&
+                        liveWorkoutSession.activeTimer?.setIdx === i;
 
-                            <div className="timer-controls-row">
-                              <button
-                                type="button"
-                                className="timer-ctrl-btn"
-                                onClick={toggleTimerPause}
-                              >
-                                {liveWorkoutSession.activeTimer.isRunning ? 'Pause' : 'Resume'}
-                              </button>
-                              <button
-                                type="button"
-                                className="timer-ctrl-btn"
-                                onClick={() => adjustTimer(15)}
-                              >
-                                +15s
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-primary btn-sm"
-                                onClick={handleCompleteSetEarly}
-                                style={{ fontWeight: 800 }}
-                              >
-                                <Check width={14} height={14} /> Complete Set & Start Rest
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <span className="timer-box-tag">
-                              Rest Timer · Set {liveWorkoutSession.activeTimer.setIdx + 1} Done
-                            </span>
-                            <div className="timer-countdown-digital">
-                              {formatDigitalTime(liveWorkoutSession.activeTimer.secondsLeft)}
-                            </div>
-                            <span className="timer-sub-note">
-                              Resting between sets · Breathe, rehydrate, and recover
-                            </span>
-
-                            <div className="timer-controls-row">
-                              <button
-                                type="button"
-                                className="timer-ctrl-btn"
-                                onClick={() => adjustTimer(-15)}
-                              >
-                                -15s
-                              </button>
-                              <button
-                                type="button"
-                                className="timer-ctrl-btn"
-                                onClick={toggleTimerPause}
-                              >
-                                {liveWorkoutSession.activeTimer.isRunning ? 'Pause' : 'Resume'}
-                              </button>
-                              <button
-                                type="button"
-                                className="timer-ctrl-btn"
-                                onClick={() => adjustTimer(15)}
-                              >
-                                +15s
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-primary btn-sm"
-                                onClick={skipRestTimer}
-                                style={{ fontWeight: 800 }}
-                              >
-                                Skip Rest
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Interactive Sets List */}
-                    <div className="live-sets-list">
-                      {sets.map((set, idx) => {
-                        const isThisActiveSet =
-                          liveWorkoutSession.activeTimer?.exId === currentEx.id &&
-                          liveWorkoutSession.activeTimer?.setIdx === idx &&
-                          liveWorkoutSession.activeTimer?.mode === 'set';
-
-                        const isThisResting =
-                          liveWorkoutSession.activeTimer?.exId === currentEx.id &&
-                          liveWorkoutSession.activeTimer?.setIdx === idx &&
-                          liveWorkoutSession.activeTimer?.mode === 'rest';
-
-                        return (
-                          <div
-                            key={set.id || idx}
-                            className={`live-set-item ${set.done ? 'set-completed' : ''} ${
-                              isThisActiveSet ? 'set-timing' : ''
-                            }`}
-                            style={{ cursor: set.done ? 'default' : 'pointer' }}
-                            onClick={() => {
-                              if (!set.done) handleStartSet(currentEx.id, idx);
+                      return (
+                        <div
+                          key={s.id || i}
+                          className={`set-row ${s.done ? 'done' : ''}`}
+                          style={{ gridTemplateColumns: '46px 1fr 1fr 100px' }}
+                        >
+                          <span className="n">{i + 1}</span>
+                          <input
+                            className={`num-input ${isBodyweight && (!s.weight || Number(s.weight) === 0) ? 'bw-input' : ''}`}
+                            type="text"
+                            value={isBodyweight && (!s.weight || Number(s.weight) === 0) ? 'Bodyweight' : s.weight}
+                            disabled={s.done}
+                            onFocus={(e) => {
+                              if (isBodyweight && (!s.weight || Number(s.weight) === 0)) {
+                                e.target.select();
+                              }
                             }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                              <span className="set-number-tag">SET {idx + 1}</span>
-                              <div className="set-metrics-info">
-                                <span>{set.reps || 10} Reps</span>
-                                <span>•</span>
-                                <span>{set.weight || 20} kg</span>
-                              </div>
-                            </div>
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[^0-9.]/g, '');
+                              updatePlanSet(currentEx.id, i, 'weight', val);
+                            }}
+                            onBlur={(e) => {
+                              if (isBodyweight && (!e.target.value || Number(e.target.value) === 0)) {
+                                updatePlanSet(currentEx.id, i, 'weight', '');
+                              }
+                            }}
+                            aria-label="Weight"
+                          />
+                          <input
+                            className="num-input"
+                            type="number"
+                            value={s.reps}
+                            disabled={s.done}
+                            onChange={(e) => updatePlanSet(currentEx.id, i, 'reps', e.target.value)}
+                            aria-label="Reps"
+                          />
+                          {s.done ? (
+                            <span className="builder-set-done-badge" title="Set completed (locked)">
+                              <Check width={14} height={14} /> Done
+                            </span>
+                          ) : isSetTimerActive ? (
+                            <span className="builder-set-active-badge" title="Set timer counting down">
+                              <span className="pulse-dot" /> {liveWorkoutSession.activeTimer.secondsLeft}s
+                            </span>
+                          ) : isRestActive ? (
+                            <span className="builder-set-rest-badge" title="Rest in progress">
+                              Rest {liveWorkoutSession.activeTimer.secondsLeft}s
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="builder-set-start-btn"
+                              onClick={() => handleStartSet(currentEx.id, i)}
+                              aria-label={`Start set ${i + 1}`}
+                            >
+                              <Play width={12} height={12} /> Start
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
 
-                            <div>
-                              {set.done ? (
-                                <span className="set-action-trigger" style={{ color: '#10b981', cursor: 'default' }}>
-                                  <Check width={14} height={14} /> Done
-                                </span>
-                              ) : isThisActiveSet ? (
-                                <span className="set-action-trigger" style={{ color: '#ff5e1a' }}>
-                                  <Bolt width={13} height={13} /> Active ({liveWorkoutSession.activeTimer.secondsLeft}s)
-                                </span>
-                              ) : isThisResting ? (
-                                <span className="set-action-trigger" style={{ color: '#ff5e1a' }}>
-                                  Resting ({liveWorkoutSession.activeTimer.secondsLeft}s)
-                                </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  className="btn btn-primary btn-sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleStartSet(currentEx.id, idx);
-                                  }}
-                                >
-                                  <Play width={12} height={12} /> Start
-                                </button>
-                              )}
-                            </div>
+                  <AnimatePresence>
+                    {liveWorkoutSession.activeTimer && liveWorkoutSession.activeTimer.exId === currentEx.id && (
+                      <motion.div
+                        className="live-active-timer-box"
+                        initial={{ opacity: 0, y: 14, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                        transition={{ duration: 0.25 }}
+                      >
+                        <div className="timer-info-col">
+                          <span className="timer-clean-label">
+                            {liveWorkoutSession.activeTimer.mode === 'set'
+                              ? `Set ${liveWorkoutSession.activeTimer.setIdx + 1}`
+                              : 'Rest Timer'}
+                          </span>
+                          <div className="timer-clean-digits">
+                            {Math.floor(liveWorkoutSession.activeTimer.secondsLeft / 60)}:
+                            {String(liveWorkoutSession.activeTimer.secondsLeft % 60).padStart(2, '0')}
                           </div>
-                        );
-                      })}
-                    </div>
+                        </div>
 
-                    {/* Integrated Stepper & Next/Prev Controls directly under sets and reps */}
-                    <div className="live-sets-nav-row">
+                        <div className="timer-actions">
+                          {liveWorkoutSession.activeTimer.mode === 'set' ? (
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={handleCompleteSetEarly}
+                              title="Complete set now and start rest timer"
+                            >
+                              <Check width={14} height={14} /> Done set & Rest
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={skipRestTimer}
+                              title="Skip remaining rest"
+                            >
+                              Skip rest
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={toggleTimerPause}
+                          >
+                            {liveWorkoutSession.activeTimer.isRunning ? 'Pause' : 'Resume'}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => adjustTimer(15)}
+                          >
+                            +15s
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div className="live-nav">
+                    {liveWorkoutSession.currentExIdx > 0 ? (
                       <button
                         type="button"
-                        className="btn btn-ghost btn-sm"
-                        disabled={liveWorkoutSession.currentExIdx === 0}
+                        className="btn btn-ghost"
                         onClick={() => {
                           const prevIdx = Math.max(0, liveWorkoutSession.currentExIdx - 1);
                           const prevEx = liveWorkoutSession.exercises[prevIdx];
@@ -1265,76 +1277,47 @@ export default function Plans() {
                           }));
                         }}
                       >
-                        <ArrowLeft width={15} height={15} /> Previous Move
+                        ← Previous
                       </button>
+                    ) : (
+                      <div />
+                    )}
 
-                      <div className="live-stepper-dots">
-                        {liveWorkoutSession.exercises.map((ex, idx) => {
-                          const s = liveWorkoutSession.setsMap[ex.id] || [];
-                          const isDone = s.length > 0 && s.every((item) => item.done);
-                          const isCurrent = idx === liveWorkoutSession.currentExIdx;
-
-                          return (
-                            <span
-                              key={ex.id || idx}
-                              className={`live-step-dot ${isCurrent ? 'active' : ''} ${
-                                isDone ? 'completed' : ''
-                              }`}
-                              onClick={() => {
-                                const targetEx = liveWorkoutSession.exercises[idx];
-                                if (targetEx) {
-                                  speakVoice(getExerciseVoiceOverview(targetEx), { rate: 0.96, pitch: 1.02, interrupt: true });
-                                }
-                                setLiveWorkoutSession((prev) => ({ ...prev, currentExIdx: idx }));
-                              }}
-                              title={ex.name}
-                            />
+                    {liveWorkoutSession.currentExIdx < liveWorkoutSession.exercises.length - 1 ? (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => {
+                          const nextIdx = Math.min(
+                            liveWorkoutSession.exercises.length - 1,
+                            liveWorkoutSession.currentExIdx + 1
                           );
-                        })}
-                      </div>
-
-                      {liveWorkoutSession.currentExIdx === liveWorkoutSession.exercises.length - 1 ? (
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm"
-                          style={{
-                            boxShadow: '0 0 20px rgba(255, 94, 26, 0.45)',
-                            padding: '8px 18px',
-                            fontWeight: 800,
-                          }}
-                          onClick={handleFinishWorkout}
-                        >
-                          <Trophy width={15} height={15} /> Finish Workout
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm"
-                          onClick={() => {
-                            const nextIdx = Math.min(
-                              liveWorkoutSession.exercises.length - 1,
-                              liveWorkoutSession.currentExIdx + 1
-                            );
-                            const nextEx = liveWorkoutSession.exercises[nextIdx];
-                            if (nextEx) {
-                              speakVoice(getExerciseVoiceOverview(nextEx), { rate: 0.96, pitch: 1.02, interrupt: true });
-                            }
-                            setLiveWorkoutSession((prev) => ({
-                              ...prev,
-                              currentExIdx: nextIdx,
-                            }));
-                          }}
-                        >
-                          <span>Next Move</span>
-                          <ChevronRight width={15} height={15} />
-                        </button>
-                      )}
-                    </div>
+                          const nextEx = liveWorkoutSession.exercises[nextIdx];
+                          if (nextEx) {
+                            speakVoice(getExerciseVoiceOverview(nextEx), { rate: 0.96, pitch: 1.02, interrupt: true });
+                          }
+                          setLiveWorkoutSession((prev) => ({
+                            ...prev,
+                            currentExIdx: nextIdx,
+                          }));
+                        }}
+                      >
+                        Next exercise → <Arrow />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={handleFinishWorkout}
+                      >
+                        <Check width={15} height={15} /> Finish & log
+                      </button>
+                    )}
                   </div>
                 </div>
-              );
-            })()}
-          </div>
+              </motion.div>
+            );
+          })()
         ) : selectedPlan ? (
           /* ============================================================
              VIEW 2: PLAN DETAIL & INTERACTIVE CALENDAR VIEW
