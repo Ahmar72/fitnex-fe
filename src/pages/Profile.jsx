@@ -33,7 +33,7 @@ import { useTheme } from '../context/ThemeContext.jsx';
 import { useLanguage } from '../context/LanguageContext.jsx';
 import { StrengthMeter } from './Auth.jsx';
 import { GOALS, LEVELS, DEFAULT_PLAN_BY_GOAL } from '../lib/goals.js';
-import { isVoiceEnabled, setVoiceEnabled, readLS, writeLS } from '../lib/utils.js';
+import { isVoiceEnabled, setVoiceEnabled, speakVoice, readLS, writeLS } from '../lib/utils.js';
 
 const GOAL_ICONS = {
   muscle: Dumbbell,
@@ -133,6 +133,9 @@ export default function Profile() {
       next ? 'Voice guidelines enabled' : 'Voice guidelines disabled',
       next ? 'bolt' : 'info'
     );
+    if (next) {
+      speakVoice('voice_enabled', { lang, interrupt: true });
+    }
   };
 
   const toggleSection = (key) => {
@@ -775,6 +778,9 @@ export default function Profile() {
                                     `Language set to ${chosen?.native || newLang} (${chosen?.label || ''})`,
                                     'bolt'
                                   );
+                                  if (voiceEnabled) {
+                                    speakVoice('lang_changed', { lang: newLang, interrupt: true });
+                                  }
                                 }}
                                 style={{
                                   fontWeight: 700,
