@@ -1,30 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { readLS, writeLS, uid } from '../lib/utils.js';
-
-/*
- * Client-side authentication.
- * Users live in localStorage; passwords are never stored — only a salted PBKDF2-SHA256 hash.
- * The session lives in localStorage ("remember me") or sessionStorage (this tab only).
- * Swap these functions for real API calls when a backend exists.
- */
+import { readLS, writeLS } from '../lib/utils.js';
+import { api, tokenStorage } from '../lib/api.js';
 
 const AuthContext = createContext(null);
 const USERS = 'fx:users';
 const SESSION = 'fx:session';
-
-const enc = new TextEncoder();
-const toHex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
-
-async function hashPassword(password, saltHex) {
-  const salt = saltHex || toHex(crypto.getRandomValues(new Uint8Array(16)));
-  const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt: enc.encode(salt), iterations: 120000, hash: 'SHA-256' },
-    key,
-    256
-  );
-  return { salt, hash: toHex(bits) };
-}
 
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -45,115 +25,236 @@ const readSession = () => {
   }
 };
 
-const publicUser = (u) =>
-  u
-    ? {
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        avatar: u.avatar || null,
-        profile: u.profile,
-        createdAt: u.createdAt,
-      }
-    : null;
-
 export function AuthProvider({ children }) {
-  const [users, setUsers] = useState(() => readLS(USERS, []));
   const [session, setSession] = useState(readSession);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => writeLS(USERS, users), [users]);
+  // Restore session from Backend on initial mount
+  useEffect(() => {
+    let isMounted = true;
 
-  const user = useMemo(() => publicUser(users.find((u) => u.id === session?.userId)), [users, session]);
+    async function restoreSession() {
+      const accessToken = tokenStorage.getAccessToken();
+      if (!accessToken) {
+        if (isMounted) setLoading(false);
+        return;
+      }
 
-  const startSession = (userId, remember) => {
-    const s = { userId, at: Date.now() };
+      try {
+        const userData = await api.auth.getMe();
+        if (isMounted && userData) {
+          const u = {
+            id: userData.id || userData._id,
+            name: userData.name,
+            email: userData.email,
+            avatar: userData.avatar || null,
+            role: userData.role || 'user',
+            isEmailVerified: userData.isEmailVerified ?? false,
+            preferredLanguage: userData.preferredLanguage || 'en',
+            profile: userData.profile || {},
+          };
+          setCurrentUser(u);
+          setSession({ userId: u.id, at: Date.now() });
+        }
+      } catch (err) {
+        // Token expired or invalid
+        tokenStorage.clearTokens();
+        sessionStorage.removeItem(SESSION);
+        localStorage.removeItem(SESSION);
+        if (isMounted) {
+          setCurrentUser(null);
+          setSession(null);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    restoreSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const startSession = (u, accessToken, refreshToken, remember = true) => {
+    tokenStorage.setTokens(accessToken, refreshToken, remember);
+    const s = { userId: u.id, at: Date.now() };
     try {
       sessionStorage.removeItem(SESSION);
       localStorage.removeItem(SESSION);
       (remember ? localStorage : sessionStorage).setItem(SESSION, JSON.stringify(s));
     } catch {
-      /* storage blocked: session stays in memory */
+      /* storage blocked */
     }
     setSession(s);
+    setCurrentUser(u);
   };
 
+  /**
+   * Register new user via Backend
+   */
   const signup = useCallback(
     async ({ name, email, password, profile }) => {
-      const mail = email.trim().toLowerCase();
-      if (users.some((u) => u.email === mail)) throw new Error('An account with this email already exists.');
-      const { salt, hash } = await hashPassword(password);
-      const u = { id: uid(), name: name.trim(), email: mail, salt, hash, profile: profile || {}, createdAt: new Date().toISOString() };
-      setUsers((list) => [...list, u]);
-      startSession(u.id, true);
-      return publicUser(u);
+      const res = await api.auth.register({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      const u = {
+        id: res.user.id,
+        name: res.user.name,
+        email: res.user.email,
+        role: res.user.role || 'user',
+        avatar: null,
+        isEmailVerified: false,
+        profile: profile || {},
+        createdAt: new Date().toISOString(),
+      };
+
+      if (res.accessToken) {
+        startSession(u, res.accessToken, res.refreshToken, true);
+      }
+
+      return { ...u, needsVerification: true };
     },
-    [users]
+    [],
   );
 
+  /**
+   * Authenticate user with credentials
+   */
   const login = useCallback(
     async (email, password, remember = true) => {
-      const u = users.find((x) => x.email === email.trim().toLowerCase());
-      if (!u) throw new Error('No account found with that email.');
-      const { hash } = await hashPassword(password, u.salt);
-      if (hash !== u.hash) throw new Error('Incorrect password. Please try again.');
-      startSession(u.id, remember);
-      return publicUser(u);
+      const res = await api.auth.login({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      const u = {
+        id: res.user.id,
+        name: res.user.name,
+        email: res.user.email,
+        role: res.user.role || 'user',
+        avatar: res.user.avatar || null,
+        isEmailVerified: res.user.isEmailVerified ?? true,
+        preferredLanguage: res.user.preferredLanguage || 'en',
+        profile: res.user.profile || {},
+      };
+
+      startSession(u, res.accessToken, res.refreshToken, remember);
+      return u;
     },
-    [users]
+    [],
   );
 
-  const logout = useCallback(() => {
-    try {
-      sessionStorage.removeItem(SESSION);
-      localStorage.removeItem(SESSION);
-    } catch {
-      /* ignore */
+  /**
+   * Verify email using 6-digit OTP code
+   */
+  const verifyEmail = useCallback(async (email, token) => {
+    const res = await api.auth.verifyEmail({
+      email: email.trim().toLowerCase(),
+      token: token.trim(),
+    });
+
+    if (res?.accessToken && res?.user) {
+      const u = {
+        id: res.user.id,
+        name: res.user.name,
+        email: res.user.email,
+        role: res.user.role || 'user',
+        avatar: null,
+        isEmailVerified: true,
+        preferredLanguage: res.user.preferredLanguage || 'en',
+        profile: {},
+      };
+      startSession(u, res.accessToken, res.refreshToken, true);
+    } else {
+      setCurrentUser((prev) => (prev ? { ...prev, isEmailVerified: true } : prev));
     }
-    setSession(null);
+    return res;
   }, []);
 
-  const updateUser = useCallback(
-    (patch) => {
-      if (!session) return;
-      if (patch.email) {
-        const mail = patch.email.trim().toLowerCase();
-        if (users.some((u) => u.email === mail && u.id !== session.userId)) throw new Error('That email is already in use.');
-        patch = { ...patch, email: mail };
-      }
-      setUsers((list) =>
-        list.map((u) => (u.id === session.userId ? { ...u, ...patch, profile: { ...u.profile, ...(patch.profile || {}) } } : u))
-      );
-    },
-    [session, users]
-  );
+  /**
+   * Resend 6-digit verification OTP code
+   */
+  const resendVerification = useCallback(async (email) => {
+    return api.auth.resendVerification({
+      email: email.trim().toLowerCase(),
+    });
+  }, []);
 
-  const changePassword = useCallback(
-    async (current, next) => {
-      const u = users.find((x) => x.id === session?.userId);
-      if (!u) throw new Error('Not signed in.');
-      const { hash } = await hashPassword(current, u.salt);
-      if (hash !== u.hash) throw new Error('Your current password is incorrect.');
-      const fresh = await hashPassword(next);
-      setUsers((list) => list.map((x) => (x.id === u.id ? { ...x, ...fresh } : x)));
-    },
-    [users, session]
-  );
+  /**
+   * Request password reset code
+   */
+  const forgotPassword = useCallback(async (email) => {
+    return api.auth.forgotPassword({
+      email: email.trim().toLowerCase(),
+    });
+  }, []);
 
-  const deleteAccount = useCallback(() => {
-    if (!session) return;
-    const id = session.userId;
+  /**
+   * Reset password with token
+   */
+  const resetPassword = useCallback(async (token, newPassword) => {
+    return api.auth.resetPassword({
+      token: token.trim(),
+      newPassword,
+    });
+  }, []);
+
+  /**
+   * Logout user and revoke tokens
+   */
+  const logout = useCallback(async () => {
     try {
-      Object.keys(localStorage)
-        .filter((k) => k.startsWith(`fx:${id}:`))
-        .forEach((k) => localStorage.removeItem(k));
+      await api.auth.logout();
     } catch {
-      /* ignore */
+      /* ignore network errors on logout */
+    } finally {
+      tokenStorage.clearTokens();
+      try {
+        sessionStorage.removeItem(SESSION);
+        localStorage.removeItem(SESSION);
+      } catch {
+        /* ignore */
+      }
+      setSession(null);
+      setCurrentUser(null);
     }
-    setUsers((list) => list.filter((u) => u.id !== id));
-    logout();
-  }, [session, logout]);
+  }, []);
 
-  const value = { user, signup, login, logout, updateUser, changePassword, deleteAccount };
+  /**
+   * Update user profile
+   */
+  const updateUser = useCallback(
+    async (patch) => {
+      try {
+        const updated = await api.users.updateProfile(patch);
+        setCurrentUser((prev) => (prev ? { ...prev, ...updated } : prev));
+      } catch (err) {
+        // Fallback local update if offline
+        setCurrentUser((prev) => (prev ? { ...prev, ...patch, profile: { ...prev.profile, ...(patch.profile || {}) } } : prev));
+      }
+    },
+    [],
+  );
+
+  const value = {
+    user: currentUser,
+    loading,
+    signup,
+    login,
+    verifyEmail,
+    resendVerification,
+    forgotPassword,
+    resetPassword,
+    logout,
+    updateUser,
+  };
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
