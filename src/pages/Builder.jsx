@@ -9,7 +9,7 @@ import { Paper, Reveal, SplitText } from '../components/Motion.jsx';
 import { Arrow, Check, Down, Play, Plus, Search, Trash, Up, X } from '../components/Icons.jsx';
 import { ROUTINES } from '../sections/Programs.jsx';
 import { getSetDurationForDay } from '../lib/progressionEngine.js';
-import { BODY_PARTS, asset, dayKey, fmt, playChimeSound, playWhistleSound, speakVoice, getExerciseVoiceOverview, readLS, writeLS } from '../lib/utils.js';
+import { BODY_PARTS, asset, dayKey, fmt, playChimeSound, playWhistleSound, speakVoice, stopVoice, getExerciseVoiceOverview, readLS, writeLS } from '../lib/utils.js';
 import PageShimmer from '../components/AppSpinner.jsx';
 import WorkoutCompleteModal from '../components/WorkoutCompleteModal.jsx';
 import { createPortal } from 'react-dom';
@@ -168,9 +168,7 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
   const lastAnnouncedExIdRef = useRef(initialAnnouncedExId);
 
   const handleClose = () => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+    stopVoice();
     onClose();
   };
 
@@ -178,9 +176,7 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
     lockScroll(true);
     return () => {
       lockScroll(false);
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopVoice();
     };
   }, []);
 
@@ -197,6 +193,10 @@ function LiveMode({ items, byId, onClose, initialIndex = 0, initialTargetSetId =
     lastAnnouncedExIdRef.current = ex.id;
 
     speakVoice(getExerciseVoiceOverview(ex), { rate: 0.96, pitch: 1.02, interrupt: true });
+
+    return () => {
+      stopVoice();
+    };
   }, [ex?.id]);
 
   const startSetTimer = (targetItemUid, targetSetId, targetSetIndex) => {

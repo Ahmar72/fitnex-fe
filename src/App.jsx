@@ -11,6 +11,7 @@ import RequireAuth from './components/RequireAuth.jsx';
 import AppLayout from './components/AppLayout.jsx';
 import AppSpinner from './components/AppSpinner.jsx';
 import { useSmoothScroll } from './lib/useSmoothScroll.js';
+import { stopVoice } from './lib/utils.js';
 import Home from './pages/Home.jsx';
 
 const Library = lazy(() => import('./pages/Library.jsx'));
@@ -52,6 +53,7 @@ export default function App() {
   };
 
   useEffect(() => {
+    stopVoice();
     document.title = {
       '/login': 'Sign in — Fitnex',
       '/signup': 'Create your account — Fitnex',

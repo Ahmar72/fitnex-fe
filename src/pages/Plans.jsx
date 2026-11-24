@@ -26,7 +26,7 @@ import {
 } from '../components/Icons.jsx';
 import { PLANS, PLAN_CATEGORIES } from '../lib/plansData.js';
 import { getProgressionForWeek, getSetDurationForDay } from '../lib/progressionEngine.js';
-import { asset, dayKey, readLS, writeLS, playChimeSound, playWhistleSound, speakVoice, getExerciseVoiceOverview, partMeta } from '../lib/utils.js';
+import { asset, dayKey, readLS, writeLS, playChimeSound, playWhistleSound, speakVoice, stopVoice, getExerciseVoiceOverview, partMeta } from '../lib/utils.js';
 import WorkoutCompleteModal from '../components/WorkoutCompleteModal.jsx';
 
 const ease = [0.22, 1, 0.36, 1];
@@ -452,6 +452,13 @@ export default function Plans() {
       : { mode: null, setIdx: null };
   }, [liveWorkoutSession?.activeTimer, toast]);
 
+  // Cleanup speech synthesis on page exit / component unmount
+  useEffect(() => {
+    return () => {
+      stopVoice();
+    };
+  }, []);
+
   // Voice guide: state name first and 1-2 sentence overview when starting or switching exercise in plans
   const lastAnnouncedPlanExIdRef = useRef(null);
   const liveWorkoutSessionRef = useRef(liveWorkoutSession);
@@ -460,9 +467,7 @@ export default function Plans() {
   useEffect(() => {
     if (!liveWorkoutSession) {
       lastAnnouncedPlanExIdRef.current = null;
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopVoice();
       return;
     }
     const curEx = liveWorkoutSession.exercises?.[liveWorkoutSession.currentExIdx];
@@ -471,6 +476,10 @@ export default function Plans() {
     lastAnnouncedPlanExIdRef.current = curEx.id;
 
     speakVoice(getExerciseVoiceOverview(curEx), { rate: 0.96, pitch: 1.02, interrupt: true });
+
+    return () => {
+      stopVoice();
+    };
   }, [liveWorkoutSession?.currentExIdx, Boolean(liveWorkoutSession)]);
 
   // Countdown timer effect:
@@ -697,7 +706,8 @@ export default function Plans() {
 
     const finalElapsedSeconds = elapsedSeconds;
 
-    // Immediately stop live workout session so the timer freezes at this exact moment!
+    // Immediately stop speech and live workout session
+    stopVoice();
     setLiveWorkoutSession(null);
 
     // Calculate EXACT recorded completed sets for each exercise
@@ -1047,7 +1057,9 @@ export default function Plans() {
                       type="button"
                       className="icon-btn"
                       onClick={() => {
+                        stopVoice();
                         if (window.confirm('Exit live workout? Your completed sets will be preserved.')) {
+                          stopVoice();
                           setLiveWorkoutSession(null);
                         }
                       }}

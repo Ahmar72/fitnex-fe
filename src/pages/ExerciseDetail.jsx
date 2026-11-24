@@ -7,7 +7,7 @@ import { useLanguage } from '../context/LanguageContext.jsx';
 import ExerciseCard from '../components/ExerciseCard.jsx';
 import { Paper, Reveal } from '../components/Motion.jsx';
 import { Arrow, ArrowLeft, Heart, Plus } from '../components/Icons.jsx';
-import { asset, partMeta, sample } from '../lib/utils.js';
+import { asset, partMeta, sample, stopVoice } from '../lib/utils.js';
 import PageShimmer from '../components/AppSpinner.jsx';
 
 const ease = [0.22, 1, 0.36, 1];
@@ -28,6 +28,12 @@ export default function ExerciseDetail() {
   const isScoped = Boolean((isFromPlan || isFromRoutine) && Array.isArray(scopedExerciseIds) && scopedExerciseIds.length > 0);
 
   const ex = byId.get(id);
+
+  useEffect(() => {
+    return () => {
+      stopVoice();
+    };
+  }, []);
 
   useEffect(() => {
     setI18n(null);

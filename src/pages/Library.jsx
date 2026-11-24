@@ -7,7 +7,7 @@ import { useLanguage } from '../context/LanguageContext.jsx';
 import ExerciseCard from '../components/ExerciseCard.jsx';
 import { Reveal, SplitText } from '../components/Motion.jsx';
 import { Arrow, ArrowLeft, Grid, ListIcon, Search, X, Heart, Plus } from '../components/Icons.jsx';
-import { asset, BODY_PARTS, partMeta } from '../lib/utils.js';
+import { asset, BODY_PARTS, partMeta, stopVoice } from '../lib/utils.js';
 import PageShimmer from '../components/AppSpinner.jsx';
 
 export default function Library() {
@@ -38,10 +38,21 @@ export default function Library() {
     };
   }, [selectedEx?.id]);
 
+  const handleClosePanel = () => {
+    stopVoice();
+    setSelectedEx(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopVoice();
+    };
+  }, []);
+
   useEffect(() => {
     if (!selectedEx) return;
     const onKey = (e) => {
-      if (e.key === 'Escape') setSelectedEx(null);
+      if (e.key === 'Escape') handleClosePanel();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -385,7 +396,7 @@ export default function Library() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              onClick={() => setSelectedEx(null)}
+              onClick={handleClosePanel}
             />
             <motion.aside
               className="ex-side-panel"
@@ -408,7 +419,7 @@ export default function Library() {
                 <button
                   type="button"
                   className="ex-panel-close-btn"
-                  onClick={() => setSelectedEx(null)}
+                  onClick={handleClosePanel}
                   aria-label="Close details"
                 >
                   <X width={16} height={16} />

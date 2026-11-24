@@ -592,11 +592,28 @@ export function setVoiceEnabled(enabled) {
   try {
     if (typeof window !== 'undefined') {
       localStorage.setItem('fx:voice-guidelines', String(enabled));
-      if (!enabled && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
+      if (!enabled) {
+        stopVoice();
       }
     }
   } catch {}
+}
+
+/**
+ * Immediately halts and cancels all active and pending text-to-speech audio.
+ */
+export function stopVoice() {
+  try {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+    }
+    activeUtterances = [];
+  } catch (err) {
+    console.warn('stopVoice exception:', err);
+  }
 }
 
 /**

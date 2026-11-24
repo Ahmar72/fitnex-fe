@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, X } from './Icons.jsx';
-import { playChimeSound } from '../lib/utils.js';
+import { playChimeSound, stopVoice } from '../lib/utils.js';
 import { lockScroll } from '../lib/useSmoothScroll.js';
 import { FRONT_MUSCLES, BACK_MUSCLES } from 'body-muscles';
 
@@ -226,13 +226,18 @@ function BodyMuscleMap({ trainedMuscles = [], trainedTargets = [] }) {
 export default function WorkoutCompleteModal({ isOpen, onClose, data }) {
   useEffect(() => {
     if (isOpen) {
+      stopVoice();
       playChimeSound();
       lockScroll(true);
       const onKeyDown = (e) => {
-        if (e.key === 'Escape') onClose?.();
+        if (e.key === 'Escape') {
+          stopVoice();
+          onClose?.();
+        }
       };
       window.addEventListener('keydown', onKeyDown);
       return () => {
+        stopVoice();
         lockScroll(false);
         window.removeEventListener('keydown', onKeyDown);
       };
@@ -272,7 +277,10 @@ export default function WorkoutCompleteModal({ isOpen, onClose, data }) {
           <button
             type="button"
             className="workout-complete-close-btn"
-            onClick={onClose}
+            onClick={() => {
+              stopVoice();
+              onClose?.();
+            }}
             aria-label="Close workout summary"
           >
             <X width={16} height={16} />
@@ -312,7 +320,10 @@ export default function WorkoutCompleteModal({ isOpen, onClose, data }) {
           <button
             type="button"
             className="workout-complete-nice-btn"
-            onClick={onClose}
+            onClick={() => {
+              stopVoice();
+              onClose?.();
+            }}
           >
             Nice!
           </button>
