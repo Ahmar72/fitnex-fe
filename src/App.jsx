@@ -25,9 +25,12 @@ const MealDetail = lazy(() => import('./pages/MealDetail.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 const Login = lazy(() => import('./pages/Auth.jsx').then((m) => ({ default: m.Login })));
 const Signup = lazy(() => import('./pages/Auth.jsx').then((m) => ({ default: m.Signup })));
+const VerifyEmail = lazy(() => import('./pages/Auth.jsx').then((m) => ({ default: m.VerifyEmail })));
+const ForgotPassword = lazy(() => import('./pages/Auth.jsx').then((m) => ({ default: m.ForgotPassword })));
+const ResetPassword = lazy(() => import('./pages/Auth.jsx').then((m) => ({ default: m.ResetPassword })));
 const Onboarding = lazy(() => import('./pages/Onboarding.jsx'));
 
-const AUTH_PAGES = ['/login', '/signup', '/onboarding'];
+const AUTH_PAGES = ['/login', '/signup', '/verify-email', '/forgot-password', '/reset-password', '/onboarding'];
 const APP_ROUTES = ['/dashboard', '/plans', '/profile', '/exercises', '/builder', '/nutrition'];
 
 const page = (el, protect = false) => <PageTransition>{protect ? <RequireAuth>{el}</RequireAuth> : el}</PageTransition>;
@@ -57,6 +60,9 @@ export default function App() {
     document.title = {
       '/login': 'Sign in — Fitnex',
       '/signup': 'Create your account — Fitnex',
+      '/verify-email': 'Verify your email — Fitnex',
+      '/forgot-password': 'Forgot password — Fitnex',
+      '/reset-password': 'Reset your password — Fitnex',
       '/onboarding': 'Personalize your training — Fitnex',
       '/dashboard': 'Dashboard — Fitnex',
       '/plans': 'Workout Plans — Fitnex',
@@ -90,6 +96,9 @@ export default function App() {
           <Route path="/" element={page(<Home />)} />
           <Route path="/login" element={page(<Login />)} />
           <Route path="/signup" element={page(<Signup />)} />
+          <Route path="/verify-email" element={page(<VerifyEmail />)} />
+          <Route path="/forgot-password" element={page(<ForgotPassword />)} />
+          <Route path="/reset-password" element={page(<ResetPassword />)} />
           <Route path="/onboarding" element={page(<Onboarding />, true)} />
 
           {/* Authenticated App Workspace - Persistent AppLayout with smooth navigation */}

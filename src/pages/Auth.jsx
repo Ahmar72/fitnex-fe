@@ -141,12 +141,12 @@ const SideCopy = ({ big, small }) => (
 /* Login                                                               */
 /* ------------------------------------------------------------------ */
 export function Login() {
-  const { user, login, signup } = useAuth();
+  const { user, login } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const next = location.state?.from || '/dashboard';
-  const [form, setForm] = useState({ email: '', password: '', remember: true });
+  const [form, setForm] = useState({ email: location.state?.email || '', password: '', remember: true });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [shake, setShake] = useState(0);
@@ -168,7 +168,7 @@ export function Login() {
     setBusy(true);
     try {
       const u = await login(form.email, form.password, form.remember);
-      toast(`Welcome back, ${u.name.split(' ')[0]}!`, 'bolt');
+      toast(`Welcome back, ${u.name ? u.name.split(' ')[0] : 'Athlete'}!`, 'bolt');
       navigate(next, { replace: true });
     } catch (err) {
       setErrors({ form: err.message });
@@ -180,13 +180,12 @@ export function Login() {
 
   const demo = async () => {
     setBusy(true);
-    const creds = { email: 'demo@fitnex.app', password: 'Demo@1234' };
     try {
-      await login(creds.email, creds.password, true).catch(() =>
-        signup({ name: 'Demo Athlete', ...creds, profile: { goal: 'muscle', level: 'intermediate', days: 4, weight: 78 } })
-      );
-      toast('Signed in to the demo account', 'bolt');
+      const u = await login('athlete@fitnex.com', 'Password123!', true);
+      toast(`Signed in as ${u.name}`, 'bolt');
       navigate(next, { replace: true });
+    } catch (err) {
+      setErrors({ form: err.message });
     } finally {
       setBusy(false);
     }
@@ -219,13 +218,16 @@ export function Login() {
               <span className="box"><Check width={12} height={12} /></span>
               Keep me signed in
             </label>
+            <Link to="/forgot-password" className="auth-link">
+              Forgot password?
+            </Link>
           </div>
           <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
             {busy ? <span className="spinner" /> : <>Sign in <Arrow /></>}
           </button>
           <div className="divider"><span>or</span></div>
           <button className="btn btn-ghost btn-block" type="button" onClick={demo} disabled={busy}>
-            Try the demo account
+            Try the athlete account
           </button>
           <p className="auth-switch">
             New to Fitnex? <Link to="/signup" state={location.state}>Create a free account</Link>
@@ -237,7 +239,7 @@ export function Login() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Signup — Account creation (onboarding happens on /onboarding)       */
+/* Signup — Account creation with OTP verification step                */
 /* ------------------------------------------------------------------ */
 export function Signup() {
   const { user, signup } = useAuth();
@@ -285,13 +287,17 @@ export function Signup() {
     if (!validate()) return;
     setBusy(true);
     try {
-      const u = await signup({
+      const registered = await signup({
         name: form.name.trim(),
         email: form.email.trim(),
         password: form.password,
       });
-      toast(`Welcome to Fitnex, ${u.name.split(' ')[0]}! Let's tailor your routine.`, 'bolt');
-      navigate('/onboarding', { replace: true });
+
+      toast(`Account created! We sent an OTP verification code to ${form.email}.`, 'bolt');
+      navigate('/verify-email', {
+        state: { email: form.email, name: form.name },
+        replace: true,
+      });
     } catch (err) {
       setErrors({ form: err.message });
       setShake((x) => x + 1);
@@ -387,12 +393,385 @@ export function Signup() {
               type="submit"
               disabled={busy}
             >
-              {busy ? <span className="spinner" /> : <>Create account <Arrow /></>}
+              {busy ? <span className="spinner" /> : <>Create account & send OTP <Arrow /></>}
             </button>
           </div>
 
           <p className="auth-switch">
             Already have an account? <Link to="/login" state={location.state}>Sign in</Link>
+          </p>
+        </form>
+      </Shake>
+    </AuthLayout>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* VerifyEmail — 6-digit OTP code verification & resend               */
+/* ------------------------------------------------------------------ */
+export function VerifyEmail() {
+  const { user, verifyEmail, resendVerification } = useAuth();
+  const toast = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const query = new URLSearchParams(location.search);
+
+  const initialEmail = location.state?.email || query.get('email') || user?.email || '';
+
+  const [email, setEmail] = useState(initialEmail);
+  const [digits, setDigits] = useState(['', '', '', '', '', '']);
+  const [errors, setErrors] = useState({});
+  const [success, setSuccess] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [shake, setShake] = useState(0);
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const t = setInterval(() => setCountdown((c) => c - 1), 1000);
+    return () => clearInterval(t);
+  }, [countdown]);
+
+  const handleDigitChange = (index, value) => {
+    // Check for paste
+    if (value.length > 1) {
+      const pasted = value.replace(/\D/g, '').slice(0, 6);
+      if (pasted.length) {
+        const nextDigits = [...digits];
+        for (let i = 0; i < 6; i++) {
+          nextDigits[i] = pasted[i] || '';
+        }
+        setDigits(nextDigits);
+        return;
+      }
+    }
+
+    const nextDigits = [...digits];
+    nextDigits[index] = value.slice(-1);
+    setDigits(nextDigits);
+    setErrors({});
+
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`otp-digit-${index + 1}`);
+      nextInput?.focus();
+    }
+  };
+
+  const handleKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !digits[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-digit-${index - 1}`);
+      prevInput?.focus();
+    }
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const token = digits.join('').trim();
+    if (!email || !EMAIL_RE.test(email)) {
+      setErrors({ email: 'Valid email address is required.' });
+      return setShake((s) => s + 1);
+    }
+    if (token.length !== 6) {
+      setErrors({ form: 'Please enter all 6 digits of your verification code.' });
+      return setShake((s) => s + 1);
+    }
+
+    setBusy(true);
+    setErrors({});
+    try {
+      await verifyEmail(email, token);
+      toast('Email verified successfully! Welcome to Fitnex.', 'bolt');
+      navigate('/onboarding', { replace: true });
+    } catch (err) {
+      setErrors({ form: err.message });
+      setShake((s) => s + 1);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (countdown > 0 || resending) return;
+    if (!email || !EMAIL_RE.test(email)) {
+      setErrors({ email: 'Please enter your email to resend code.' });
+      return;
+    }
+
+    setResending(true);
+    setErrors({});
+    try {
+      await resendVerification(email);
+      setSuccess('A fresh 6-digit verification code has been sent to your email.');
+      setCountdown(60);
+      toast('Verification code sent via Mailtrap!', 'bolt');
+    } catch (err) {
+      setErrors({ form: err.message });
+    } finally {
+      setResending(false);
+    }
+  };
+
+  return (
+    <AuthLayout
+      title="Verify your email."
+      subtitle="Enter the 6-digit verification code sent to your email."
+      side={<SideCopy big={<>One quick <span className="accent">step.</span></>} small="Verify your account to access custom routines, personalized macros, and tracking." />}
+    >
+      <Shake k={shake}>
+        <form className="auth-form" onSubmit={submit} noValidate>
+          <AnimatePresence>
+            {errors.form && (
+              <motion.div className="form-alert" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                {errors.form}
+              </motion.div>
+            )}
+            {success && (
+              <motion.div className="form-success" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                {success}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <Field label="Email address" error={errors.email}>
+            <input
+              className="input"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </Field>
+
+          <div className="otp-container">
+            <span className="field-label">6-Digit Verification Code</span>
+            <div className="otp-inputs">
+              {digits.map((digit, idx) => (
+                <input
+                  key={idx}
+                  id={`otp-digit-${idx}`}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  className="otp-input"
+                  placeholder=""
+                  autoComplete="off"
+                  onChange={(e) => handleDigitChange(idx, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(idx, e)}
+                  autoFocus={idx === 0 && !digit}
+                />
+              ))}
+            </div>
+            <div className="resend-row">
+              <span className="muted" style={{ fontSize: '13px' }}>Didn’t get a code?</span>
+              <button
+                type="button"
+                className="resend-btn"
+                onClick={handleResend}
+                disabled={countdown > 0 || resending}
+              >
+                {resending ? 'Sending...' : countdown > 0 ? `Resend code in ${countdown}s` : 'Resend code'}
+              </button>
+            </div>
+          </div>
+
+          <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
+            {busy ? <span className="spinner" /> : <>Verify & Continue <Arrow /></>}
+          </button>
+
+          <p className="auth-switch">
+            Back to <Link to="/login">Sign in</Link>
+          </p>
+        </form>
+      </Shake>
+    </AuthLayout>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* ForgotPassword — Request password reset code via Mailtrap           */
+/* ------------------------------------------------------------------ */
+export function ForgotPassword() {
+  const { forgotPassword } = useAuth();
+  const toast = useToast();
+  const [email, setEmail] = useState('');
+  const [errors, setErrors] = useState({});
+  const [success, setSuccess] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [shake, setShake] = useState(0);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!EMAIL_RE.test(email)) {
+      setErrors({ email: 'Enter a valid email address.' });
+      return setShake((s) => s + 1);
+    }
+
+    setBusy(true);
+    setErrors({});
+    try {
+      await forgotPassword(email);
+      setSuccess(true);
+      toast('Reset instructions sent to your email!', 'bolt');
+    } catch (err) {
+      setErrors({ form: err.message });
+      setShake((s) => s + 1);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <AuthLayout
+      title="Reset password."
+      subtitle="We’ll send a password recovery code to your registered email."
+      side={<SideCopy big={<>Account <span className="accent">Recovery.</span></>} small="Get back into your account quickly and securely." />}
+    >
+      <Shake k={shake}>
+        <form className="auth-form" onSubmit={submit} noValidate>
+          <AnimatePresence>
+            {errors.form && (
+              <motion.div className="form-alert" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                {errors.form}
+              </motion.div>
+            )}
+            {success && (
+              <motion.div className="form-success" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                A password reset code has been sent to <strong>{email}</strong>. Check your inbox (or Mailtrap) to continue.
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {!success ? (
+            <>
+              <Field label="Email" error={errors.email}>
+                <input
+                  className="input"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </Field>
+
+              <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
+                {busy ? <span className="spinner" /> : <>Send Reset Code <Arrow /></>}
+              </button>
+            </>
+          ) : (
+            <div className="auth-actions" style={{ flexDirection: 'column' }}>
+              <Link to={`/reset-password?email=${encodeURIComponent(email)}`} className="btn btn-primary btn-block">
+                Enter Reset Code &rarr;
+              </Link>
+            </div>
+          )}
+
+          <p className="auth-switch">
+            Remember your password? <Link to="/login">Sign in</Link>
+          </p>
+        </form>
+      </Shake>
+    </AuthLayout>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* ResetPassword — Enter code and set new password                    */
+/* ------------------------------------------------------------------ */
+export function ResetPassword() {
+  const { resetPassword } = useAuth();
+  const toast = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const query = new URLSearchParams(location.search);
+
+  const [token, setToken] = useState(query.get('token') || '');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [errors, setErrors] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [shake, setShake] = useState(0);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const errs = {};
+    if (!token.trim()) errs.token = 'Enter the reset code received in your email.';
+    if (passwordChecks(password).some((c) => !c.ok)) {
+      errs.password = 'Password does not meet all security requirements.';
+    }
+    if (password !== confirm) {
+      errs.confirm = 'Passwords do not match.';
+    }
+    setErrors(errs);
+    if (Object.keys(errs).length) return setShake((s) => s + 1);
+
+    setBusy(true);
+    try {
+      await resetPassword(token, password);
+      toast('Password reset successfully! Please sign in.', 'bolt');
+      navigate('/login', { replace: true });
+    } catch (err) {
+      setErrors({ form: err.message });
+      setShake((s) => s + 1);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <AuthLayout
+      title="Set new password."
+      subtitle="Enter the reset code sent to your email and choose a new password."
+      side={<SideCopy big={<>Secure <span className="accent">Access.</span></>} small="Choose a strong password to protect your fitness journey." />}
+    >
+      <Shake k={shake}>
+        <form className="auth-form" onSubmit={submit} noValidate>
+          <AnimatePresence>
+            {errors.form && (
+              <motion.div className="form-alert" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                {errors.form}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <Field label="Reset code / token" error={errors.token}>
+            <input
+              className="input"
+              placeholder="Paste code from email"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+            />
+          </Field>
+
+          <div className="field-grid">
+            <Field label="New password" error={errors.password}>
+              <PasswordInput
+                value={password}
+                onChange={setPassword}
+                autoComplete="new-password"
+                placeholder="New password"
+              />
+            </Field>
+            <Field label="Confirm password" error={errors.confirm}>
+              <PasswordInput
+                value={confirm}
+                onChange={setConfirm}
+                autoComplete="new-password"
+                placeholder="Confirm password"
+              />
+            </Field>
+          </div>
+
+          <StrengthMeter password={password} />
+
+          <button className="btn btn-primary btn-block" type="submit" disabled={busy}>
+            {busy ? <span className="spinner" /> : <>Reset Password & Sign in <Arrow /></>}
+          </button>
+
+          <p className="auth-switch">
+            Back to <Link to="/login">Sign in</Link>
           </p>
         </form>
       </Shake>
