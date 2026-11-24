@@ -3607,6 +3607,17 @@ const URDU_PHRASES = [
   [/Slowly lower the dumbbells back to the starting position\.?/gi, 'ڈمبلز کو آہستہ آہستہ واپس ابتدائی پوزیشن پر نیچے لائیں۔'],
   [/Keep your back straight and your core engaged throughout the movement\.?/gi, 'پوری حرکت کے دوران اپنی کمر سیدھی اور پیٹ کے عضلات کو چست رکھیں۔'],
   [/Inhale as you lower the weight and exhale as you lift\.?/gi, 'وزن نیچے لاتے وقت سانس اندر لیں اور اٹھاتے وقت باہر نکالیں۔'],
+  [/Bend your knees (slightly|to about 90 degrees)?\.?/gi, 'اپنے گھٹنے قدرے موڑ کر رکھیں۔'],
+  [/Hinge at your hips\.?/gi, 'کولہوں سے آگے کی طرف جھکیں۔'],
+  [/Maintain a neutral spine\.?/gi, 'اپنی کمر کو بالکل سیدھا رکھیں۔'],
+  [/Squeeze your glutes at the top\.?/gi, 'اوپر پہنچ کر اپنے پٹھوں کو سکیڑیں۔'],
+  [/Exhale as you (press|push|lift|curl|pull)\.?/gi, 'زور لگاتے وقت سانس باہر نکالیں۔'],
+  [/Inhale as you return to the starting position\.?/gi, 'ابتدائی پوزیشن پر واپس آتے ہوئے سانس اندر لیں۔'],
+  [/Keep your chest up and shoulders back\.?/gi, 'اپنا سینہ چوڑا اور کندھے پیچھے رکھیں۔'],
+  [/Lower your body until your chest nearly touches the floor\.?/gi, 'اپنے جسم کو نیچے لائیں جب تک سینہ زمین کے قریب نہ پہنچ جائے۔'],
+  [/Push through your palms to return to the top\.?/gi, 'ہتھیلیوں سے زور لگا کر واپس اوپر آئیں۔'],
+  [/Tighten your core throughout the movement\.?/gi, 'پوری حرکت کے دوران اپنے پیٹ کے عضلات کو سخت رکھیں۔'],
+  [/Hold the position for the specified duration\.?/gi, 'مقررہ وقت تک اس پوزیشن کو برقرار رکھیں۔'],
 ];
 
 /**
