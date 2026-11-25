@@ -71,7 +71,13 @@ async function request(endpoint, options = {}) {
   }
 
   // Automatic refresh token rotation on 401
-  if (response.status === 401 && !options._retry && tokenStorage.getRefreshToken()) {
+  if (
+    response.status === 401 &&
+    !options._retry &&
+    !endpoint.includes('/auth/login') &&
+    !endpoint.includes('/auth/refresh') &&
+    tokenStorage.getRefreshToken()
+  ) {
     try {
       const refreshRes = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
@@ -86,9 +92,11 @@ async function request(endpoint, options = {}) {
           headers.Authorization = `Bearer ${tokens.accessToken}`;
           return request(endpoint, { ...options, _retry: true, headers });
         }
+      } else {
+        tokenStorage.clearTokens();
       }
     } catch {
-      // Refresh failed, proceed to handle original 401
+      tokenStorage.clearTokens();
     }
   }
 
