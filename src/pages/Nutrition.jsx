@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useWorkout } from '../context/WorkoutContext.jsx';
 import MealCard from '../components/MealCard.jsx';
@@ -10,6 +10,7 @@ import {
 } from '../data/meals.js';
 import { PLANS } from '../lib/plansData.js';
 import { readLS } from '../lib/utils.js';
+import { api } from '../lib/api.js';
 
 export default function Nutrition() {
   const { user } = useAuth();
@@ -18,6 +19,24 @@ export default function Nutrition() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [selectedGoal, setSelectedGoal] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [dailySummary, setDailySummary] = useState(null);
+
+  // Fetch live daily caloric and macro summary from backend
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    api.meals
+      .getDailySummary()
+      .then((summary) => {
+        if (alive && summary?.targets) {
+          setDailySummary(summary);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [user?.id]);
 
   // Active Plan determination
   const activePlanData = useMemo(() => readLS('fx:active-plan-data', null), []);
@@ -95,16 +114,28 @@ export default function Nutrition() {
 
         <div className="nutrition-stats-strip">
           <div className="nutri-stat-item">
-            <span className="nutri-stat-val">{MEALS.length}</span>
-            <span className="nutri-stat-lbl">Curated Meals</span>
+            <span className="nutri-stat-val">
+              {dailySummary ? `${dailySummary.consumed?.calories || 0} / ${dailySummary.targets?.calories || 2200} kcal` : `${MEALS.length}`}
+            </span>
+            <span className="nutri-stat-lbl">
+              {dailySummary ? 'Today’s Calorie Budget' : 'Curated Meals'}
+            </span>
           </div>
           <div className="nutri-stat-item">
-            <span className="nutri-stat-val">20–55g</span>
-            <span className="nutri-stat-lbl">Protein / Meal</span>
+            <span className="nutri-stat-val">
+              {dailySummary ? `${dailySummary.consumed?.protein || 0} / ${dailySummary.targets?.protein || 150}g` : '20–55g'}
+            </span>
+            <span className="nutri-stat-lbl">
+              {dailySummary ? 'Today’s Protein Target' : 'Protein / Meal'}
+            </span>
           </div>
           <div className="nutri-stat-item">
-            <span className="nutri-stat-val">100%</span>
-            <span className="nutri-stat-lbl">Whole Foods</span>
+            <span className="nutri-stat-val">
+              {dailySummary ? `${dailySummary.percentage?.calories || 0}%` : '100%'}
+            </span>
+            <span className="nutri-stat-lbl">
+              {dailySummary ? 'Daily Target Hit' : 'Whole Foods'}
+            </span>
           </div>
         </div>
       </header>

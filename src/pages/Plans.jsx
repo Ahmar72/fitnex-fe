@@ -28,6 +28,7 @@ import { PLANS, PLAN_CATEGORIES } from '../lib/plansData.js';
 import { getProgressionForWeek, getSetDurationForDay } from '../lib/progressionEngine.js';
 import { asset, dayKey, readLS, writeLS, playChimeSound, playWhistleSound, speakVoice, stopVoice, getExerciseVoiceOverview, partMeta } from '../lib/utils.js';
 import WorkoutCompleteModal from '../components/WorkoutCompleteModal.jsx';
+import { api } from '../lib/api.js';
 
 const ease = [0.22, 1, 0.36, 1];
 
@@ -172,6 +173,33 @@ export default function Plans() {
     return readLS('fx:active-plan-data', null);
   });
 
+  // Sync active plan with backend when authenticated
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    api.plans
+      .getActive()
+      .then((serverPlan) => {
+        if (alive && serverPlan?.planId) {
+          const mapped = {
+            planId: serverPlan.planId,
+            planName: serverPlan.planName,
+            daysPerWeek: serverPlan.daysPerWeek || 3,
+            startedAt: new Date(serverPlan.startedAt || Date.now()).getTime(),
+            currentDayIndex: serverPlan.currentDayIndex || 0,
+            lastWorkoutDate: serverPlan.lastWorkoutDate || null,
+            completedDates: serverPlan.completedDates || [],
+          };
+          setActivePlanData(mapped);
+          writeLS('fx:active-plan-data', mapped);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [user?.id]);
+
   // Plan Activation Modal state (streamlined days/week selector, no body metric re-asking)
   const [activatingPlan, setActivatingPlan] = useState(null);
   const [activationDays, setActivationDays] = useState(3);
@@ -301,6 +329,11 @@ export default function Plans() {
 
     const resolved = resolvePlanWithFrequency(plan, days);
     toast(`${plan.name} is now active! (${days} days / week)`, 'bolt');
+
+    if (user?.id) {
+      api.plans.enroll({ planId: plan.id, daysPerWeek: Number(days) }).catch(() => {});
+    }
+
     setActivatingPlan(null);
     setSelectedWeek(1);
     setSelectedDayIdx(0);
@@ -315,6 +348,10 @@ export default function Plans() {
     writeLS('fx:active-plan-data', null);
     setShowCancelConfirm(false);
     toast('Training program ended.', 'info');
+
+    if (user?.id) {
+      api.plans.cancel().catch(() => {});
+    }
   };
 
   // Open Edit Plan modal (allowing user to change frequency or end plan)
