@@ -180,9 +180,9 @@ export function WorkoutProvider({ children }) {
     // Post session to backend if authenticated
     if (user?.id) {
       const payload = {
-        name: workout.name,
+        name: workout.name || 'Workout',
         durationSeconds: 1800,
-        completedAt: new Date(),
+        dateKey: dayKey(),
         exercises: workout.items
           .filter((i) => i.sets.some((s) => s.done))
           .map((item) => ({
@@ -190,10 +190,10 @@ export function WorkoutProvider({ children }) {
             name: nameOf(item.exerciseId),
             sets: item.sets
               .filter((s) => s.done)
-              .map((s) => ({
-                reps: Number(s.reps || 10),
-                weight: Number(s.weight || 0),
-                completed: true,
+              .map((s, idx) => ({
+                setNumber: idx + 1,
+                reps: Math.max(1, Number(s.reps || 10)),
+                weight: Math.max(0, Number(s.weight || 0)),
               })),
           })),
       };
