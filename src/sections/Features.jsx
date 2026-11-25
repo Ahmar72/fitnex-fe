@@ -9,15 +9,16 @@ import { BODY_PARTS, sample, seeded } from '../lib/utils.js';
 const ease = [0.22, 1, 0.36, 1];
 
 function ImageShuffle({ pool }) {
-  const [cells, setCells] = useState(() => pool.slice(0, 8));
+  const [cells, setCells] = useState(() => (pool && pool.length ? pool.slice(0, 8) : []));
   useEffect(() => {
-    if (pool.length < 9) return;
+    if (!pool || pool.length < 9) return;
     setCells(pool.slice(0, 8));
     let n = 8;
     const id = setInterval(() => {
       setCells((c) => {
+        if (!c || !c.length) return c;
         const next = [...c];
-        next[Math.floor(Math.random() * 8)] = pool[n++ % pool.length];
+        next[Math.floor(Math.random() * c.length)] = pool[n++ % pool.length];
         return next;
       });
     }, 1600);
@@ -26,7 +27,8 @@ function ImageShuffle({ pool }) {
   return (
     <div className="mini-grid">
       {cells.map((e, i) => (
-        <div key={i} style={{ position: 'relative', aspectRatio: 1 }}>
+        e && (
+        <div key={e.id || i} style={{ position: 'relative', aspectRatio: 1 }}>
           <AnimatePresence mode="popLayout">
             <motion.div
               key={e.id}
@@ -40,6 +42,7 @@ function ImageShuffle({ pool }) {
             </motion.div>
           </AnimatePresence>
         </div>
+        )
       ))}
     </div>
   );

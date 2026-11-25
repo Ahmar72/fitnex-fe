@@ -10,6 +10,7 @@ import PageTransition from './components/PageTransition.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
 import AppLayout from './components/AppLayout.jsx';
 import AppSpinner from './components/AppSpinner.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { useSmoothScroll } from './lib/useSmoothScroll.js';
 import { stopVoice } from './lib/utils.js';
 import Home from './pages/Home.jsx';
@@ -91,38 +92,40 @@ export default function App() {
       <Cursor />
       {!isAppRoute && <ScrollProgress />}
       {!isAuthPage && !isAppRoute && <Navbar />}
-      <Suspense fallback={<AppSpinner label="Loading Fitnex..." />}>
-        <Routes>
-          <Route path="/" element={page(<Home />)} />
-          <Route path="/login" element={page(<Login />)} />
-          <Route path="/signup" element={page(<Signup />)} />
-          <Route path="/verify-email" element={page(<VerifyEmail />)} />
-          <Route path="/forgot-password" element={page(<ForgotPassword />)} />
-          <Route path="/reset-password" element={page(<ResetPassword />)} />
-          <Route path="/onboarding" element={page(<Onboarding />, true)} />
+      <ErrorBoundary>
+        <Suspense fallback={<AppSpinner label="Loading Fitnex..." />}>
+          <Routes>
+            <Route path="/" element={page(<Home />)} />
+            <Route path="/login" element={page(<Login />)} />
+            <Route path="/signup" element={page(<Signup />)} />
+            <Route path="/verify-email" element={page(<VerifyEmail />)} />
+            <Route path="/forgot-password" element={page(<ForgotPassword />)} />
+            <Route path="/reset-password" element={page(<ResetPassword />)} />
+            <Route path="/onboarding" element={page(<Onboarding />, true)} />
 
-          {/* Authenticated App Workspace - Persistent AppLayout with smooth navigation */}
-          <Route
-            element={
-              <RequireAuth>
-                <AppLayout />
-              </RequireAuth>
-            }
-          >
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/plans" element={<Plans />} />
-            <Route path="/plans/:id" element={<Plans />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/exercises" element={<Library />} />
-            <Route path="/exercises/:id" element={<ExerciseDetail />} />
-            <Route path="/builder" element={<Builder />} />
-            <Route path="/nutrition" element={<Nutrition />} />
-            <Route path="/nutrition/:mealId" element={<MealDetail />} />
-          </Route>
+            {/* Authenticated App Workspace - Persistent AppLayout with smooth navigation */}
+            <Route
+              element={
+                <RequireAuth>
+                  <AppLayout />
+                </RequireAuth>
+              }
+            >
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/plans" element={<Plans />} />
+              <Route path="/plans/:id" element={<Plans />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/exercises" element={<Library />} />
+              <Route path="/exercises/:id" element={<ExerciseDetail />} />
+              <Route path="/builder" element={<Builder />} />
+              <Route path="/nutrition" element={<Nutrition />} />
+              <Route path="/nutrition/:mealId" element={<MealDetail />} />
+            </Route>
 
-          <Route path="*" element={page(<NotFound />)} />
-        </Routes>
-      </Suspense>
+            <Route path="*" element={page(<NotFound />)} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
       {!isAuthPage && !isAppRoute && <Footer />}
     </>
   );

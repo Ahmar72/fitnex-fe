@@ -65,17 +65,20 @@ export function WorkoutProvider({ children }) {
       .then((res) => {
         const sessions = res?.sessions || (Array.isArray(res) ? res : []);
         if (alive && sessions.length > 0) {
-          const mapped = sessions.map((s) => ({
-            id: s.id || s._id,
-            date: dayKey(new Date(s.completedAt || s.createdAt)),
-            at: new Date(s.completedAt || s.createdAt).getTime(),
-            name: s.name,
-            sets: s.totalSets,
-            reps: s.totalReps,
-            volume: s.totalVolume,
-            durationSeconds: s.durationSeconds,
-            exercises: (s.exercises || []).map((e) => e.exerciseId),
-          }));
+          const mapped = sessions.map((s) => {
+            const dateVal = s.completedAt || s.createdAt || Date.now();
+            return {
+              id: s.id || s._id,
+              date: dayKey(new Date(dateVal)),
+              at: new Date(dateVal).getTime(),
+              name: s.name,
+              sets: s.totalSets,
+              reps: s.totalReps,
+              volume: s.totalVolume,
+              durationSeconds: s.durationSeconds,
+              exercises: (s.exercises || []).map((e) => e.exerciseId),
+            };
+          });
           setHistory((local) => {
             const existingIds = new Set((local || []).map((h) => h.id));
             const fresh = mapped.filter((m) => !existingIds.has(m.id));

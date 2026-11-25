@@ -90,11 +90,11 @@ export default function Nutrition() {
       const q = searchQuery.toLowerCase().trim();
       list = list.filter(
         (m) =>
-          m.name.toLowerCase().includes(q) ||
-          m.brief.toLowerCase().includes(q) ||
-          m.targetMuscles.some((tm) => tm.toLowerCase().includes(q)) ||
-          m.ingredients.some((ing) => ing.name.toLowerCase().includes(q)) ||
-          m.tags.some((t) => t.toLowerCase().includes(q))
+          m.name?.toLowerCase().includes(q) ||
+          m.brief?.toLowerCase().includes(q) ||
+          m.targetMuscles?.some((tm) => tm?.toLowerCase().includes(q)) ||
+          m.ingredients?.some((ing) => ing?.name?.toLowerCase().includes(q)) ||
+          m.tags?.some((t) => t?.toLowerCase().includes(q))
       );
     }
 
