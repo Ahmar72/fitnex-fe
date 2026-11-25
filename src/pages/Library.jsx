@@ -51,11 +51,16 @@ export default function Library() {
 
   useEffect(() => {
     if (!selectedEx) return;
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     const onKey = (e) => {
       if (e.key === 'Escape') handleClosePanel();
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = origOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
   }, [selectedEx]);
 
   // Cards per page setting (selectable: 5-25 cards per page, default 20)

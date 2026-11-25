@@ -3047,10 +3047,9 @@
   display: flex;
   flex-direction: column;
   box-shadow: -16px 0 45px rgba(0, 0, 0, 0.45);
-  overflow-y: auto !important;
+  overflow: hidden !important;
   overscroll-behavior: contain;
   touch-action: pan-y;
-  scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -3066,6 +3065,7 @@
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  flex-shrink: 0;
 }
 
 .ex-panel-close-btn {
@@ -3091,10 +3091,26 @@
 .ex-panel-body {
   padding: 20px 24px;
   flex: 1;
+  min-height: 0;
   overflow-y: auto !important;
   overscroll-behavior: contain;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.ex-panel-body::-webkit-scrollbar {
+  width: 6px;
+}
+.ex-panel-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ex-panel-body::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 130, 0.25);
+  border-radius: 999px;
+}
+.ex-panel-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 120, 130, 0.45);
 }
 
 .ex-panel-media {

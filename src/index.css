@@ -1336,7 +1336,7 @@ select.input option { background: var(--surface); }
   background: var(--surface, #ffffff) !important;
 }
 .ex-body h3 {
-  margin: 0;
+  margin: 0 0 6px 0;
   font-size: 13px;
   line-height: 1.35;
   font-weight: 800;
@@ -1346,14 +1346,13 @@ select.input option { background: var(--surface); }
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 36px;
 }
 .ex-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  margin-top: auto;
-  padding-top: 8px;
+  margin-top: 0;
+  padding-top: 0;
   align-items: center;
 }
 .ex-tags .chip {
