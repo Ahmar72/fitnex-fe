@@ -1,8 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef } from 'react';
 import { readLS, writeLS, uid, dayKey } from '../lib/utils.js';
 import { useToast } from '../components/Toast.jsx';
 import { useData } from './DataContext.jsx';
 import { useAuth } from './AuthContext.jsx';
+import { api } from '../lib/api.js';
 
 const WorkoutContext = createContext(null);
 
@@ -38,7 +39,57 @@ export function WorkoutProvider({ children }) {
   const [workout, setWorkout] = useScopedState(prefix, 'workout', { name: 'My Workout', items: [] });
   const [history, setHistory] = useScopedState(prefix, 'history', []);
 
-  // Sanitize history entries to guarantee accuracy and consistency (removing 0-set ghosts and normalizing inflated volume)
+  // Sync favorites with backend when signed in
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    api.exercises
+      .getFavorites()
+      .then((serverFavs) => {
+        if (alive && Array.isArray(serverFavs)) {
+          setFavorites((local) => Array.from(new Set([...local, ...serverFavs])));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [user?.id, setFavorites]);
+
+  // Sync history with backend when signed in
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    api.history
+      .getSessions({ limit: 50 })
+      .then((res) => {
+        const sessions = res?.sessions || (Array.isArray(res) ? res : []);
+        if (alive && sessions.length > 0) {
+          const mapped = sessions.map((s) => ({
+            id: s.id || s._id,
+            date: dayKey(new Date(s.completedAt || s.createdAt)),
+            at: new Date(s.completedAt || s.createdAt).getTime(),
+            name: s.name,
+            sets: s.totalSets,
+            reps: s.totalReps,
+            volume: s.totalVolume,
+            durationSeconds: s.durationSeconds,
+            exercises: (s.exercises || []).map((e) => e.exerciseId),
+          }));
+          setHistory((local) => {
+            const existingIds = new Set((local || []).map((h) => h.id));
+            const fresh = mapped.filter((m) => !existingIds.has(m.id));
+            return [...fresh, ...(local || [])];
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [user?.id, setHistory]);
+
+  // Sanitize history entries to guarantee accuracy and consistency
   const sanitizedHistory = useMemo(() => {
     if (!Array.isArray(history)) return [];
     return history
@@ -46,9 +97,7 @@ export function WorkoutProvider({ children }) {
       .map((h) => {
         const setsCount = Number(h.sets) || 1;
         const vol = Number(h.volume) || 0;
-        const normalizedVol = vol > setsCount * 50
-          ? setsCount * 20
-          : vol;
+        const normalizedVol = vol > setsCount * 50 ? setsCount * 20 : vol;
         return {
           ...h,
           volume: normalizedVol,
@@ -85,8 +134,13 @@ export function WorkoutProvider({ children }) {
       const on = favorites.includes(id);
       setFavorites((f) => (on ? f.filter((x) => x !== id) : [...new Set([...f, id])]));
       toast(on ? `Removed “${nameOf(id)}” from favourites` : `Saved “${nameOf(id)}” to favourites`, on ? 'info' : 'heart');
+
+      // Dispatch to backend if signed in
+      if (user?.id) {
+        api.exercises.toggleFavorite(id).catch(() => {});
+      }
     },
-    [favorites, toast, nameOf, setFavorites]
+    [favorites, toast, nameOf, setFavorites, user?.id]
   );
 
   const addToWorkout = useCallback(
@@ -118,13 +172,38 @@ export function WorkoutProvider({ children }) {
       volume: done.reduce((a, s) => a + Number(s.weight || 0), 0),
       exercises: workout.items.filter((i) => i.sets.some((s) => s.done)).map((i) => i.exerciseId),
     };
+
     setHistory((h) => [entry, ...h].slice(0, 500));
     setWorkout((w) => ({ ...w, items: w.items.map((i) => ({ ...i, sets: i.sets.map((s) => ({ ...s, done: false })) })) }));
     toast('Workout logged — nice work!', 'bolt');
-    return true;
-  }, [workout, toast, setHistory, setWorkout]);
 
-  const api = useMemo(() => {
+    // Post session to backend if authenticated
+    if (user?.id) {
+      const payload = {
+        name: workout.name,
+        durationSeconds: 1800,
+        completedAt: new Date(),
+        exercises: workout.items
+          .filter((i) => i.sets.some((s) => s.done))
+          .map((item) => ({
+            exerciseId: item.exerciseId,
+            name: nameOf(item.exerciseId),
+            sets: item.sets
+              .filter((s) => s.done)
+              .map((s) => ({
+                reps: Number(s.reps || 10),
+                weight: Number(s.weight || 0),
+                completed: true,
+              })),
+          })),
+      };
+      api.history.logSession(payload).catch(() => {});
+    }
+
+    return true;
+  }, [workout, toast, setHistory, setWorkout, user?.id, nameOf]);
+
+  const apiMethods = useMemo(() => {
     const update = (fn) => setWorkout((w) => ({ ...w, items: fn(w.items) }));
     return {
       removeItem: (u) => update((items) => items.filter((i) => i.uid !== u)),
@@ -170,7 +249,18 @@ export function WorkoutProvider({ children }) {
     [setWorkout, toast, defaultWeight]
   );
 
-  const value = { favorites, workout, history: sanitizedHistory, rawHistory: history, setHistory, toggleFavorite, addToWorkout, finish, loadRoutine, ...api };
+  const value = {
+    favorites,
+    workout,
+    history: sanitizedHistory,
+    rawHistory: history,
+    setHistory,
+    toggleFavorite,
+    addToWorkout,
+    finish,
+    loadRoutine,
+    ...apiMethods,
+  };
   return <WorkoutContext.Provider value={value}>{children}</WorkoutContext.Provider>;
 }
 
