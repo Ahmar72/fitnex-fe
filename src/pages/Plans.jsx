@@ -23,6 +23,8 @@ import {
   Clock,
   Settings,
   Arrow,
+  Plus,
+  Heart,
 } from '../components/Icons.jsx';
 import { PLANS, PLAN_CATEGORIES } from '../lib/plansData.js';
 import { getProgressionForWeek, getSetDurationForDay } from '../lib/progressionEngine.js';
@@ -121,7 +123,7 @@ function buildScheduleForFrequency(baseSchedule = [], targetDays = 4) {
 
 export default function Plans() {
   const { byId, ready } = useData();
-  const { loadRoutine, setHistory, history } = useWorkout();
+  const { loadRoutine, setHistory, history, favorites, toggleFavorite, addToWorkout } = useWorkout();
   const { user, updateUser } = useAuth();
   const { t } = useLanguage();
   const toast = useToast();
@@ -227,10 +229,104 @@ export default function Plans() {
     return resolvePlanWithFrequency(p, activePlanData.daysPerWeek || 3);
   }, [activePlanData, resolvePlanWithFrequency]);
 
-  // Active calendar day object
+  // Exercise side-panel drawer state & body scroll-lock
+  const [selectedEx, setSelectedEx] = useState(null);
+
+  useEffect(() => {
+    if (!selectedEx) return;
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => {
+      if (e.key === 'Escape') setSelectedEx(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = origOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [selectedEx]);
+
+  // Normalized start date of the plan: aligns to actual enrollment date, or today if not yet enrolled
+  const planStartDate = useMemo(() => {
+    if (activePlanData?.planId === selectedPlan?.id && activePlanData?.startedAt) {
+      const d = new Date(activePlanData.startedAt);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, [activePlanData, selectedPlan?.id]);
+
+  // Check if a specific calendar day is completed for a plan
+  const isDayDone = useCallback((dateKey, planId = selectedPlan?.id) => {
+    if (!planId) return false;
+    const key = `${planId}:${dateKey}`;
+    const directRecord = completedDays[key];
+    let directCount = 0;
+    if (typeof directRecord?.count === 'number') {
+      directCount = directRecord.count;
+    } else if (directRecord) {
+      directCount = 1;
+    }
+
+    const historyCount = (history || []).filter(
+      (h) => h.date === dateKey && (h.planId === planId || h.name?.includes(selectedPlan?.name || ''))
+    ).length;
+
+    return Math.max(directCount, historyCount) > 0;
+  }, [completedDays, history, selectedPlan]);
+
+  // Real calendar schedule for the chosen selectedWeek (7 days with real dates, sync with today)
+  const weekCalendarDays = useMemo(() => {
+    if (!selectedPlan?.schedule?.length) return [];
+    const todayMid = new Date();
+    todayMid.setHours(0, 0, 0, 0);
+
+    const weekStart = new Date(planStartDate);
+    weekStart.setDate(planStartDate.getDate() + (selectedWeek - 1) * 7);
+
+    return selectedPlan.schedule.map((scheduleConfig, dayIdx) => {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + dayIdx);
+      d.setHours(0, 0, 0, 0);
+
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const dayNum = String(d.getDate()).padStart(2, '0');
+      const dateKey = `${year}-${month}-${dayNum}`;
+
+      const isToday = d.getTime() === todayMid.getTime();
+      const isPast = d.getTime() < todayMid.getTime();
+      const isFuture = d.getTime() > todayMid.getTime();
+      const isDone = isDayDone(dateKey, selectedPlan.id);
+
+      const dayName = d.toLocaleDateString(undefined, { weekday: 'long' });
+      const dayAbbr = d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase();
+      const monthShort = d.toLocaleDateString(undefined, { month: 'short' });
+
+      return {
+        ...scheduleConfig,
+        dayIdx,
+        dayNumInPlan: (selectedWeek - 1) * 7 + (dayIdx + 1),
+        dayName,
+        dayAbbr,
+        dateNumber: d.getDate(),
+        monthShort,
+        dateKey,
+        isToday,
+        isPast,
+        isFuture,
+        isDone,
+      };
+    });
+  }, [selectedPlan, planStartDate, selectedWeek, isDayDone]);
+
+  // Active calendar day object for the currently selected day
   const activeCalendarDay = useMemo(() => {
-    return weekDays.find((d) => d.dateKey === activeDateKey) || todayCalendarDay;
-  }, [weekDays, activeDateKey, todayCalendarDay]);
+    if (!weekCalendarDays.length) return todayCalendarDay;
+    return weekCalendarDays[selectedDayIdx] || weekCalendarDays[0];
+  }, [weekCalendarDays, selectedDayIdx, todayCalendarDay]);
 
   // Current day's routine from the selected plan schedule
   const currentDayRoutine = useMemo(() => {
@@ -265,18 +361,8 @@ export default function Plans() {
     return Math.max(directCount, historyCount);
   }, [completedDays, history, selectedPlan]);
 
-  // Check if a specific calendar day is completed for a plan
-  const isDayDone = useCallback((dateKey, planId = selectedPlan?.id) => {
-    return getDayWorkoutCount(dateKey, planId) > 0;
-  }, [getDayWorkoutCount]);
-
   // Check if active day is completed
   const isActiveDayCompleted = isDayDone(activeCalendarDay.dateKey);
-
-  // Determine active day: strictly keep synced with today's live calendar date
-  const determineActiveDay = useCallback((plan) => {
-    setActiveDateKey(todayCalendarDay.dateKey);
-  }, [todayCalendarDay]);
 
   // Select plan handler: if already active, open detail; otherwise open clean activation modal
   const handleSelectPlan = (plan) => {
@@ -287,11 +373,17 @@ export default function Plans() {
     const resolved = resolvePlanWithFrequency(plan, userDays);
 
     if (activePlanData?.planId === plan.id) {
-      const progDay = activePlanData.currentDayIndex || 0;
-      setSelectedWeek(Math.min(plan.weeks, Math.floor(progDay / 7) + 1));
-      setSelectedDayIdx(progDay % 7);
+      const todayMid = new Date();
+      todayMid.setHours(0, 0, 0, 0);
+      const start = activePlanData.startedAt ? new Date(activePlanData.startedAt) : new Date();
+      start.setHours(0, 0, 0, 0);
+      const diffDays = Math.max(0, Math.floor((todayMid.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+      const currWeek = Math.min(plan.weeks || 6, Math.floor(diffDays / 7) + 1);
+      const currDayIdx = diffDays % 7;
+
+      setSelectedWeek(currWeek);
+      setSelectedDayIdx(currDayIdx);
       setSelectedPlan(resolved);
-      determineActiveDay(resolved);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -338,7 +430,6 @@ export default function Plans() {
     setSelectedWeek(1);
     setSelectedDayIdx(0);
     setSelectedPlan(resolved);
-    determineActiveDay(resolved);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -1455,7 +1546,7 @@ export default function Plans() {
                       onClick={handleStartWorkout}
                     >
                       <Play width={17} height={17} />
-                      <span>Start Week {selectedWeek} · {currentDayRoutine.day} Workout</span>
+                      <span>Start Week {selectedWeek} · {activeCalendarDay?.dayName} Workout</span>
                     </button>
                   </div>
                 )}
@@ -1487,13 +1578,11 @@ export default function Plans() {
 
               {/* Interactive Calendar Days Strip (Days of Selected Week) */}
               <div className="day-pills-row calendar-strip">
-                {selectedPlan.schedule.map((scheduleConfig, dayIdx) => {
-                  const dayNumInPlan = (selectedWeek - 1) * 7 + (dayIdx + 1);
-                  const isRestDay = scheduleConfig.isRest;
+                {weekCalendarDays.map((calDay, dayIdx) => {
+                  const isRestDay = calDay.isRest;
                   const isSelected = selectedDayIdx === dayIdx;
-                  const isPlanActive = activePlanData?.planId === selectedPlan.id;
-                  const isDone = isPlanActive && (activePlanData.currentDayIndex || 0) > dayNumInPlan - 1;
-                  const isToday = isPlanActive && (activePlanData.currentDayIndex || 0) === dayNumInPlan - 1;
+                  const isDone = calDay.isDone;
+                  const isToday = calDay.isToday;
 
                   return (
                     <button
@@ -1503,11 +1592,11 @@ export default function Plans() {
                         isDone ? 'day-status-done' : ''
                       } ${isRestDay ? 'day-status-rest' : ''}`}
                       onClick={() => setSelectedDayIdx(dayIdx)}
-                      aria-label={`${scheduleConfig.day} Day ${dayNumInPlan}`}
+                      aria-label={`${calDay.dayName} ${calDay.dateNumber}`}
                     >
                       <div className="calendar-date-header">
-                        <span className="day-abbr">{scheduleConfig.day.slice(0, 3)}</span>
-                        <span className="day-calendar-num">{dayNumInPlan}</span>
+                        <span className="day-abbr">{calDay.dayAbbr}</span>
+                        <span className="day-calendar-num">{calDay.dateNumber}</span>
                       </div>
 
                       <div className="calendar-status-wrap">
@@ -1515,13 +1604,13 @@ export default function Plans() {
                           <span className="cal-status-badge badge-done">
                             <Check width={10} height={10} /> Done
                           </span>
-                        ) : isRestDay ? (
-                          <span className="cal-status-badge badge-rest">Rest</span>
                         ) : isToday ? (
                           <span className="cal-status-badge badge-today">Today</span>
+                        ) : isRestDay ? (
+                          <span className="cal-status-badge badge-rest">Rest</span>
                         ) : (
                           <span className="cal-status-badge badge-upcoming">
-                            {scheduleConfig.exerciseIds?.length || 5} Moves
+                            {calDay.exerciseIds?.length || 5} Moves
                           </span>
                         )}
                       </div>
@@ -1537,8 +1626,13 @@ export default function Plans() {
                 <div className="active-day-info">
                   <div className="active-day-topline">
                     <span className="active-day-name">
-                      Week {selectedWeek} · Day {(selectedWeek - 1) * 7 + (selectedDayIdx + 1)} ({currentDayRoutine?.day})
+                      Week {selectedWeek} · Day {(selectedWeek - 1) * 7 + (selectedDayIdx + 1)} ({activeCalendarDay?.dayName}, {activeCalendarDay?.monthShort} {activeCalendarDay?.dateNumber})
                     </span>
+                    {activeCalendarDay?.isToday && (
+                      <span className="cal-status-badge badge-today" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                        Today
+                      </span>
+                    )}
                     {currentDayRoutine?.isRest ? (
                       <span className="rest-tag-pill">Rest & Active Recovery</span>
                     ) : (
@@ -1574,7 +1668,7 @@ export default function Plans() {
                   </div>
                   <h4>Active Recovery & Muscle Regeneration</h4>
                   <p>
-                    No strenuous lifting scheduled for {activeCalendarDay.dayName}. Take time to hydrate,
+                    No strenuous lifting scheduled for {activeCalendarDay?.dayName}. Take time to hydrate,
                     consume adequate protein, and let muscular fibers repair for optimal growth.
                   </p>
                 </div>
@@ -1584,27 +1678,13 @@ export default function Plans() {
                     <div
                       key={ex.id}
                       className="plan-exercise-card enlarged-card"
-                      onClick={() =>
-                        navigate(`/exercises/${ex.id}`, {
-                          state: {
-                            fromPlan: selectedPlan?.id,
-                            planName: selectedPlan?.name,
-                            planExerciseIds: routineExercises.map((e) => e.id),
-                          },
-                        })
-                      }
+                      onClick={() => setSelectedEx(ex)}
                       role="button"
                       tabIndex={0}
-                      title={`Click to open full exercise details for ${ex.name}`}
+                      title={`Click to view details for ${ex.name}`}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
-                          navigate(`/exercises/${ex.id}`, {
-                            state: {
-                              fromPlan: selectedPlan?.id,
-                              planName: selectedPlan?.name,
-                              planExerciseIds: routineExercises.map((e) => e.id),
-                            },
-                          });
+                          setSelectedEx(ex);
                         }
                       }}
                     >
@@ -1633,7 +1713,7 @@ export default function Plans() {
                         <span className="ex-volume-rec">Recommended: 4 Sets × 10-12 Reps</span>
                       </div>
 
-                      {/* Link Indicator to View Details */}
+                      {/* Link Indicator to View Details in sidepanel */}
                       <div className="ex-card-actions">
                         <div className="ex-open-indicator">
                           <span className="open-text">View details</span>
@@ -2234,6 +2314,113 @@ export default function Plans() {
         onClose={() => setPlanCompleteModalData(null)}
         data={planCompleteModalData}
       />
+
+      {/* Side Panel Drawer for Exercise Details */}
+      <AnimatePresence>
+        {selectedEx && (
+          <>
+            <motion.div
+              className="ex-drawer-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setSelectedEx(null)}
+            />
+            <motion.aside
+              className="ex-side-panel"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              aria-label="Exercise details panel"
+              data-lenis-prevent="true"
+              onWheel={(e) => e.stopPropagation()}
+            >
+              <div className="ex-panel-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="chip">
+                    <span className="dot" style={{ background: partMeta(selectedEx.bodyPart)?.color }} />
+                    {partMeta(selectedEx.bodyPart)?.label}
+                  </span>
+                  <span className="chip">#{selectedEx.id}</span>
+                </div>
+                <button
+                  type="button"
+                  className="ex-panel-close-btn"
+                  onClick={() => setSelectedEx(null)}
+                  aria-label="Close details"
+                >
+                  <X width={16} height={16} />
+                </button>
+              </div>
+
+              <div className="ex-panel-body" data-lenis-prevent="true">
+                <div className="ex-panel-media">
+                  <img
+                    src={asset(selectedEx.gif || selectedEx.image)}
+                    alt={selectedEx.name}
+                    onError={(e) => {
+                      e.currentTarget.src = asset(selectedEx.image || 'images/0001-2gPfomN.jpg');
+                    }}
+                  />
+                </div>
+
+                <h2 className="ex-panel-title">
+                  {selectedEx.name}
+                </h2>
+
+                <div className="spec" style={{ margin: '14px 0 18px' }}>
+                  <div><small>{t('detail.target', 'Target')}</small><b>{selectedEx.target}</b></div>
+                  <div><small>{t('detail.equipment', 'Equipment')}</small><b>{selectedEx.equipment}</b></div>
+                  <div><small>{t('detail.body_part', 'Body part')}</small><b>{selectedEx.bodyPart}</b></div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, margin: '0 0 20px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ flex: 1, height: 40, fontSize: 13.5 }}
+                    onClick={() => addToWorkout(selectedEx.id)}
+                  >
+                    <Plus width={15} height={15} /> {t('detail.add_workout', 'Add to workout')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{
+                      height: 40,
+                      padding: '0 16px',
+                      fontSize: 13.5,
+                      ...(favorites?.includes(selectedEx.id) ? { borderColor: 'var(--hot)', color: 'var(--hot)' } : {}),
+                    }}
+                    onClick={() => toggleFavorite(selectedEx.id)}
+                  >
+                    <Heart width={15} height={15} filled={favorites?.includes(selectedEx.id)} stroke={favorites?.includes(selectedEx.id) ? 'var(--hot)' : undefined} />
+                    {favorites?.includes(selectedEx.id) ? t('detail.saved', 'Saved') : t('detail.save', 'Save')}
+                  </button>
+                </div>
+
+                <div className="ex-panel-section-title">
+                  <h4>{t('detail.how_to', 'How to do it')}</h4>
+                </div>
+                {(() => {
+                  const briefSteps = (selectedEx.steps && selectedEx.steps.length > 0)
+                    ? selectedEx.steps.slice(0, 2)
+                    : ['Maintain strict form with steady tempo and controlled breathing.', 'Engage the target muscle group throughout the entire range of motion.'];
+                  return (
+                    <ul style={{ margin: '10px 0 20px', paddingLeft: '18px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
+                      {briefSteps.map((st, idx) => (
+                        <li key={idx} style={{ marginBottom: 6 }}>{st}</li>
+                      ))}
+                    </ul>
+                  );
+                })()}
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
