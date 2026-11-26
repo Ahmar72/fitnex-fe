@@ -44,10 +44,11 @@ function toQueryString(params = {}) {
 }
 
 /**
- * Low-level HTTP client with token injection, automatic refresh token rotation & error extraction
+ * Low-level HTTP client with token injection, automatic refresh token rotation & rich console logging
  */
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
+  const method = (options.method || 'GET').toUpperCase();
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
@@ -58,17 +59,44 @@ async function request(endpoint, options = {}) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
 
+  let parsedPayload = null;
+  if (options.body) {
+    try {
+      parsedPayload = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+    } catch {
+      parsedPayload = options.body;
+    }
+  }
+
+  // Visual request banner in console
+  console.log(
+    `%c[FITNEX API REQUEST] %c${method} %c${endpoint}`,
+    'color: #ff5e1a; font-weight: 800; padding: 2px 4px; border-radius: 3px;',
+    'color: #fbbf24; font-weight: 700;',
+    'color: #38bdf8; font-weight: 600;',
+    parsedPayload ? { payload: parsedPayload } : ''
+  );
+
   let response;
+  const startTime = performance.now();
   try {
     response = await fetch(url, {
       ...options,
       headers,
     });
   } catch (netErr) {
+    console.error(
+      `%c[FITNEX NETWORK ERROR] %c${method} %c${endpoint}`,
+      'color: #ef4444; font-weight: 800;',
+      'color: #fbbf24; font-weight: 700;',
+      'color: #fff;',
+      netErr
+    );
     throw new Error(
       'Unable to connect to the Fitnex server. Please check your internet connection or make sure the backend is running.'
     );
   }
+  const durationMs = Math.round(performance.now() - startTime);
 
   // Automatic refresh token rotation on 401
   if (
@@ -104,13 +132,33 @@ async function request(endpoint, options = {}) {
 
   if (!response.ok) {
     const errorMsg = json?.message || json?.error || `Request failed with status ${response.status}`;
+    console.error(
+      `%c[FITNEX API ERROR ${response.status}] %c${method} %c${endpoint} %c(${durationMs}ms)`,
+      'color: #ef4444; font-weight: 800; padding: 2px 4px; border-radius: 3px;',
+      'color: #fbbf24; font-weight: 700;',
+      'color: #38bdf8; font-weight: 600;',
+      'color: #94a3b8;',
+      json
+    );
     const err = new Error(errorMsg);
     err.statusCode = response.status;
     err.payload = json;
     throw err;
   }
 
-  return json?.data !== undefined ? json.data : json;
+  const dataToReturn = json?.data !== undefined ? json.data : json;
+
+  // Prominently display fetched data in browser console
+  console.log(
+    `%c[FITNEX DATA FETCHED] %c${method} %c${endpoint} %c(${response.status} · ${durationMs}ms)`,
+    'color: #10b981; font-weight: 800; padding: 2px 4px; border-radius: 3px;',
+    'color: #fbbf24; font-weight: 700;',
+    'color: #38bdf8; font-weight: 600;',
+    'color: #a3e635; font-weight: 600;',
+    dataToReturn
+  );
+
+  return dataToReturn;
 }
 
 export const api = {

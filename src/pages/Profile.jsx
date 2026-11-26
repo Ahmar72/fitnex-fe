@@ -34,6 +34,7 @@ import { useLanguage } from '../context/LanguageContext.jsx';
 import { StrengthMeter } from './Auth.jsx';
 import { GOALS, LEVELS, DEFAULT_PLAN_BY_GOAL } from '../lib/goals.js';
 import { isVoiceEnabled, setVoiceEnabled, speakVoice, readLS, writeLS } from '../lib/utils.js';
+import { api } from '../lib/api.js';
 
 const GOAL_ICONS = {
   muscle: Dumbbell,
@@ -81,6 +82,17 @@ export default function Profile() {
       }));
     }
   }, [user?.profile]);
+
+  // Fetch fresh profile and account details from backend API on mount
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    api.users.getMe().catch(() => {});
+    api.users.getProfile().catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [user?.id]);
   const [pw, setPw] = useState({ current: '', next: '' });
   const [pwErr, setPwErr] = useState('');
   const [acctErr, setAcctErr] = useState('');
@@ -655,6 +667,7 @@ export default function Profile() {
                                   } catch {}
                                   if (user) {
                                     updateUser({ profile: { ...(user.profile || {}), rest: val } });
+                                    api.users.updateSettings({ restTimerSeconds: val }).catch(() => {});
                                   }
                                 }}
                               >

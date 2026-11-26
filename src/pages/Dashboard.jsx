@@ -47,6 +47,11 @@ export default function Dashboard() {
         if (alive && data) setDashboardSummary(data);
       })
       .catch(() => {});
+
+    api.history.getStreak().catch(() => {});
+    api.history.getSessions({ limit: 6 }).catch(() => {});
+    api.plans.getActive().catch(() => {});
+
     return () => {
       alive = false;
     };

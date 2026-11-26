@@ -63,20 +63,22 @@ export function WorkoutProvider({ children }) {
     api.history
       .getSessions({ limit: 50 })
       .then((res) => {
-        const sessions = res?.sessions || (Array.isArray(res) ? res : []);
+        const sessions = res?.items || res?.sessions || (Array.isArray(res) ? res : []);
         if (alive && sessions.length > 0) {
           const mapped = sessions.map((s) => {
             const dateVal = s.completedAt || s.createdAt || Date.now();
             return {
               id: s.id || s._id,
-              date: dayKey(new Date(dateVal)),
+              date: s.dateKey || dayKey(new Date(dateVal)),
               at: new Date(dateVal).getTime(),
               name: s.name,
-              sets: s.totalSets,
-              reps: s.totalReps,
-              volume: s.totalVolume,
+              sets: s.completedSets ?? s.totalSets ?? 1,
+              reps: s.completedReps ?? s.totalReps ?? 10,
+              volume: s.totalVolumeKg ?? s.totalVolume ?? 0,
               durationSeconds: s.durationSeconds,
-              exercises: (s.exercises || []).map((e) => e.exerciseId),
+              exercises: Array.isArray(s.exercises)
+                ? s.exercises.map((e) => (typeof e === 'string' ? e : e.exerciseId || e.id))
+                : [],
             };
           });
           setHistory((local) => {
@@ -181,8 +183,14 @@ export function WorkoutProvider({ children }) {
     (id) => {
       setWorkout((w) => ({ ...w, items: [...w.items, newItem(id, 3, 10, defaultWeight(id))] }));
       toast(`Added “${nameOf(id)}” to your workout`, 'plus');
+
+      if (user?.id) {
+        api.workouts
+          .addItem({ exerciseId: String(id), sets: 3, reps: 10, weight: defaultWeight(id) })
+          .catch(() => {});
+      }
     },
-    [toast, nameOf, setWorkout, defaultWeight]
+    [toast, nameOf, setWorkout, defaultWeight, user?.id]
   );
 
   const finish = useCallback(() => {
@@ -231,7 +239,13 @@ export function WorkoutProvider({ children }) {
               })),
           })),
       };
-      api.history.logSession(payload).catch(() => {});
+      api.history
+        .logSession(payload)
+        .then(() => {
+          api.history.getSessions({ limit: 50 }).catch(() => {});
+          api.history.getStreak().catch(() => {});
+        })
+        .catch(() => {});
     }
 
     return true;
@@ -279,8 +293,22 @@ export function WorkoutProvider({ children }) {
         ),
       });
       toast(`Loaded “${name}” into the builder`, 'bolt');
+
+      if (user?.id) {
+        api.workouts
+          .loadRoutine({
+            name,
+            list: list.map(({ id, sets, reps, weight }) => ({
+              id: String(id),
+              sets: Number(sets || 3),
+              reps: Number(reps || 10),
+              weight: Number(typeof weight === 'number' ? weight : defaultWeight(id)),
+            })),
+          })
+          .catch(() => {});
+      }
     },
-    [setWorkout, toast, defaultWeight]
+    [setWorkout, toast, defaultWeight, user?.id]
   );
 
   const value = {

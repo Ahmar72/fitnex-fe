@@ -202,6 +202,11 @@ export default function Plans() {
     };
   }, [user?.id]);
 
+  // Fetch all training programs catalog from API on mount
+  useEffect(() => {
+    api.plans.getAll().catch(() => {});
+  }, []);
+
   // Plan Activation Modal state (streamlined days/week selector, no body metric re-asking)
   const [activatingPlan, setActivatingPlan] = useState(null);
   const [activationDays, setActivationDays] = useState(3);
@@ -231,6 +236,12 @@ export default function Plans() {
 
   // Exercise side-panel drawer state & body scroll-lock
   const [selectedEx, setSelectedEx] = useState(null);
+
+  // Fetch full exercise movement details from API on click
+  useEffect(() => {
+    if (!selectedEx?.id) return;
+    api.exercises.getById(selectedEx.id).catch(() => {});
+  }, [selectedEx?.id]);
 
   useEffect(() => {
     if (!selectedEx) return;
@@ -366,6 +377,11 @@ export default function Plans() {
 
   // Select plan handler: if already active, open detail; otherwise open clean activation modal
   const handleSelectPlan = (plan) => {
+    // Fetch plan details from API on card selection
+    if (plan?.id) {
+      api.plans.getById(plan.id).catch(() => {});
+    }
+
     const userDays = activePlanData?.planId === plan.id
       ? (activePlanData.daysPerWeek || 3)
       : (planProfiles[plan.id]?.daysPerWeek || user?.profile?.days || plan.daysPerWeek || 3);
@@ -423,7 +439,12 @@ export default function Plans() {
     toast(`${plan.name} is now active! (${days} days / week)`, 'bolt');
 
     if (user?.id) {
-      api.plans.enroll({ planId: plan.id, daysPerWeek: Number(days) }).catch(() => {});
+      api.plans
+        .enroll({ planId: plan.id, daysPerWeek: Number(days) })
+        .then(() => {
+          api.plans.getActive().catch(() => {});
+        })
+        .catch(() => {});
     }
 
     setActivatingPlan(null);
@@ -441,7 +462,12 @@ export default function Plans() {
     toast('Training program ended.', 'info');
 
     if (user?.id) {
-      api.plans.cancel().catch(() => {});
+      api.plans
+        .cancel()
+        .then(() => {
+          api.plans.getActive().catch(() => {});
+        })
+        .catch(() => {});
     }
   };
 
