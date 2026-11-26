@@ -235,7 +235,11 @@ export const api = {
     changePassword: (data) =>
       request('/users/me/password', {
         method: 'PUT',
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          oldPassword: data.oldPassword || data.currentPassword,
+          currentPassword: data.currentPassword || data.oldPassword,
+          newPassword: data.newPassword,
+        }),
       }),
   },
 
@@ -311,8 +315,13 @@ export const api = {
         body: JSON.stringify(data),
       }),
     cancel: () =>
-      request('/plans/cancel/me', {
+      request('/plans/active/cancel', {
         method: 'POST',
+      }),
+    updateProgress: (data) =>
+      request('/plans/active/progress', {
+        method: 'POST',
+        body: JSON.stringify(data),
       }),
   },
 

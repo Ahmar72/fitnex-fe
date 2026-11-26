@@ -262,7 +262,28 @@ export function WorkoutProvider({ children }) {
       api.history
         .logSession(payload)
         .then(() => {
-          api.history.getSessions({ limit: 50 }).catch(() => {});
+          api.history.getSessions({ limit: 50 }).then((res) => {
+            const sessions = res?.items || res?.sessions || (Array.isArray(res) ? res : []);
+            if (sessions.length > 0) {
+              const mapped = sessions.map((s) => {
+                const dateVal = s.completedAt || s.createdAt || Date.now();
+                return {
+                  id: s.id || s._id,
+                  date: s.dateKey || dayKey(new Date(dateVal)),
+                  at: new Date(dateVal).getTime(),
+                  name: s.name,
+                  sets: s.completedSets ?? s.totalSets ?? 1,
+                  reps: s.completedReps ?? s.totalReps ?? 10,
+                  volume: s.totalVolumeKg ?? s.totalVolume ?? 0,
+                  durationSeconds: s.durationSeconds,
+                  exercises: Array.isArray(s.exercises)
+                    ? s.exercises.map((e) => (typeof e === 'string' ? e : e.exerciseId || e.id))
+                    : [],
+                };
+              });
+              setHistory(mapped);
+            }
+          }).catch(() => {});
           api.history.getStreak().catch(() => {});
         })
         .catch(() => {});
@@ -274,7 +295,12 @@ export function WorkoutProvider({ children }) {
   const apiMethods = useMemo(() => {
     const update = (fn) => setWorkout((w) => ({ ...w, items: fn(w.items) }));
     return {
-      removeItem: (u) => update((items) => items.filter((i) => i.uid !== u)),
+      removeItem: (u) => {
+        update((items) => items.filter((i) => i.uid !== u));
+        if (user?.id) {
+          api.workouts.removeItem(u).catch(() => {});
+        }
+      },
       moveItem: (u, dir) =>
         update((items) => {
           const i = items.findIndex((x) => x.uid === u);
@@ -299,10 +325,15 @@ export function WorkoutProvider({ children }) {
           items.map((i) => (i.uid === u ? { ...i, sets: i.sets.map((s) => (s.id === sid ? { ...s, ...patch } : s)) } : i))
         ),
       rename: (name) => setWorkout((w) => ({ ...w, name })),
-      clear: () => setWorkout((w) => ({ ...w, items: [] })),
+      clear: () => {
+        setWorkout((w) => ({ ...w, items: [] }));
+        if (user?.id) {
+          api.workouts.saveCurrent({ name: 'My Workout', items: [] }).catch(() => {});
+        }
+      },
       clearHistory: () => setHistory([]),
     };
-  }, [setWorkout, setHistory]);
+  }, [setWorkout, setHistory, user?.id]);
 
   const loadRoutine = useCallback(
     (name, list) => {

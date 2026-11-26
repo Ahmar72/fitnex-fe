@@ -138,6 +138,26 @@ export default function Onboarding() {
     };
   }, [form.age, form.sex, form.weight, weightUnit, form.height, form.heightFeet, form.heightInches, heightUnit, form.activityLevel, form.dietGoal, form.goal]);
 
+  // Trigger backend metabolic calculation API when user enters review step
+  useEffect(() => {
+    if (step >= 5 && form.age && form.weight) {
+      const finalW = form.weight ? Number(form.weight) : (weightUnit === 'kg' ? 70 : 154);
+      const finalH = heightUnit === 'cm'
+        ? (Number(form.height) || 170)
+        : Math.round(((Number(form.heightFeet) || 5) * 12 + (Number(form.heightInches) || 7)) * 2.54);
+      api.onboarding.calculate({
+        age: Number(form.age) || 25,
+        sex: form.sex || 'male',
+        weight: Number(finalW),
+        height: Number(finalH),
+        weightUnit,
+        heightUnit,
+        activityLevel: form.activityLevel || 'moderate',
+        dietGoal: form.dietGoal || (form.goal === 'fat' ? 'loss' : form.goal === 'muscle' || form.goal === 'strength' ? 'gain' : 'maintain'),
+      }).catch(() => {});
+    }
+  }, [step, form.age, form.weight, form.height, form.sex, form.activityLevel, form.dietGoal, form.goal, weightUnit, heightUnit]);
+
   // Handle switching weight units with conversion
   const handleWeightUnitChange = (newUnit) => {
     if (newUnit === weightUnit) return;
@@ -289,6 +309,7 @@ export default function Onboarding() {
       goal: goalKey,
       level: form.level || 'beginner',
       days: Number(form.days) || 3,
+      daysPerWeek: Number(form.days) || 3,
       age: Number(form.age) || 25,
       sex: form.sex || 'male',
       activityLevel: form.activityLevel || 'moderate',

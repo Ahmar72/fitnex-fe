@@ -507,6 +507,9 @@ export default function Plans() {
     if (user && updateUser) {
       updateUser({ profile: { ...(user.profile || {}), days: daysNum } });
     }
+    if (user?.id && targetPlan?.id) {
+      api.plans.enroll({ planId: targetPlan.id, daysPerWeek: daysNum }).catch(() => {});
+    }
     setShowEditPlanModal(false);
     toast(`Training frequency updated to ${daysNum} days/week.`, 'success');
   };
@@ -972,6 +975,40 @@ export default function Plans() {
       const prefix = `fx:${user?.id || 'guest'}:`;
       const currentH = readLS(prefix + 'history', []);
       writeLS(prefix + 'history', [logEntry, ...currentH].slice(0, 500));
+
+      if (user?.id) {
+        api.history
+          .logSession({
+            name: `${plan.name} (${dayName})`,
+            planId: plan.id,
+            durationSeconds: finalElapsedSeconds || 1800,
+            dateKey,
+            exercises: exercises.map((e) => ({
+              exerciseId: String(e.id),
+              name: e.name,
+              sets: Array.from({ length: totalSetsDone || 3 }, (_, idx) => ({
+                setNumber: idx + 1,
+                reps: 10,
+                weight: 20,
+              })),
+            })),
+          })
+          .then(() => {
+            api.history.getSessions({ limit: 50 }).catch(() => {});
+            api.history.getStreak().catch(() => {});
+          })
+          .catch(() => {});
+
+        api.plans
+          .updateProgress({
+            dateKey,
+            dayIndex: nextDayIdx,
+          })
+          .then(() => {
+            api.plans.getActive().catch(() => {});
+          })
+          .catch(() => {});
+      }
     } catch (err) {
       console.error('Failed to log completed workout:', err);
     }
