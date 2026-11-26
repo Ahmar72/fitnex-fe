@@ -3208,44 +3208,67 @@
   color: var(--text);
 }
 
-.heatmap-scroll-area {
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: 6px;
-  scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch;
+.heatmap-no-scroll-area {
+  overflow: hidden;
   width: 100%;
 }
 
-.heatmap-scroll-area::-webkit-scrollbar {
-  height: 4px;
-}
-.heatmap-scroll-area::-webkit-scrollbar-thumb {
-  background: rgba(120, 120, 130, 0.25);
-  border-radius: 999px;
-}
-
 .heatmap-graph {
-  min-width: 600px;
+  width: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.heatmap-month-row {
+.heatmap-month-nav-row {
   display: flex;
-  height: 16px;
-  margin-bottom: 4px;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  margin-bottom: 8px;
+  position: relative;
 }
 
-.heatmap-gutter-placeholder {
-  width: 24px;
+.heatmap-nav-arrow-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 0;
+  transition: all 0.18s ease;
   flex-shrink: 0;
+}
+
+.heatmap-nav-arrow-btn:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line-2);
+  transform: scale(1.06);
+}
+
+.heatmap-nav-arrow-btn:active:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+}
+
+.heatmap-nav-arrow-btn:disabled,
+.heatmap-nav-arrow-btn.disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .heatmap-months-track {
   flex: 1;
   position: relative;
   height: 16px;
+  margin: 0 4px;
+  overflow: hidden;
 }
 
 .heatmap-month-lbl {
@@ -3259,13 +3282,13 @@
 
 .heatmap-body-row {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: stretch;
 }
 
 .heatmap-weekdays-col {
   display: grid;
-  grid-template-rows: repeat(7, 10px);
+  grid-template-rows: repeat(7, 1fr);
   gap: 3px;
   width: 22px;
   flex-shrink: 0;
@@ -3275,7 +3298,9 @@
   font-size: 9.5px;
   font-weight: 600;
   color: var(--muted);
-  line-height: 10px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
   text-align: left;
 }
 
@@ -3283,19 +3308,23 @@
   display: flex;
   gap: 3px;
   flex: 1;
+  width: 100%;
   justify-content: space-between;
 }
 
 .heatmap-col {
   display: grid;
-  grid-template-rows: repeat(7, 10px);
+  grid-template-rows: repeat(7, 1fr);
   gap: 3px;
-  flex-shrink: 0;
+  flex: 1;
+  max-width: 16px;
 }
 
 .heatmap-cell {
-  width: 10px;
-  height: 10px;
+  width: 100%;
+  aspect-ratio: 1;
+  max-width: 15px;
+  max-height: 15px;
   border-radius: 2px;
   transition: transform 0.12s ease, filter 0.12s ease;
   cursor: pointer;

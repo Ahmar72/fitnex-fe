@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { dayKey, fmt } from '../lib/utils.js';
+import { ChevronLeft, ChevronRight } from './Icons.jsx';
 
 export default function TrainingHeatmap({ history = [], t }) {
-  const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [monthOffset, setMonthOffset] = useState(0);
   const [hoveredDay, setHoveredDay] = useState(null);
 
   // Group workout history by YYYY-MM-DD
@@ -28,36 +28,31 @@ export default function TrainingHeatmap({ history = [], t }) {
     return map;
   }, [history]);
 
-  // Build a 52-week calendar grid (Sunday = 0 to Saturday = 6)
-  const { weeks, monthLabels, totalSessionsInYear } = useMemo(() => {
-    const isCurrent = selectedYear === currentYear;
+  // Build a 26-week (~6 months) calendar grid ending at current or shifted month
+  const { weeks, monthLabels, totalSessionsInRange, dateRangeLabel, activeYear } = useMemo(() => {
     const now = new Date();
-    
-    // Target anchor day
-    let anchor;
-    if (isCurrent) {
-      anchor = new Date(now);
-      // End on the upcoming Saturday of current week
-      anchor.setDate(anchor.getDate() + (6 - anchor.getDay()));
-    } else {
-      anchor = new Date(selectedYear, 11, 31);
-      anchor.setDate(anchor.getDate() + (6 - anchor.getDay()));
-    }
+    // Shift target anchor date by monthOffset (e.g. 0 = current month, 1 = 1 month ago, etc.)
+    const targetAnchor = new Date(now.getFullYear(), now.getMonth() - monthOffset, now.getDate());
 
+    // End on Saturday of target week
+    const anchor = new Date(targetAnchor);
+    anchor.setDate(anchor.getDate() + (6 - anchor.getDay()));
+
+    // 26 weeks (approx. 6 months)
     const start = new Date(anchor);
-    start.setDate(start.getDate() - (52 * 7 - 1));
+    start.setDate(start.getDate() - (26 * 7 - 1));
 
     const weeksArr = [];
     let cur = new Date(start);
     let sessionCount = 0;
 
-    for (let w = 0; w < 52; w++) {
+    for (let w = 0; w < 26; w++) {
       const weekDays = [];
       for (let d = 0; d < 7; d++) {
         const dateObj = new Date(cur);
         const k = dayKey(dateObj);
         const data = activityMap[k] || { count: 0, sets: 0, volume: 0, workouts: [] };
-        if (dateObj.getFullYear() === selectedYear && data.count > 0) {
+        if (data.count > 0) {
           sessionCount += data.count;
         }
 
@@ -72,7 +67,7 @@ export default function TrainingHeatmap({ history = [], t }) {
         weekDays.push({
           date: dateObj,
           key: k,
-          isFuture: isCurrent && dateObj > now,
+          isFuture: dateObj > now,
           data,
           level,
         });
@@ -82,88 +77,116 @@ export default function TrainingHeatmap({ history = [], t }) {
       weeksArr.push(weekDays);
     }
 
-    // Determine month label positions across the 52 week columns
+    // Determine month labels placed above the corresponding week columns
     const months = [];
     let prevMonth = -1;
     weeksArr.forEach((wk, colIdx) => {
-      // Month of first day of week
       const m = wk[0].date.getMonth();
       if (m !== prevMonth) {
         months.push({
           colIdx,
           name: wk[0].date.toLocaleString('en-US', { month: 'short' }),
+          year: wk[0].date.getFullYear(),
         });
         prevMonth = m;
       }
     });
 
+    const startStr = start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    const endStr = anchor.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    const rangeLbl = startStr === endStr ? startStr : `${startStr} – ${endStr}`;
+
     return {
       weeks: weeksArr,
       monthLabels: months,
-      totalSessionsInYear: sessionCount,
+      totalSessionsInRange: sessionCount,
+      dateRangeLabel: rangeLbl,
+      activeYear: anchor.getFullYear(),
     };
-  }, [selectedYear, currentYear, activityMap]);
+  }, [monthOffset, activityMap]);
+
+  const handlePrevMonth = () => {
+    setMonthOffset((prev) => prev + 1);
+  };
+
+  const handleNextMonth = () => {
+    setMonthOffset((prev) => Math.max(0, prev - 1));
+  };
 
   return (
     <div className="detailed-heatmap-wrap">
-      {/* Top Header with title and year selection pill */}
+      {/* Top Header: Tag, title & Active Year Badge */}
       <div className="heatmap-top-row">
         <div>
-          <span className="tag">{t ? t('dash.consistency', 'Consistency') : 'Consistency'} · {selectedYear}</span>
+          <span className="tag">
+            {t ? t('dash.consistency', 'Consistency') : 'Consistency'} · 6 MONTHS
+          </span>
           <h3 style={{ margin: '2px 0 0', fontSize: '1.15rem', fontWeight: 800 }}>
             {t ? t('dash.heatmap', 'Training heatmap') : 'Training heatmap'}
           </h3>
         </div>
 
-        {/* Year Pills (matching img3) */}
+        {/* Year Pill / Range indicator */}
         <div className="heatmap-year-pills" role="tablist" aria-label="Heatmap Year">
-          <button
-            type="button"
-            className={`heatmap-year-btn ${selectedYear === currentYear ? 'active' : ''}`}
-            onClick={() => setSelectedYear(currentYear)}
-          >
-            {currentYear}
-          </button>
-          <button
-            type="button"
-            className={`heatmap-year-btn ${selectedYear === currentYear - 1 ? 'active' : ''}`}
-            onClick={() => setSelectedYear(currentYear - 1)}
-          >
-            {currentYear - 1}
-          </button>
+          <span className="heatmap-year-btn active">
+            {activeYear}
+          </span>
         </div>
       </div>
 
-      {/* Heatmap Graph Container with Horizontal Scroll support */}
-      <div className="heatmap-scroll-area" data-lenis-prevent="true">
+      {/* Heatmap Graph Container - 100% width, no horizontal scroll */}
+      <div className="heatmap-no-scroll-area">
         <div className="heatmap-graph">
-          {/* Top Month Row */}
-          <div className="heatmap-month-row">
-            <div className="heatmap-gutter-placeholder" />
+          {/* Months Row with Left and Right Navigation Buttons */}
+          <div className="heatmap-month-nav-row">
+            {/* Left toggle button to see previous months */}
+            <button
+              type="button"
+              className="heatmap-nav-arrow-btn"
+              onClick={handlePrevMonth}
+              aria-label="View previous months"
+              title="View previous months"
+            >
+              <ChevronLeft width={13} height={13} />
+            </button>
+
+            {/* Month labels track */}
             <div className="heatmap-months-track">
               {monthLabels.map((m, idx) => (
                 <span
-                  key={`${m.name}-${idx}`}
+                  key={`${m.name}-${m.year}-${idx}`}
                   className="heatmap-month-lbl"
-                  style={{ left: `${(m.colIdx / 52) * 100}%` }}
+                  style={{ left: `${(m.colIdx / 26) * 100}%` }}
                 >
                   {m.name}
                 </span>
               ))}
             </div>
+
+            {/* Right toggle button to see next months */}
+            <button
+              type="button"
+              className={`heatmap-nav-arrow-btn ${monthOffset <= 0 ? 'disabled' : ''}`}
+              onClick={handleNextMonth}
+              disabled={monthOffset <= 0}
+              aria-label="View next months"
+              title={monthOffset <= 0 ? 'Showing current months' : 'View next months'}
+            >
+              <ChevronRight width={13} height={13} />
+            </button>
           </div>
 
-          {/* Main Grid: Weekday labels on left + 52-week columns */}
+          {/* Main Grid: Weekday labels on left + 26 week columns */}
           <div className="heatmap-body-row">
-            {/* Weekday Labels (Sun, Mon, Tue, Wed, Thu, Fri, Sat) */}
+            {/* Weekday Labels (Mon, Wed, Fri) */}
             <div className="heatmap-weekdays-col" aria-hidden="true">
               <span className="heatmap-day-lbl" style={{ gridRow: 2 }}>Mon</span>
               <span className="heatmap-day-lbl" style={{ gridRow: 4 }}>Wed</span>
               <span className="heatmap-day-lbl" style={{ gridRow: 6 }}>Fri</span>
             </div>
 
-            {/* 52 Week Columns */}
-            <div className="heatmap-columns" role="grid" aria-label={`Workout activity in ${selectedYear}`}>
+            {/* 26 Week Columns (fits without horizontal scrolling) */}
+            <div className="heatmap-columns" role="grid" aria-label={`Workout activity: ${dateRangeLabel}`}>
               {weeks.map((wk, colIdx) => (
                 <div key={colIdx} className="heatmap-col" role="row">
                   {wk.map((day) => {
@@ -212,7 +235,7 @@ export default function TrainingHeatmap({ history = [], t }) {
             </span>
           ) : (
             <span className="heatmap-stat-count">
-              <span className="accent font-bold">{totalSessionsInYear}</span> session{totalSessionsInYear === 1 ? '' : 's'} logged in {selectedYear}
+              <span className="accent font-bold">{totalSessionsInRange}</span> session{totalSessionsInRange === 1 ? '' : 's'} logged in this period
             </span>
           )}
         </div>

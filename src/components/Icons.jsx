@@ -152,6 +152,10 @@ export const Target = (p) => (
   </svg>
 );
 
+export const ChevronLeft = (p) => (
+  <svg {...base} {...p}><polyline points="15 18 9 12 15 6" /></svg>
+);
+
 export const ChevronRight = (p) => (
   <svg {...base} {...p}><polyline points="9 18 15 12 9 6" /></svg>
 );
