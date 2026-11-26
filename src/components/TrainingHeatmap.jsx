@@ -3,6 +3,7 @@ import { dayKey, fmt } from '../lib/utils.js';
 import { ChevronLeft, ChevronRight } from './Icons.jsx';
 
 export default function TrainingHeatmap({ history = [], t }) {
+  const currentYear = new Date().getFullYear();
   const [monthOffset, setMonthOffset] = useState(0);
   const [hoveredDay, setHoveredDay] = useState(null);
 
@@ -31,7 +32,7 @@ export default function TrainingHeatmap({ history = [], t }) {
   // Build a 26-week (~6 months) calendar grid ending at current or shifted month
   const { weeks, monthLabels, totalSessionsInRange, dateRangeLabel, activeYear } = useMemo(() => {
     const now = new Date();
-    // Shift target anchor date by monthOffset (e.g. 0 = current month, 1 = 1 month ago, etc.)
+    // Shift target anchor date by monthOffset (0 = current month, 1 = 1 month ago, etc.)
     const targetAnchor = new Date(now.getFullYear(), now.getMonth() - monthOffset, now.getDate());
 
     // End on Saturday of target week
@@ -77,18 +78,22 @@ export default function TrainingHeatmap({ history = [], t }) {
       weeksArr.push(weekDays);
     }
 
-    // Determine month labels placed above the corresponding week columns
+    // Determine spaced month labels with collision avoidance (at least 3 columns apart)
     const months = [];
-    let prevMonth = -1;
+    let lastCol = -10;
+    let lastMonth = -1;
+
     weeksArr.forEach((wk, colIdx) => {
-      const m = wk[0].date.getMonth();
-      if (m !== prevMonth) {
+      // Use midweek day (Wednesday) to represent the dominant month of the week
+      const m = wk[3].date.getMonth();
+      if (m !== lastMonth && (colIdx - lastCol >= 3) && colIdx <= 23) {
         months.push({
           colIdx,
-          name: wk[0].date.toLocaleString('en-US', { month: 'short' }),
-          year: wk[0].date.getFullYear(),
+          name: wk[3].date.toLocaleString('en-US', { month: 'short' }),
+          year: wk[3].date.getFullYear(),
         });
-        prevMonth = m;
+        lastCol = colIdx;
+        lastMonth = m;
       }
     });
 
@@ -115,7 +120,7 @@ export default function TrainingHeatmap({ history = [], t }) {
 
   return (
     <div className="detailed-heatmap-wrap">
-      {/* Top Header: Tag, title & Active Year Badge */}
+      {/* Top Header: Tag, title & Year Dropdown */}
       <div className="heatmap-top-row">
         <div>
           <span className="tag">
@@ -126,15 +131,28 @@ export default function TrainingHeatmap({ history = [], t }) {
           </h3>
         </div>
 
-        {/* Year Pill / Range indicator */}
-        <div className="heatmap-year-pills" role="tablist" aria-label="Heatmap Year">
-          <span className="heatmap-year-btn active">
-            {activeYear}
-          </span>
+        {/* Year Dropdown Selector */}
+        <div className="heatmap-year-select-wrap">
+          <select
+            className="heatmap-year-select"
+            value={activeYear}
+            onChange={(e) => {
+              const yr = Number(e.target.value);
+              setMonthOffset((currentYear - yr) * 12);
+            }}
+            aria-label="Select year"
+          >
+            {[currentYear, currentYear - 1, currentYear - 2].map((yr) => (
+              <option key={yr} value={yr}>
+                {yr}
+              </option>
+            ))}
+          </select>
+          <span className="heatmap-select-arrow" aria-hidden="true">▾</span>
         </div>
       </div>
 
-      {/* Heatmap Graph Container - 100% width, no horizontal scroll */}
+      {/* Heatmap Graph Container - 100% width, no overflow, properly fitted */}
       <div className="heatmap-no-scroll-area">
         <div className="heatmap-graph">
           {/* Months Row with Left and Right Navigation Buttons */}
@@ -150,7 +168,7 @@ export default function TrainingHeatmap({ history = [], t }) {
               <ChevronLeft width={13} height={13} />
             </button>
 
-            {/* Month labels track */}
+            {/* Clean, well-spaced month labels track */}
             <div className="heatmap-months-track">
               {monthLabels.map((m, idx) => (
                 <span
@@ -185,7 +203,7 @@ export default function TrainingHeatmap({ history = [], t }) {
               <span className="heatmap-day-lbl" style={{ gridRow: 6 }}>Fri</span>
             </div>
 
-            {/* 26 Week Columns (fits without horizontal scrolling) */}
+            {/* 26 Week Columns (fits perfectly without edges cutting) */}
             <div className="heatmap-columns" role="grid" aria-label={`Workout activity: ${dateRangeLabel}`}>
               {weeks.map((wk, colIdx) => (
                 <div key={colIdx} className="heatmap-col" role="row">
@@ -220,7 +238,7 @@ export default function TrainingHeatmap({ history = [], t }) {
         </div>
       </div>
 
-      {/* Footer bar: Stats summary + Interactive Hover Detail + Less/More Legend */}
+      {/* Footer bar: Stats summary + Interactive Hover Detail + Minimalist Legend (no Less/More text) */}
       <div className="heatmap-footer-row">
         <div className="heatmap-summary-info">
           {hoveredDay ? (
@@ -235,20 +253,18 @@ export default function TrainingHeatmap({ history = [], t }) {
             </span>
           ) : (
             <span className="heatmap-stat-count">
-              <span className="accent font-bold">{totalSessionsInRange}</span> session{totalSessionsInRange === 1 ? '' : 's'} logged in this period
+              <span className="accent font-bold">{totalSessionsInRange}</span> session{totalSessionsInRange === 1 ? '' : 's'} in this period
             </span>
           )}
         </div>
 
-        {/* Legend */}
+        {/* Intensity Legend without Less/More text */}
         <div className="heatmap-legend" aria-label="Activity intensity scale">
-          <span className="legend-txt">Less</span>
           <span className="heatmap-cell level-0" title="0 sets" />
           <span className="heatmap-cell level-1" title="1-5 sets" />
           <span className="heatmap-cell level-2" title="6-11 sets" />
           <span className="heatmap-cell level-3" title="12-17 sets" />
           <span className="heatmap-cell level-4" title="18+ sets" />
-          <span className="legend-txt">More</span>
         </div>
       </div>
     </div>

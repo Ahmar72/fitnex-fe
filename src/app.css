@@ -3177,6 +3177,54 @@
   flex-wrap: wrap;
 }
 
+.heatmap-year-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.heatmap-year-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 26px 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.heatmap-year-select:hover {
+  border-color: var(--line-2);
+  background: var(--surface);
+}
+
+.heatmap-year-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft, rgba(255, 94, 26, 0.2));
+}
+
+.heatmap-year-select option {
+  background: var(--surface-2, #1a1a1a);
+  color: var(--text, #ffffff);
+}
+
+.heatmap-select-arrow {
+  position: absolute;
+  right: 9px;
+  font-size: 10px;
+  color: var(--muted);
+  pointer-events: none;
+  line-height: 1;
+}
+
 .heatmap-year-pills {
   display: inline-flex;
   gap: 4px;
@@ -3211,6 +3259,8 @@
 .heatmap-no-scroll-area {
   overflow: hidden;
   width: 100%;
+  padding: 4px 6px;
+  box-sizing: border-box;
 }
 
 .heatmap-graph {
@@ -3310,6 +3360,8 @@
   flex: 1;
   width: 100%;
   justify-content: space-between;
+  padding-right: 2px;
+  box-sizing: border-box;
 }
 
 .heatmap-col {
@@ -3321,6 +3373,7 @@
 }
 
 .heatmap-cell {
+  position: relative;
   width: 100%;
   aspect-ratio: 1;
   max-width: 15px;
@@ -3353,11 +3406,14 @@
 }
 
 .heatmap-cell.is-today {
-  outline: 1.5px solid rgba(255, 255, 255, 0.8);
-  outline-offset: 1px;
+  outline: 1.5px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 0;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
 }
 [data-theme="light"] .heatmap-cell.is-today {
-  outline: 1.5px solid rgba(0, 0, 0, 0.7);
+  outline: 1.5px solid rgba(0, 0, 0, 0.85);
+  outline-offset: 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
 }
 
 .heatmap-cell:hover {
@@ -3383,6 +3439,14 @@
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.heatmap-legend .heatmap-cell {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  cursor: default;
+  flex-shrink: 0;
 }
 
 .legend-txt {

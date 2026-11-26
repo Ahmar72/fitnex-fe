@@ -121,6 +121,31 @@ check('TrainingHeatmap.jsx: Renders detailed 6-month activity grid with month la
   assert(heatmapJsx.includes('heatmap-legend'), 'Heatmap must render activity intensity legend');
 });
 
+check('TrainingHeatmap.jsx & app.css: Year selector is a stylized dropdown instead of a button', () => {
+  assert(heatmapJsx.includes('heatmap-year-select'), 'Heatmap must render select element with class heatmap-year-select');
+  assert(heatmapJsx.includes('heatmap-year-select-wrap'), 'Heatmap must wrap select in heatmap-year-select-wrap');
+  assert(heatmapJsx.includes('heatmap-select-arrow'), 'Heatmap must render arrow indicator');
+  assert(appCss.includes('.heatmap-year-select'), 'app.css must style .heatmap-year-select');
+  assert(appCss.includes('.heatmap-select-arrow'), 'app.css must style .heatmap-select-arrow');
+});
+
+check('TrainingHeatmap.jsx: Less and More text removed from footer legend', () => {
+  assert(!heatmapJsx.includes('<span className="legend-txt">Less</span>'), 'Less text must be removed');
+  assert(!heatmapJsx.includes('<span className="legend-txt">More</span>'), 'More text must be removed');
+  assert(heatmapJsx.includes('level-0') && heatmapJsx.includes('level-4'), 'Legend must still render the 5 intensity levels');
+});
+
+check('TrainingHeatmap.jsx: Month labels spaced cleanly without collisions or congestion', () => {
+  assert(heatmapJsx.includes('colIdx - lastCol >= 3'), 'Must enforce minimum 3-column spacing to prevent month overlap');
+  assert(heatmapJsx.includes('wk[3].date.getMonth()'), 'Must use midweek day to represent dominant month');
+});
+
+check('app.css: Prevents card edge clipping and ensures proper fit inside container', () => {
+  assert(appCss.includes('.heatmap-no-scroll-area') && appCss.includes('padding: 4px 6px'), 'Must provide internal padding to prevent edge clipping');
+  assert(appCss.includes('.heatmap-cell.is-today') && appCss.includes('outline-offset: 0'), 'Today outline offset must be 0 to stay within bounds');
+  assert(appCss.includes('.heatmap-columns') && appCss.includes('padding-right: 2px'), 'Columns must have right padding to protect last column');
+});
+
 // 7. Verify Exercise Drawer Compact Sizing (Eliminating unconditional scrollbar)
 check('Library.jsx & app.css: Compact media and margins eliminate unconditional scrollbar', () => {
   assert(appCss.includes('max-height: 195px'), '.ex-panel-media img must have compact max-height (195px)');
