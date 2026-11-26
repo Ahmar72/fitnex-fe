@@ -16,7 +16,7 @@ export function DataProvider({ children }) {
         // Attempt loading from live backend API first
         const data = await api.exercises.getAll({ limit: 1400 });
         api.exercises.getFacets().catch(() => {});
-        const list = Array.isArray(data) ? data : data?.exercises || [];
+        const list = Array.isArray(data) ? data : data?.items || data?.exercises || [];
         if (alive && list.length > 0) {
           setExercises(list);
           setStatus('ready');
@@ -47,10 +47,11 @@ export function DataProvider({ children }) {
   }, []);
 
   const value = useMemo(() => {
-    const byId = new Map(exercises.map((e) => [e.id || e._id, e]));
+    const list = Array.isArray(exercises) ? exercises : [];
+    const byId = new Map(list.map((e) => [String(e.id || e._id), e]));
     const count = (k) => {
       const m = new Map();
-      exercises.forEach((e) => {
+      list.forEach((e) => {
         const val = e[k];
         if (val) m.set(val, (m.get(val) || 0) + 1);
       });
@@ -58,7 +59,7 @@ export function DataProvider({ children }) {
     };
 
     return {
-      exercises,
+      exercises: list,
       byId,
       status,
       ready: status === 'ready',
@@ -67,7 +68,7 @@ export function DataProvider({ children }) {
         equipment: count('equipment'),
         target: count('target'),
       },
-      findByName: (name) => exercises.find((e) => e.name?.toLowerCase() === name?.toLowerCase()),
+      findByName: (name) => list.find((e) => e?.name?.toLowerCase() === name?.toLowerCase()),
     };
   }, [exercises, status]);
 

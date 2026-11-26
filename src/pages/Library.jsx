@@ -162,20 +162,24 @@ export default function Library() {
 
   const results = useMemo(() => {
     const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-    let list = exercises.filter((e) => {
+    const safeFavs = Array.isArray(favorites) ? favorites.map(String) : [];
+    let list = (exercises || []).filter((e) => {
+      if (!e) return false;
+      const exId = String(e.id || e._id || '');
       if (part && e.bodyPart !== part) return false;
       if (eq && e.equipment !== eq) return false;
       if (target && e.target !== target) return false;
-      if (fav && !favorites.includes(e.id)) return false;
+      if (fav && !safeFavs.includes(exId)) return false;
       if (tokens.length) {
-        const hay = `${e.name} ${e.target} ${e.equipment} ${e.bodyPart} ${e.secondary.join(' ')}`.toLowerCase();
+        const secondary = Array.isArray(e.secondary) ? e.secondary.join(' ') : '';
+        const hay = `${e.name || ''} ${e.target || ''} ${e.equipment || ''} ${e.bodyPart || ''} ${secondary}`.toLowerCase();
         return tokens.every((t) => hay.includes(t));
       }
       return true;
     });
-    if (sort === 'za') list = [...list].sort((a, b) => b.name.localeCompare(a.name));
-    else if (sort === 'id') list = [...list].sort((a, b) => a.id.localeCompare(b.id));
-    else list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === 'za') list = [...list].sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+    else if (sort === 'id') list = [...list].sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')));
+    else list = [...list].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     return list;
   }, [exercises, query, part, eq, target, fav, favorites, sort]);
 
@@ -196,6 +200,14 @@ export default function Library() {
     }
   }, [query, part, eq, target, fav, sort]);
 
+  const totalPages = Math.max(1, Math.ceil((results?.length || 0) / pageSize));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedExercises = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return (results || []).slice(start, start + pageSize);
+  }, [results, safePage, pageSize]);
+
   // Query live backend API for filtered movements and display data in console
   useEffect(() => {
     const t = setTimeout(() => {
@@ -213,14 +225,6 @@ export default function Library() {
     }, 350);
     return () => clearTimeout(t);
   }, [query, part, eq, target, sort, pageSize, safePage]);
-
-  const totalPages = Math.max(1, Math.ceil(results.length / pageSize));
-  const safePage = Math.min(Math.max(1, currentPage), totalPages);
-
-  const paginatedExercises = useMemo(() => {
-    const start = (safePage - 1) * pageSize;
-    return results.slice(start, start + pageSize);
-  }, [results, safePage, pageSize]);
 
   const handlePageChange = (newPage) => {
     const valid = Math.min(Math.max(1, newPage), totalPages);
@@ -245,7 +249,7 @@ export default function Library() {
     return [1, '...', safePage - 1, safePage, safePage + 1, '...', totalPages];
   }, [totalPages, safePage]);
 
-  const counts = Object.fromEntries(facets.bodyPart);
+  const counts = Object.fromEntries(Array.isArray(facets?.bodyPart) ? facets.bodyPart : []);
   const active = part || eq || target || fav || query;
   const reset = () => {
     setQuery('');
@@ -271,10 +275,10 @@ export default function Library() {
             </label>
             <select className="input" value={eq} onChange={(e) => set('eq', e.target.value)} aria-label={t('lib.equipment', 'Equipment')}>
               <option value="">{t('lib.all', 'All')} {t('lib.equipment', 'equipment')}</option>
-              {facets.equipment.map(([k, n]) => <option key={k} value={k}>{k} ({n})</option>)}
+              {(facets?.equipment || []).map(([k, n]) => <option key={k} value={k}>{k} ({n})</option>)}
             </select>
             <select className="input" value={part} onChange={(e) => set('part', e.target.value)} aria-label="Body Part">
-              <option value="">{t('lib.all', 'All')} Body Parts ({exercises.length})</option>
+              <option value="">{t('lib.all', 'All')} Body Parts ({(exercises || []).length})</option>
               {BODY_PARTS.filter((b) => counts[b.key]).map((b) => (
                 <option key={b.key} value={b.key}>
                   {t(`part.${b.key}`, b.label)} ({counts[b.key]})
@@ -283,7 +287,7 @@ export default function Library() {
             </select>
             <select className="input" value={target} onChange={(e) => set('target', e.target.value)} aria-label={t('lib.target', 'Target muscle')}>
               <option value="">{t('lib.all', 'All')} {t('lib.target', 'muscles')}</option>
-              {facets.target.map(([k, n]) => <option key={k} value={k}>{k} ({n})</option>)}
+              {(facets?.target || []).map(([k, n]) => <option key={k} value={k}>{k} ({n})</option>)}
             </select>
           </div>
         </div>
@@ -490,24 +494,29 @@ export default function Library() {
                     type="button"
                     className="btn btn-primary"
                     style={{ flex: 1, height: 40, fontSize: 13.5 }}
-                    onClick={() => addToWorkout(selectedEx.id)}
+                    onClick={() => selectedEx?.id && addToWorkout(selectedEx.id)}
                   >
                     <Plus width={15} height={15} /> {t('detail.add_workout', 'Add to workout')}
                   </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    style={{
-                      height: 40,
-                      padding: '0 16px',
-                      fontSize: 13.5,
-                      ...(favorites.includes(selectedEx.id) ? { borderColor: 'var(--hot)', color: 'var(--hot)' } : {}),
-                    }}
-                    onClick={() => toggleFavorite(selectedEx.id)}
-                  >
-                    <Heart width={15} height={15} filled={favorites.includes(selectedEx.id)} stroke={favorites.includes(selectedEx.id) ? 'var(--hot)' : undefined} />
-                    {favorites.includes(selectedEx.id) ? t('detail.saved', 'Saved') : t('detail.save', 'Save')}
-                  </button>
+                  {(() => {
+                    const isFav = Array.isArray(favorites) && selectedEx?.id ? favorites.includes(String(selectedEx.id)) : false;
+                    return (
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        style={{
+                          height: 40,
+                          padding: '0 16px',
+                          fontSize: 13.5,
+                          ...(isFav ? { borderColor: 'var(--hot)', color: 'var(--hot)' } : {}),
+                        }}
+                        onClick={() => selectedEx?.id && toggleFavorite(selectedEx.id)}
+                      >
+                        <Heart width={15} height={15} filled={isFav} stroke={isFav ? 'var(--hot)' : undefined} />
+                        {isFav ? t('detail.saved', 'Saved') : t('detail.save', 'Save')}
+                      </button>
+                    );
+                  })()}
                 </div>
 
                 {/* Brief 1-2 lines of instructions */}
