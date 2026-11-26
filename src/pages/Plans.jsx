@@ -2433,13 +2433,13 @@ export default function Plans() {
                   {selectedEx.name}
                 </h2>
 
-                <div className="spec" style={{ margin: '14px 0 18px' }}>
+                <div className="spec" style={{ margin: '10px 0 12px' }}>
                   <div><small>{t('detail.target', 'Target')}</small><b>{selectedEx.target}</b></div>
                   <div><small>{t('detail.equipment', 'Equipment')}</small><b>{selectedEx.equipment}</b></div>
                   <div><small>{t('detail.body_part', 'Body part')}</small><b>{selectedEx.bodyPart}</b></div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 10, margin: '0 0 20px' }}>
+                <div style={{ display: 'flex', gap: 10, margin: '0 0 12px' }}>
                   <button
                     type="button"
                     className="btn btn-primary"
@@ -2472,9 +2472,9 @@ export default function Plans() {
                     ? selectedEx.steps.slice(0, 2)
                     : ['Maintain strict form with steady tempo and controlled breathing.', 'Engage the target muscle group throughout the entire range of motion.'];
                   return (
-                    <ul style={{ margin: '10px 0 20px', paddingLeft: '18px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6 }}>
+                    <ul style={{ margin: '8px 0 0', paddingLeft: '18px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.5 }}>
                       {briefSteps.map((st, idx) => (
-                        <li key={idx} style={{ marginBottom: 6 }}>{st}</li>
+                        <li key={idx} style={{ marginBottom: 4 }}>{st}</li>
                       ))}
                     </ul>
                   );
