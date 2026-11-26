@@ -92,6 +92,37 @@ export function WorkoutProvider({ children }) {
     };
   }, [user?.id, setHistory]);
 
+  // Sync workout draft with backend when signed in
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    api.workouts
+      .getCurrent()
+      .then((serverDraft) => {
+        if (alive && serverDraft && Array.isArray(serverDraft.items) && serverDraft.items.length > 0) {
+          setWorkout((local) => {
+            if (!local?.items?.length) {
+              return serverDraft;
+            }
+            return local;
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [user?.id, setWorkout]);
+
+  // Persist workout draft to backend with debouncing when signed in
+  useEffect(() => {
+    if (!user?.id || !workout?.items) return;
+    const timer = setTimeout(() => {
+      api.workouts.saveCurrent(workout).catch(() => {});
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [user?.id, workout]);
+
   // Sanitize history entries to guarantee accuracy and consistency
   const sanitizedHistory = useMemo(() => {
     if (!Array.isArray(history)) return [];

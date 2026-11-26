@@ -242,6 +242,20 @@ export function AuthProvider({ children }) {
     [],
   );
 
+  /**
+   * Change user account password
+   */
+  const changePassword = useCallback(async (currentPassword, newPassword) => {
+    return api.users.changePassword({ currentPassword, newPassword });
+  }, []);
+
+  /**
+   * Delete account action (clears tokens and session)
+   */
+  const deleteAccount = useCallback(async () => {
+    await logout();
+  }, [logout]);
+
   const value = {
     user: currentUser,
     loading,
@@ -253,6 +267,8 @@ export function AuthProvider({ children }) {
     resetPassword,
     logout,
     updateUser,
+    changePassword,
+    deleteAccount,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

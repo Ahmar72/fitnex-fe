@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -11,6 +11,7 @@ import { ROUTINES } from '../sections/Programs.jsx';
 import { goalOf, routineFor } from '../lib/goals.js';
 import { getGoalWorkoutForToday, DIFFICULTY_CALIBRATION } from '../lib/progressionEngine.js';
 import { dayKey, fmt, sample, title, readLS, writeLS } from '../lib/utils.js';
+import { api } from '../lib/api.js';
 
 const ease = [0.22, 1, 0.36, 1];
 const FOCUS = {
@@ -34,6 +35,22 @@ export default function Dashboard() {
   const profile = user?.profile || {};
   const goal = goalOf(profile.goal);
   const first = user?.name ? user.name.split(' ')[0] : 'Athlete';
+
+  // Live dashboard summary from backend API
+  const [dashboardSummary, setDashboardSummary] = useState(null);
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    api.dashboard
+      .getSummary()
+      .then((data) => {
+        if (alive && data) setDashboardSummary(data);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [user?.id]);
 
   // The Dashboard routine is strictly driven by the user's primary goal chosen at onboarding or updated in Profile
   const userGoal = profile.goal || 'muscle';
