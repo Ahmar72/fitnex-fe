@@ -111,11 +111,13 @@ check('layout.css: .sidebar-collapsed expands cards edge-to-edge covering left a
 const dashboardJsx = fs.readFileSync(path.join(__dirname, 'src', 'pages', 'Dashboard.jsx'), 'utf8');
 const heatmapJsx = fs.readFileSync(path.join(__dirname, 'src', 'components', 'TrainingHeatmap.jsx'), 'utf8');
 
-check('TrainingHeatmap.jsx: Renders detailed 52-week activity grid with month labels, weekdays, and year pills', () => {
+check('TrainingHeatmap.jsx: Renders detailed 6-month activity grid with month labels, weekdays, and left/right toggle buttons', () => {
   assert(dashboardJsx.includes('<TrainingHeatmap history={history}'), 'Dashboard must render TrainingHeatmap');
   assert(heatmapJsx.includes('monthLabels'), 'Heatmap must compute and render monthLabels');
   assert(heatmapJsx.includes('Mon') && heatmapJsx.includes('Wed') && heatmapJsx.includes('Fri'), 'Heatmap must render Mon, Wed, Fri weekday labels');
-  assert(heatmapJsx.includes('heatmap-year-btn'), 'Heatmap must render year selector pills');
+  assert(heatmapJsx.includes('heatmap-nav-arrow-btn'), 'Heatmap must render left and right toggle buttons');
+  assert(heatmapJsx.includes('handlePrevMonth') && heatmapJsx.includes('handleNextMonth'), 'Heatmap must handle month toggling');
+  assert(appCss.includes('.heatmap-no-scroll-area') && appCss.includes('overflow: hidden'), 'Heatmap must have overflow: hidden to eliminate scroll');
   assert(heatmapJsx.includes('heatmap-legend'), 'Heatmap must render activity intensity legend');
 });
 
