@@ -97,6 +97,36 @@ check('Plans.jsx: Sidepanel drawer rendered with specs, add to workout, and clos
   assert(plansJsx.includes("document.body.style.overflow = 'hidden'"), 'Plans.jsx must lock body scroll when drawer is open');
 });
 
+// 5. Verify Sidebar Collapse Expansion
+const layoutCss = fs.readFileSync(path.join(__dirname, 'src', 'layout.css'), 'utf8');
+
+check('layout.css: .sidebar-collapsed expands cards edge-to-edge covering left and right space', () => {
+  assert(layoutCss.includes('.sidebar-collapsed .container'), 'Must have .sidebar-collapsed .container rule');
+  assert(layoutCss.includes('max-width: 100% !important'), 'Must expand to max-width: 100%');
+  assert(layoutCss.includes('.sidebar-collapsed .nutrition-page'), 'Must expand nutrition-page');
+  assert(layoutCss.includes('.sidebar-collapsed .settings-container'), 'Must expand settings-container');
+});
+
+// 6. Verify Detailed Training Heatmap
+const dashboardJsx = fs.readFileSync(path.join(__dirname, 'src', 'pages', 'Dashboard.jsx'), 'utf8');
+const heatmapJsx = fs.readFileSync(path.join(__dirname, 'src', 'components', 'TrainingHeatmap.jsx'), 'utf8');
+
+check('TrainingHeatmap.jsx: Renders detailed 52-week activity grid with month labels, weekdays, and year pills', () => {
+  assert(dashboardJsx.includes('<TrainingHeatmap history={history}'), 'Dashboard must render TrainingHeatmap');
+  assert(heatmapJsx.includes('monthLabels'), 'Heatmap must compute and render monthLabels');
+  assert(heatmapJsx.includes('Mon') && heatmapJsx.includes('Wed') && heatmapJsx.includes('Fri'), 'Heatmap must render Mon, Wed, Fri weekday labels');
+  assert(heatmapJsx.includes('heatmap-year-btn'), 'Heatmap must render year selector pills');
+  assert(heatmapJsx.includes('heatmap-legend'), 'Heatmap must render activity intensity legend');
+});
+
+// 7. Verify Exercise Drawer Compact Sizing (Eliminating unconditional scrollbar)
+check('Library.jsx & app.css: Compact media and margins eliminate unconditional scrollbar', () => {
+  assert(appCss.includes('max-height: 195px'), '.ex-panel-media img must have compact max-height (195px)');
+  assert(libraryJsx.includes("margin: '10px 0 12px'"), 'Library spec must use compact margin 10px 0 12px');
+  assert(libraryJsx.includes("margin: '0 0 12px'"), 'Library action buttons must use compact margin 0 0 12px');
+  assert(libraryJsx.includes("margin: '8px 0 0'"), 'Library steps ul must use compact margin 8px 0 0');
+});
+
 console.log('\n========================================================');
 console.log(`   TEST RESULTS: ${passed}/${total} CHECKS PASSED`);
 console.log('========================================================');

@@ -12,6 +12,7 @@ import { goalOf, routineFor } from '../lib/goals.js';
 import { getGoalWorkoutForToday, DIFFICULTY_CALIBRATION } from '../lib/progressionEngine.js';
 import { dayKey, fmt, sample, title, readLS, writeLS } from '../lib/utils.js';
 import { api } from '../lib/api.js';
+import TrainingHeatmap from '../components/TrainingHeatmap.jsx';
 
 const ease = [0.22, 1, 0.36, 1];
 const FOCUS = {
@@ -248,13 +249,7 @@ export default function Dashboard() {
 
           <Reveal className="span-6" delay={0.1} style={{ display: 'flex' }}>
             <GlowCard style={{ flex: 1 }}>
-              <span className="tag">{t('dash.consistency', 'Consistency · 20 weeks')}</span>
-              <h3>{t('dash.heatmap', 'Training heatmap')}</h3>
-              <div className="heat" style={{ paddingTop: 18 }}>
-                {heat.map((v, i) => (
-                  <i key={i} title={v ? `${v} sets` : ''} style={{ background: v === 0 ? 'var(--heat-0)' : v < 6 ? 'var(--heat-1)' : v < 15 ? 'var(--heat-2)' : 'var(--heat-3)' }} />
-                ))}
-              </div>
+              <TrainingHeatmap history={history} t={t} />
             </GlowCard>
           </Reveal>
 
