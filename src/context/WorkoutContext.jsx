@@ -35,9 +35,14 @@ export function WorkoutProvider({ children }) {
   const { user } = useAuth();
   const prefix = `fx:${user?.id || 'guest'}:`;
 
-  const [favorites, setFavorites] = useScopedState(prefix, 'favorites', []);
+  const [rawFavorites, setFavorites] = useScopedState(prefix, 'favorites', []);
   const [workout, setWorkout] = useScopedState(prefix, 'workout', { name: 'My Workout', items: [] });
   const [history, setHistory] = useScopedState(prefix, 'history', []);
+
+  // Guarantee favorites is always a clean array of string IDs
+  const favorites = useMemo(() => {
+    return Array.isArray(rawFavorites) ? rawFavorites.filter(Boolean).map(String) : [];
+  }, [rawFavorites]);
 
   // Sync favorites with backend when signed in
   useEffect(() => {
@@ -47,7 +52,11 @@ export function WorkoutProvider({ children }) {
       .getFavorites()
       .then((serverFavs) => {
         if (alive && Array.isArray(serverFavs)) {
-          setFavorites((local) => Array.from(new Set([...local, ...serverFavs])));
+          setFavorites((local) => {
+            const current = Array.isArray(local) ? local.filter(Boolean).map(String) : [];
+            const fresh = serverFavs.filter(Boolean).map(String);
+            return Array.from(new Set([...current, ...fresh]));
+          });
         }
       })
       .catch(() => {});
@@ -166,9 +175,14 @@ export function WorkoutProvider({ children }) {
   const defaultWeight = useCallback((id) => (byId.get(id)?.equipment === 'body weight' ? 0 : 20), [byId]);
 
   const toggleFavorite = useCallback(
-    (id) => {
+    (rawId) => {
+      if (!rawId) return;
+      const id = String(rawId);
       const on = favorites.includes(id);
-      setFavorites((f) => (on ? f.filter((x) => x !== id) : [...new Set([...f, id])]));
+      setFavorites((f) => {
+        const cur = Array.isArray(f) ? f.filter(Boolean).map(String) : [];
+        return on ? cur.filter((x) => x !== id) : Array.from(new Set([...cur, id]));
+      });
       toast(on ? `Removed “${nameOf(id)}” from favourites` : `Saved “${nameOf(id)}” to favourites`, on ? 'info' : 'heart');
 
       // Dispatch to backend if signed in
@@ -180,13 +194,19 @@ export function WorkoutProvider({ children }) {
   );
 
   const addToWorkout = useCallback(
-    (id) => {
-      setWorkout((w) => ({ ...w, items: [...w.items, newItem(id, 3, 10, defaultWeight(id))] }));
+    (rawId) => {
+      if (!rawId) return;
+      const id = String(rawId);
+      setWorkout((w) => {
+        const base = w && typeof w === 'object' ? w : { name: 'My Workout', items: [] };
+        const items = Array.isArray(base.items) ? base.items : [];
+        return { ...base, items: [...items, newItem(id, 3, 10, defaultWeight(id))] };
+      });
       toast(`Added “${nameOf(id)}” to your workout`, 'plus');
 
       if (user?.id) {
         api.workouts
-          .addItem({ exerciseId: String(id), sets: 3, reps: 10, weight: defaultWeight(id) })
+          .addItem({ exerciseId: id, sets: 3, reps: 10, weight: defaultWeight(id) })
           .catch(() => {});
       }
     },

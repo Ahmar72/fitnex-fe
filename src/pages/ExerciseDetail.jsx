@@ -101,7 +101,8 @@ export default function ExerciseDetail() {
 
   const rawSteps = (i18n && i18n[lang]) || ex.steps;
   const steps = translateSteps(rawSteps, i18n);
-  const fav = favorites.includes(ex.id);
+  const safeFavs = Array.isArray(favorites) ? favorites : [];
+  const fav = ex?.id ? safeFavs.includes(String(ex.id)) : false;
   const part = partMeta(ex.bodyPart);
 
   return (
@@ -148,8 +149,8 @@ export default function ExerciseDetail() {
             </Reveal>
 
             <Reveal delay={0.5} className="detail-actions">
-              <button className="btn btn-primary" onClick={() => addToWorkout(ex.id)}><Plus /> {t('detail.add_workout', 'Add to workout')}</button>
-              <button className={`btn btn-ghost`} onClick={() => toggleFavorite(ex.id)} style={fav ? { borderColor: 'var(--hot)', color: 'var(--hot)' } : undefined}>
+              <button className="btn btn-primary" onClick={() => ex?.id && addToWorkout(ex.id)}><Plus /> {t('detail.add_workout', 'Add to workout')}</button>
+              <button className={`btn btn-ghost`} onClick={() => ex?.id && toggleFavorite(ex.id)} style={fav ? { borderColor: 'var(--hot)', color: 'var(--hot)' } : undefined}>
                 <Heart filled={fav} /> {fav ? t('detail.saved', 'Saved') : t('detail.save', 'Save')}
               </button>
             </Reveal>

@@ -2407,7 +2407,7 @@ export default function Plans() {
                     type="button"
                     className="btn btn-primary"
                     style={{ flex: 1, height: 40, fontSize: 13.5 }}
-                    onClick={() => addToWorkout(selectedEx.id)}
+                    onClick={() => selectedEx?.id && addToWorkout(selectedEx.id)}
                   >
                     <Plus width={15} height={15} /> {t('detail.add_workout', 'Add to workout')}
                   </button>
@@ -2418,12 +2418,12 @@ export default function Plans() {
                       height: 40,
                       padding: '0 16px',
                       fontSize: 13.5,
-                      ...(favorites?.includes(selectedEx.id) ? { borderColor: 'var(--hot)', color: 'var(--hot)' } : {}),
+                      ...(Array.isArray(favorites) && selectedEx?.id && favorites.includes(String(selectedEx.id)) ? { borderColor: 'var(--hot)', color: 'var(--hot)' } : {}),
                     }}
-                    onClick={() => toggleFavorite(selectedEx.id)}
+                    onClick={() => selectedEx?.id && toggleFavorite(selectedEx.id)}
                   >
-                    <Heart width={15} height={15} filled={favorites?.includes(selectedEx.id)} stroke={favorites?.includes(selectedEx.id) ? 'var(--hot)' : undefined} />
-                    {favorites?.includes(selectedEx.id) ? t('detail.saved', 'Saved') : t('detail.save', 'Save')}
+                    <Heart width={15} height={15} filled={Array.isArray(favorites) && selectedEx?.id && favorites.includes(String(selectedEx.id))} stroke={Array.isArray(favorites) && selectedEx?.id && favorites.includes(String(selectedEx.id)) ? 'var(--hot)' : undefined} />
+                    {Array.isArray(favorites) && selectedEx?.id && favorites.includes(String(selectedEx.id)) ? t('detail.saved', 'Saved') : t('detail.save', 'Save')}
                   </button>
                 </div>
 

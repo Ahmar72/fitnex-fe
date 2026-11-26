@@ -9,8 +9,9 @@ import { partMeta, asset } from '../lib/utils.js';
 const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode = 'grid', onSelect }, ref) {
   const navigate = useNavigate();
   const { favorites, toggleFavorite, addToWorkout } = useWorkout();
-  const fav = favorites.includes(ex.id);
-  const part = partMeta(ex.bodyPart);
+  const safeFavs = Array.isArray(favorites) ? favorites : [];
+  const fav = ex?.id ? safeFavs.includes(String(ex.id)) : false;
+  const part = partMeta(ex?.bodyPart);
   const [hover, setHover] = useState(false);
   const stop = (fn) => (e) => {
     e.preventDefault();
@@ -78,7 +79,7 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
           <button
             type="button"
             className={`action-circle-btn fav-btn ${fav ? 'on' : ''}`}
-            onClick={stop(() => toggleFavorite(ex.id))}
+            onClick={stop(() => ex?.id && toggleFavorite(ex.id))}
             aria-label={fav ? 'Remove favourite' : 'Add favourite'}
             title={fav ? 'Remove favourite' : 'Add favourite'}
           >
@@ -92,7 +93,7 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
           <button
             type="button"
             className="action-circle-btn plus-btn"
-            onClick={stop(() => addToWorkout(ex.id))}
+            onClick={stop(() => ex?.id && addToWorkout(ex.id))}
             aria-label="Add to workout"
             title="Add to workout"
           >
@@ -153,7 +154,7 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
         <button
           type="button"
           className={`action-circle-btn fav-btn ${fav ? 'on' : ''}`}
-          onClick={stop(() => toggleFavorite(ex.id))}
+          onClick={stop(() => ex?.id && toggleFavorite(ex.id))}
           aria-label={fav ? 'Remove favourite' : 'Add favourite'}
           title={fav ? 'Remove favourite' : 'Add favourite'}
         >
@@ -167,7 +168,7 @@ const ExerciseCard = forwardRef(function ExerciseCard({ ex, index = 0, viewMode 
         <button
           type="button"
           className="action-circle-btn plus-btn"
-          onClick={stop(() => addToWorkout(ex.id))}
+          onClick={stop(() => ex?.id && addToWorkout(ex.id))}
           aria-label="Add to workout"
           title="Add to workout"
         >
