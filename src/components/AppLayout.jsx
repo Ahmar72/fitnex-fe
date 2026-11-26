@@ -431,9 +431,9 @@ export default function AppLayout({ children }) {
             4. Main App Content with Smooth Shimmer Loading Navigation
             ============================================================ */}
         <main className="app-main" id="main-content">
-          <Suspense fallback={<PageShimmer label={t('common.loading', 'Loading...')} />}>
+          <Suspense fallback={<PageShimmer route={location.pathname} label={t('common.loading', 'Loading...')} />}>
             {navigating ? (
-              <PageShimmer label={t('common.loading', 'Loading...')} />
+              <PageShimmer route={location.pathname} label={t('common.loading', 'Loading...')} />
             ) : (
               <div className="app-view-content" key={location.pathname}>
                 {children || <Outlet />}

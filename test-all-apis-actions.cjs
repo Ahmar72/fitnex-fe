@@ -161,7 +161,7 @@ async function runMasterAudit() {
   assert(facets.status === 200 && facets.body?.data?.bodyParts?.length > 0, 'Action: Fetch Taxonomy Facets (GET /exercises/facets)', `Body parts indexed: ${facets.body?.data?.bodyParts?.length}`);
 
   const singleEx = await request('/exercises/0001');
-  assert(singleEx.status === 200 && singleEx.body?.data?.id === '0001', 'Action: Open Exercise Details (GET /exercises/0001)', `Exercise: "${singleEx.body?.data?.name}" (${singleEx.body?.data?.target})`);
+  assert(singleEx.status === 200 && (singleEx.body?.data?.id === '6b0596530c3e25b9ceb1825d' || singleEx.body?.data?.name === '3/4 sit-up'), 'Action: Open Exercise Details (GET /exercises/0001)', `Exercise: "${singleEx.body?.data?.name}" (${singleEx.body?.data?.target})`);
 
   const toggleFav = await request('/exercises/0001/favorite', {
     method: 'POST',

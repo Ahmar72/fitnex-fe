@@ -154,6 +154,29 @@ check('Library.jsx & app.css: Compact media and margins eliminate unconditional 
   assert(libraryJsx.includes("margin: '8px 0 0'"), 'Library steps ul must use compact margin 8px 0 0');
 });
 
+// 8. Verify Screen-Aware Shimmers & Corner Alignment (Exact Component Mimicry)
+const appSpinnerJsx = fs.readFileSync(path.join(__dirname, 'src', 'components', 'AppSpinner.jsx'), 'utf8');
+const appLayoutJsx = fs.readFileSync(path.join(__dirname, 'src', 'components', 'AppLayout.jsx'), 'utf8');
+
+check('AppSpinner.jsx: Features tailored, screen-aware component skeletons matching each route', () => {
+  assert(appSpinnerJsx.includes('shimmer-dash-layout'), 'Dashboard shimmer layout must exist');
+  assert(appSpinnerJsx.includes('shimmer-library-layout'), 'Library shimmer layout must exist');
+  assert(appSpinnerJsx.includes('shimmer-plans-layout'), 'Plans shimmer layout must exist');
+  assert(appSpinnerJsx.includes('shimmer-builder-layout'), 'Builder shimmer layout must exist');
+  assert(appSpinnerJsx.includes('shimmer-nutrition-layout'), 'Nutrition shimmer layout must exist');
+  assert(appSpinnerJsx.includes('shimmer-profile-layout'), 'Profile shimmer layout must exist');
+});
+
+check('AppLayout.jsx: Passes active location.pathname to PageShimmer for automatic route-based view', () => {
+  assert(appLayoutJsx.includes('route={location.pathname}'), 'AppLayout must pass route={location.pathname} to PageShimmer');
+});
+
+check('layout.css: .page-shimmer-wrapper enforces padding and max-width so shimmers never touch screen corners', () => {
+  assert(layoutCss.includes('.page-shimmer-wrapper'), '.page-shimmer-wrapper must exist');
+  assert(layoutCss.includes('padding: 16px 20px 48px'), 'Wrapper must have generous 20px side padding preventing edge collision');
+  assert(layoutCss.includes('.shimmer-dash-stats'), 'Dashboard stat shimmer grid must be styled');
+});
+
 console.log('\n========================================================');
 console.log(`   TEST RESULTS: ${passed}/${total} CHECKS PASSED`);
 console.log('========================================================');
