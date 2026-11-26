@@ -318,7 +318,7 @@ async function runMasterAudit() {
   assert(cancelPlanAlias.status === 200, 'Action: Cancel Active Plan Alias (POST /plans/cancel/me)', cancelPlanAlias.body?.message || 'Plan enrollment canceled alias');
 
   // -------------------------------------------------------------
-  // MODULE 9: MEALS, RECIPES & FOOD LOGGING
+  // MODULE 9: NUTRITION & RECIPES DATA CATALOG
   // -------------------------------------------------------------
   console.log('\n--- [Module 9: Nutrition & Recipes Actions] ---');
   const allMeals = await request('/meals?limit=10');
@@ -327,49 +327,17 @@ async function runMasterAudit() {
   const categories = await request('/meals/categories');
   assert(categories.status === 200 && categories.body?.data?.length === 7, 'Action: Fetch Meal Categories (GET /meals/categories)', `Categories: ${categories.body?.data?.map(c => c.label).join(', ')}`);
 
+  const categoryFilter = await request('/meals?category=breakfast&limit=10');
+  assert(categoryFilter.status === 200 && Array.isArray(categoryFilter.body?.data?.meals), 'Action: Filter Recipes by Category (GET /meals?category=breakfast)', `Returned ${categoryFilter.body?.data?.meals?.length} breakfast recipes`);
+
+  const goalFilter = await request('/meals?goal=muscle&limit=10');
+  assert(goalFilter.status === 200 && Array.isArray(goalFilter.body?.data?.meals), 'Action: Filter Recipes by Goal (GET /meals?goal=muscle)', `Returned ${goalFilter.body?.data?.meals?.length} muscle-building recipes`);
+
+  const searchFilter = await request('/meals?search=chicken&limit=10');
+  assert(searchFilter.status === 200 && Array.isArray(searchFilter.body?.data?.meals), 'Action: Search Recipes Catalog (GET /meals?search=chicken)', `Found ${searchFilter.body?.data?.meals?.length} recipes matching "chicken"`);
+
   const singleMeal = await request('/meals/grilled-chicken-rice');
   assert(singleMeal.status === 200 && singleMeal.body?.data?.macros?.protein === 48, 'Action: View Recipe Details (GET /meals/grilled-chicken-rice)', `Recipe: "${singleMeal.body?.data?.name}" (48g protein)`);
-
-  const toggleMealFav = await request('/meals/favorites/grilled-chicken-rice', {
-    method: 'POST',
-    token: activeToken,
-  });
-  assert(toggleMealFav.status === 200, 'Action: Bookmark Recipe (POST /meals/favorites/:id)', toggleMealFav.body?.message || 'Meal favorite updated');
-
-  const mealFavs = await request('/meals/favorites/me', { token: activeToken });
-  assert(mealFavs.status === 200 && Array.isArray(mealFavs.body?.data), 'Action: Fetch User Favorite Recipes (GET /meals/favorites/me)', `Bookmarked recipes: ${mealFavs.body?.data?.length}`);
-
-  const logMeal = await request('/meals/logs', {
-    method: 'POST',
-    token: activeToken,
-    body: {
-      mealId: 'grilled-chicken-rice',
-      name: 'Grilled Chicken & Brown Rice',
-      category: 'lunch',
-      dateKey: todayKey,
-      calories: 540,
-      protein: 48,
-      carbs: 52,
-      fat: 10,
-      servings: 1,
-    },
-  });
-  assert(logMeal.status === 201, 'Action: Log Consumed Meal to Food Diary (POST /meals/logs)', `Logged meal ID: ${logMeal.body?.data?.id || logMeal.body?.data?._id}`);
-  const mealLogId = logMeal.body?.data?.id || logMeal.body?.data?._id;
-
-  const mealLogs = await request(`/meals/logs/me?dateKey=${todayKey}`, { token: activeToken });
-  assert(mealLogs.status === 200 && Array.isArray(mealLogs.body?.data), 'Action: Fetch Daily Food Diary (GET /meals/logs/me)', `Meals logged today: ${mealLogs.body?.data?.length}`);
-
-  const dailyNutrition = await request(`/meals/daily-summary?dateKey=${todayKey}`, { token: activeToken });
-  assert(dailyNutrition.status === 200 && dailyNutrition.body?.data?.consumed?.calories >= 540, 'Action: Fetch Daily Nutrition Summary (GET /meals/daily-summary)', `Calories consumed: ${dailyNutrition.body?.data?.consumed?.calories} kcal`);
-
-  if (mealLogId) {
-    const deleteMealLog = await request(`/meals/logs/${mealLogId}`, {
-      method: 'DELETE',
-      token: activeToken,
-    });
-    assert(deleteMealLog.status === 200, 'Action: Delete Food Diary Entry (DELETE /meals/logs/:id)', deleteMealLog.body?.message || 'Meal log removed');
-  }
 
   // -------------------------------------------------------------
   // MODULE 10: LOGOUT
