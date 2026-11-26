@@ -25,6 +25,7 @@ export default function Nutrition() {
   useEffect(() => {
     let alive = true;
     api.meals.getCategories().catch(() => {});
+    api.meals.getAll({ limit: 52 }).catch(() => {});
     if (!user?.id) return;
     api.meals
       .getDailySummary()
@@ -38,6 +39,21 @@ export default function Nutrition() {
       alive = false;
     };
   }, [user?.id]);
+
+  // Live fetch when clicking meal categories, changing goal or searching
+  useEffect(() => {
+    const t = setTimeout(() => {
+      api.meals
+        .getAll({
+          category: activeCategory !== 'all' ? activeCategory : undefined,
+          goal: selectedGoal !== 'all' ? selectedGoal : undefined,
+          search: searchQuery.trim() || undefined,
+          limit: 52,
+        })
+        .catch(() => {});
+    }, 350);
+    return () => clearTimeout(t);
+  }, [activeCategory, selectedGoal, searchQuery]);
 
   // Active Plan determination
   const activePlanData = useMemo(() => readLS('fx:active-plan-data', null), []);

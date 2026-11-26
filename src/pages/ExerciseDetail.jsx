@@ -8,6 +8,7 @@ import ExerciseCard from '../components/ExerciseCard.jsx';
 import { Paper, Reveal } from '../components/Motion.jsx';
 import { Arrow, ArrowLeft, Heart, Plus } from '../components/Icons.jsx';
 import { asset, partMeta, sample, stopVoice } from '../lib/utils.js';
+import { api } from '../lib/api.js';
 import PageShimmer from '../components/AppSpinner.jsx';
 
 const ease = [0.22, 1, 0.36, 1];
@@ -39,10 +40,19 @@ export default function ExerciseDetail() {
     setI18n(null);
     if (!id) return;
     let alive = true;
-    fetch(asset(`data/steps/${id}.json`))
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => alive && setI18n(d))
-      .catch(() => {});
+    api.exercises
+      .getById(id)
+      .then((data) => {
+        if (alive && data) {
+          if (data.i18n) setI18n(data.i18n);
+        }
+      })
+      .catch(() => {
+        fetch(asset(`data/steps/${id}.json`))
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => alive && setI18n(d))
+          .catch(() => {});
+      });
     return () => {
       alive = false;
     };

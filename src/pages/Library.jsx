@@ -8,6 +8,7 @@ import ExerciseCard from '../components/ExerciseCard.jsx';
 import { Reveal, SplitText } from '../components/Motion.jsx';
 import { Arrow, ArrowLeft, Grid, ListIcon, Search, X, Heart, Plus } from '../components/Icons.jsx';
 import { asset, BODY_PARTS, partMeta, stopVoice } from '../lib/utils.js';
+import { api } from '../lib/api.js';
 import PageShimmer from '../components/AppSpinner.jsx';
 
 export default function Library() {
@@ -29,10 +30,20 @@ export default function Library() {
       return;
     }
     let alive = true;
-    fetch(asset(`data/steps/${selectedEx.id}.json`))
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => alive && setPanelI18n(d))
-      .catch(() => {});
+    api.exercises
+      .getById(selectedEx.id)
+      .then((data) => {
+        if (alive && data) {
+          if (data.i18n) setPanelI18n(data.i18n);
+        }
+      })
+      .catch(() => {
+        // Fallback to local static json if offline
+        fetch(asset(`data/steps/${selectedEx.id}.json`))
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => alive && setPanelI18n(d))
+          .catch(() => {});
+      });
     return () => {
       alive = false;
     };
@@ -184,6 +195,24 @@ export default function Library() {
       prevFiltersRef.current = { query, part, eq, target, fav, sort };
     }
   }, [query, part, eq, target, fav, sort]);
+
+  // Query live backend API for filtered movements and display data in console
+  useEffect(() => {
+    const t = setTimeout(() => {
+      api.exercises
+        .getAll({
+          search: query.trim() || undefined,
+          bodyPart: part || undefined,
+          equipment: eq || undefined,
+          target: target || undefined,
+          sort: sort === 'za' ? 'name_desc' : 'name_asc',
+          limit: pageSize,
+          page: safePage,
+        })
+        .catch(() => {});
+    }, 350);
+    return () => clearTimeout(t);
+  }, [query, part, eq, target, sort, pageSize, safePage]);
 
   const totalPages = Math.max(1, Math.ceil(results.length / pageSize));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
