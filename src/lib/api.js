@@ -347,29 +347,11 @@ export const api = {
   },
 
   // ----------------------------------------------------------------
-  // Nutrition & Meal Planner Module
+  // Nutrition & Recipes Catalog Module
   // ----------------------------------------------------------------
   meals: {
     getAll: (params = {}) => request(`/meals${toQueryString(params)}`),
     getCategories: () => request('/meals/categories'),
     getById: (id) => request(`/meals/${id}`),
-    getFavorites: () => request('/meals/favorites/me'),
-    toggleFavorite: (mealId) =>
-      request(`/meals/favorites/${mealId}`, {
-        method: 'POST',
-      }),
-    getDailySummary: (dateKey) =>
-      request(`/meals/daily-summary${dateKey ? `?dateKey=${dateKey}` : ''}`),
-    getLogs: (dateKey) =>
-      request(`/meals/logs/me${dateKey ? `?dateKey=${dateKey}` : ''}`),
-    logMeal: (data) =>
-      request('/meals/logs', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
-    deleteLog: (logId) =>
-      request(`/meals/logs/${logId}`, {
-        method: 'DELETE',
-      }),
   },
 };

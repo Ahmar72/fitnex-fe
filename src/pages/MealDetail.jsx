@@ -1,22 +1,18 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getMealById, MEALS } from '../data/meals.js';
-import { ArrowLeft, ArrowUpRight, Heart, Check } from '../components/Icons.jsx';
+import { ArrowLeft, ArrowUpRight } from '../components/Icons.jsx';
 import { PLANS } from '../lib/plansData.js';
 import { readLS } from '../lib/utils.js';
 import { api } from '../lib/api.js';
-import { useToast } from '../components/Toast.jsx';
 
 export default function MealDetail() {
   const { mealId } = useParams();
   const navigate = useNavigate();
-  const toast = useToast();
   const meal = useMemo(() => getMealById(mealId), [mealId]);
 
   const [servings, setServings] = useState(1);
   const [imgLoaded, setImgLoaded] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
-  const [logging, setLogging] = useState(false);
 
   // Fetch meal details from API on mount
   useEffect(() => {
@@ -31,53 +27,10 @@ export default function MealDetail() {
       })
       .catch(() => {});
 
-    api.meals
-      .getFavorites()
-      .then((favs) => {
-        if (alive && Array.isArray(favs)) {
-          setIsFavorited(favs.includes(mealId));
-        }
-      })
-      .catch(() => {});
-
     return () => {
       alive = false;
     };
   }, [mealId]);
-
-  const handleLogMeal = async () => {
-    if (!meal) return;
-    setLogging(true);
-    try {
-      await api.meals.logMeal({
-        mealId: meal.id,
-        name: meal.name,
-        category: meal.category,
-        servings,
-        calories: scaledCalories,
-        protein: scaledProtein,
-        carbs: scaledCarbs,
-        fat: scaledFat,
-      });
-      toast(`Logged ${servings}x ${meal.name} to daily food diary!`, 'bolt');
-      api.meals.getDailySummary().catch(() => {});
-    } catch (err) {
-      toast('Could not log meal: ' + err.message, 'alert');
-    } finally {
-      setLogging(false);
-    }
-  };
-
-  const handleToggleFavorite = async () => {
-    if (!meal) return;
-    try {
-      const res = await api.meals.toggleFavorite(meal.id);
-      setIsFavorited((prev) => !prev);
-      toast(res?.message || (!isFavorited ? 'Saved to meal favorites' : 'Removed from favorites'), 'heart');
-    } catch (err) {
-      toast('Could not update favorite: ' + err.message, 'alert');
-    }
-  };
 
   // Active Plan determination
   const activePlanData = useMemo(() => readLS('fx:active-plan-data', null), []);
@@ -210,35 +163,6 @@ export default function MealDetail() {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Action Buttons: Log Meal & Bookmark */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{ flex: 1, height: 42, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-              onClick={handleLogMeal}
-              disabled={logging}
-            >
-              <Check width={16} height={16} /> {logging ? 'Logging...' : `Log ${servings}x to Daily Diary`}
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              style={{
-                height: 42,
-                padding: '0 18px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                ...(isFavorited ? { borderColor: 'var(--hot)', color: 'var(--hot)' } : {}),
-              }}
-              onClick={handleToggleFavorite}
-            >
-              <Heart width={16} height={16} filled={isFavorited} stroke={isFavorited ? 'var(--hot)' : undefined} />
-              {isFavorited ? 'Saved' : 'Save'}
-            </button>
           </div>
         </div>
       </header>
