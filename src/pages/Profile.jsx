@@ -819,7 +819,7 @@ export default function Profile() {
                                   className={`fchip ${prof.units !== 'lb' ? 'active' : ''}`}
                                   onClick={() => {
                                     setProf({ ...prof, units: 'kg' });
-                                    updateUser({ profile: { ...prof, units: 'kg' } });
+                                    updateUser({ profile: { ...prof, units: 'kg' }, weightUnit: 'kg' });
                                     toast('Units set to Metric (kg)', 'bolt');
                                   }}
                                 >
@@ -831,7 +831,7 @@ export default function Profile() {
                                   className={`fchip ${prof.units === 'lb' ? 'active' : ''}`}
                                   onClick={() => {
                                     setProf({ ...prof, units: 'lb' });
-                                    updateUser({ profile: { ...prof, units: 'lb' } });
+                                    updateUser({ profile: { ...prof, units: 'lb' }, weightUnit: 'lbs' });
                                     toast('Units set to Imperial (lb)', 'bolt');
                                   }}
                                 >
