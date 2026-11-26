@@ -19,26 +19,12 @@ export default function Nutrition() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [selectedGoal, setSelectedGoal] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [dailySummary, setDailySummary] = useState(null);
 
-  // Fetch live daily caloric and macro summary from backend
+  // Fetch meals and categories on mount
   useEffect(() => {
-    let alive = true;
     api.meals.getCategories().catch(() => {});
     api.meals.getAll({ limit: 52 }).catch(() => {});
-    if (!user?.id) return;
-    api.meals
-      .getDailySummary()
-      .then((summary) => {
-        if (alive && summary?.targets) {
-          setDailySummary(summary);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [user?.id]);
+  }, []);
 
   // Live fetch when clicking meal categories, changing goal or searching
   useEffect(() => {
@@ -120,43 +106,6 @@ export default function Nutrition() {
 
   return (
     <div className="nutrition-page">
-      {/* Top Hero Banner */}
-      <header className="nutrition-hero">
-        <div className="nutrition-hero-copy">
-          <p className="nutrition-subtitle">
-            Scientifically planned, high-protein meals structured to fuel your workouts, maximize
-            recovery for targeted muscle groups, and hit your daily macro targets.
-          </p>
-        </div>
-
-        <div className="nutrition-stats-strip">
-          <div className="nutri-stat-item">
-            <span className="nutri-stat-val">
-              {dailySummary ? `${dailySummary.consumed?.calories || 0} / ${dailySummary.targets?.calories || 2200} kcal` : `${MEALS.length}`}
-            </span>
-            <span className="nutri-stat-lbl">
-              {dailySummary ? 'Today’s Calorie Budget' : 'Curated Meals'}
-            </span>
-          </div>
-          <div className="nutri-stat-item">
-            <span className="nutri-stat-val">
-              {dailySummary ? `${dailySummary.consumed?.protein || 0} / ${dailySummary.targets?.protein || 150}g` : '20–55g'}
-            </span>
-            <span className="nutri-stat-lbl">
-              {dailySummary ? 'Today’s Protein Target' : 'Protein / Meal'}
-            </span>
-          </div>
-          <div className="nutri-stat-item">
-            <span className="nutri-stat-val">
-              {dailySummary ? `${dailySummary.percentage?.calories || 0}%` : '100%'}
-            </span>
-            <span className="nutri-stat-lbl">
-              {dailySummary ? 'Daily Target Hit' : 'Whole Foods'}
-            </span>
-          </div>
-        </div>
-      </header>
-
       {/* Personalized Recommendation Shelf */}
       <section className="nutrition-rec-shelf" aria-labelledby="rec-meals-title">
         <div className="rec-shelf-header">
