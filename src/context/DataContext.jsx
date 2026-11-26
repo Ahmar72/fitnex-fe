@@ -15,6 +15,7 @@ export function DataProvider({ children }) {
       try {
         // Attempt loading from live backend API first
         const data = await api.exercises.getAll({ limit: 1400 });
+        api.exercises.getFacets().catch(() => {});
         const list = Array.isArray(data) ? data : data?.exercises || [];
         if (alive && list.length > 0) {
           setExercises(list);

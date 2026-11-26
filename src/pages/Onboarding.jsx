@@ -8,6 +8,7 @@ import { Arrow, ArrowLeft, Check, Dumbbell, Flame, Bolt, Trophy, Logo, Up, Down 
 import { GOALS, LEVELS, DEFAULT_PLAN_BY_GOAL } from '../lib/goals.js';
 import { getProgramForUser, DIFFICULTY_CALIBRATION } from '../lib/progressionEngine.js';
 import { asset, readLS, writeLS } from '../lib/utils.js';
+import { api } from '../lib/api.js';
 import '../onboarding.css';
 
 const ease = [0.22, 1, 0.36, 1];
@@ -304,6 +305,9 @@ export default function Onboarding() {
     };
 
     updateUser({ profile: profileData });
+    if (user?.id) {
+      api.onboarding.save(profileData).catch(() => {});
+    }
 
     toast(`Welcome aboard, ${firstName}! Your personalized ${tailoredProgram.name} and calorie target are ready.`, 'bolt');
     navigate('/dashboard', { replace: true });

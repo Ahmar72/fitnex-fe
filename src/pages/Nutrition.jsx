@@ -23,8 +23,9 @@ export default function Nutrition() {
 
   // Fetch live daily caloric and macro summary from backend
   useEffect(() => {
-    if (!user?.id) return;
     let alive = true;
+    api.meals.getCategories().catch(() => {});
+    if (!user?.id) return;
     api.meals
       .getDailySummary()
       .then((summary) => {
